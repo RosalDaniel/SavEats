@@ -649,7 +649,7 @@
 <body>
     <header class="header">
         <div class="nav-container">
-            <a href="#" class="back-btn" id="backToLanding">
+            <a href="home.html" class="back-btn" id="backToLanding">
                 <span class="back-arrow">←</span>
                 Back to Landing
             </a>
@@ -1370,11 +1370,13 @@
             document.getElementById('backToLanding').addEventListener('click', function(e) {
                 e.preventDefault();
                 alert('Navigating back to landing page...');
+                window.location.href = 'home.html';
             });
 
             document.getElementById('loginLink').addEventListener('click', function(e) {
                 e.preventDefault();
                 alert('Navigating to login page...');
+                window.location.href = 'login.html';
             });
 
             // Initialize form
