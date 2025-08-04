@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Listing - Consumer Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Afacad:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Afacad', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 250px;
+            background: url('./images/nav-background.png') center/cover no-repeat;
+            background-color: #2d5016;
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar.mobile-hidden {
+            transform: translateX(-100%);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ffc107;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #333;
+            margin-right: 12px;
+        }
+
+        .user-info h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .user-info p {
+            font-size: 12px;
+            opacity: 0.8;
+            margin: 2px 0 0;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin: 0;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: rgba(255, 255, 255, 0.1);
+            border-left-color: #ffc107;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            fill: currentColor;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 250px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        /* Header */
+        .header {
+            background: #347928;
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .notification-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .notification-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Content Area */
+        .content {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Search and Filter Section */
+        .search-filter-section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            margin-bottom: 30px;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #4a7c59;
+        }
+
+        .search-btn {
+            background: #4a7c59;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .search-btn:hover {
+            background: #2d5016;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .filter-btn {
+            background: #4a7c59;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-btn:hover {
+            background: #2d5016;
+        }
+
+        /* Category Filters */
+        .category-filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .category-btn {
+            padding: 8px 16px;
+            border: 2px solid #4a7c59;
+            background: transparent;
+            color: #4a7c59;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .category-btn.active, .category-btn:hover {
+            background: #4a7c59;
+            color: white;
+        }
+
+        /* Price Range Dropdown */
+        .price-range-dropdown {
+            position: relative;
+        }
+
+        .dropdown-btn {
+            background: white;
+            border: 2px solid #4a7c59;
+            color: #4a7c59;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .dropdown-btn:hover {
+            background: #4a7c59;
+            color: white;
+        }
+
+        /* Food Grid */
+        .food-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .food-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .food-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .food-image {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(45deg, #d2691e, #8b4513);
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        .discount-badge {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: #ff8f00;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .food-info {
+            padding: 20px;
+        }
+
+        .food-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2d5016;
+            margin-bottom: 8px;
+        }
+
+        .food-quantity {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .price-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .current-price {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ff8f00;
+        }
+
+        .original-price {
+            font-size: 16px;
+            color: #999;
+            text-decoration: line-through;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            flex: 1;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #4a7c59;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2d5016;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #4a7c59;
+            border: 1px solid #4a7c59;
+        }
+
+        .btn-secondary:hover {
+            background: #4a7c59;
+            color: white;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 40px;
+        }
+
+        .pagination button {
+            background: white;
+            border: 2px solid #e0e0e0;
+            color: #666;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .pagination button:hover {
+            border-color: #4a7c59;
+            color: #4a7c59;
+        }
+
+        .pagination button.active {
+            background: #4a7c59;
+            border-color: #4a7c59;
+            color: white;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Loading Animation */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        /* Overlay for mobile menu */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.mobile-visible {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .menu-toggle {
+                display: block;
+            }
+            
+            .header {
+                padding: 15px 20px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .search-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .filter-actions {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+            
+            .category-filters {
+                justify-content: center;
+            }
+            
+            .food-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .food-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .card-actions {
+                flex-direction: column;
+            }
+            
+            .pagination {
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+        }
+
+        /* Animation for loading new items */
+        .food-card.loading-animation {
+            animation: slideUp 0.6s ease forwards;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="user-profile">
+                <div class="user-avatar">MJ</div>
+                <div class="user-info">
+                    <h3>Marianne Joy Y. Napisa</h3>
+                    <p>Consumer</p>
+                </div>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="consumer_dashboard.html" class="nav-link" data-page="dashboard">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="foodlisting.html" class="nav-link active" data-page="food-listing">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
+                        </svg>
+                        Food Listing
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="announcement.html" class="nav-link" data-page="announcements">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        Announcements
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="orders">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M7 4V2C7 1.45 7.45 1 8 1h8c.55 0 1 .45 1 1v2h5v2h-2v13c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V6H2V4h5zM9 3v1h6V3H9zM6 6v13h12V6H6z"/>
+                        </svg>
+                        My Orders
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="impact">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                        </svg>
+                        My Impact
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="settings">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.82,11.69,4.82,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                        </svg>
+                        Settings
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="help">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                        </svg>
+                        Help Center
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="logout">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                        </svg>
+                        Logout
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Overlay for mobile -->
+        <div class="overlay" id="overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="menu-toggle" id="menuToggle">☰</button>
+                    <h1>Food Listing</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="notification-btn" id="notificationBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                        </svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Search and Filter Section -->
+                <div class="search-filter-section">
+                    <div class="search-bar">
+                        <input type="text" class="search-input" placeholder="Search..." id="searchInput">
+                        <button class="search-btn" id="searchBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <div class="category-filters">
+                            <button class="category-btn" data-category="all">All</button>
+                            <button class="category-btn active" data-category="grocery">Grocery Store</button>
+                            <button class="category-btn" data-category="bakery">Bakery</button>
+                            <button class="category-btn" data-category="restaurant">Restaurant</button>
+                        </div>
+                        
+                        <div class="price-range-dropdown">
+                            <button class="dropdown-btn" id="priceRangeBtn">
+                                Price Range
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M7 10l5 5 5-5z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <button class="filter-btn" id="sortBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/>
+                            </svg>
+                            Sort
+                        </button>
+                        
+                        <button class="filter-btn" id="filterBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+                            </svg>
+                            Filter
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Food Grid -->
+                <div class="food-grid" id="foodGrid">
+                    <!-- Food items will be dynamically generated here -->
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <button id="prevBtn" disabled>◀ Previous</button>
+                    <button class="active" data-page="1">1</button>
+                    <button data-page="2">2</button>
+                    <button data-page="3">3</button>
+                    <span>...</span>
+                    <button data-page="67">67</button>
+                    <button data-page="68">68</button>
+                    <button id="nextBtn">Next ▶</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Sample food data
+        const foodData = [
+            { id: 1, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "grocery", image: "bread.jpg" },
+            { id: 2, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "grocery", image: "bread.jpg" },
+            { id: 3, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "grocery", image: "bread.jpg" },
+            { id: 4, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "grocery", image: "bread.jpg" },
+            { id: 5, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "grocery", image: "bread.jpg" },
+            { id: 6, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "grocery", image: "bread.jpg" },
+            { id: 7, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "bakery", image: "bread.jpg" },
+            { id: 8, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "bakery", image: "bread.jpg" },
+            { id: 9, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "bakery", image: "bread.jpg" },
+            { id: 10, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "restaurant", image: "bread.jpg" },
+            { id: 11, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "restaurant", image: "bread.jpg" },
+            { id: 12, name: "Joy Bread", quantity: "10 pcs.", currentPrice: 25.00, originalPrice: 50.00, discount: 50, category: "restaurant", image: "bread.jpg" },
+        ];
+
+        // Current state
+        let currentPage = 1;
+        let itemsPerPage = 12;
+        let currentCategory = 'grocery';
+        let filteredData = foodData;
+        let searchQuery = '';
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            renderFoodGrid();
+            setupEventListeners();
+            updatePagination();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Mobile menu functionality
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+
+            menuToggle?.addEventListener('click', toggleMobileMenu);
+            overlay?.addEventListener('click', closeMobileMenu);
+
+            // Search functionality
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn = document.getElementById('searchBtn');
+            
+            searchInput.addEventListener('input', handleSearch);
+            searchBtn.addEventListener('click', handleSearch);
+
+            // Category filters
+            const categoryButtons = document.querySelectorAll('.category-btn');
+            categoryButtons.forEach(btn => {
+                btn.addEventListener('click', handleCategoryFilter);
+            });
+
+            // Navigation
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', handleNavigation);
+            });
+
+            // Pagination
+            setupPaginationListeners();
+
+            // Notification button
+            const notificationBtn = document.getElementById('notificationBtn');
+            notificationBtn?.addEventListener('click', () => {
+                showNotification('No new notifications', 'info');
+            });
+        }
+
+        // Mobile menu functions
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('mobile-visible');
+            overlay.classList.toggle('active');
+            document.body.style.overflow = sidebar.classList.contains('mobile-visible') ? 'hidden' : '';
+        }
+
+        function closeMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.remove('mobile-visible');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Search functionality
+        function handleSearch() {
+            const searchInput = document.getElementById('searchInput');
+            searchQuery = searchInput.value.toLowerCase().trim();
+            filterAndRenderData();
+        }
+
+        // Category filter functionality
+        function handleCategoryFilter(e) {
+            const categoryButtons = document.querySelectorAll('.category-btn');
+            categoryButtons.forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            currentCategory = e.target.getAttribute('data-category');
+            currentPage = 1;
+            filterAndRenderData();
+        }
+
+        // Filter and render data
+        function filterAndRenderData() {
+            filteredData = foodData.filter(item => {
+                const matchesCategory = currentCategory === 'all' || item.category === currentCategory;
+                const matchesSearch = searchQuery === '' || 
+                    item.name.toLowerCase().includes(searchQuery) ||
+                    item.quantity.toLowerCase().includes(searchQuery);
+                return matchesCategory && matchesSearch;
+            });
+            
+            currentPage = 1;
+            renderFoodGrid();
+            updatePagination();
+        }
+
+        // Render food grid
+        function renderFoodGrid() {
+            const foodGrid = document.getElementById('foodGrid');
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const itemsToShow = filteredData.slice(startIndex, endIndex);
+
+            foodGrid.innerHTML = '';
+
+            itemsToShow.forEach((item, index) => {
+                const foodCard = createFoodCard(item);
+                foodCard.style.animationDelay = `${index * 0.1}s`;
+                foodCard.classList.add('loading-animation');
+                foodGrid.appendChild(foodCard);
+            });
+
+            // Show no results message if needed
+            if (itemsToShow.length === 0) {
+                foodGrid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #666;">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="#ccc" style="margin-bottom: 20px;">
+                            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                        </svg>
+                        <h3 style="margin-bottom: 10px;">No food items found</h3>
+                        <p>Try adjusting your search or filter criteria</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Create food card element
+        function createFoodCard(item) {
+            const card = document.createElement('div');
+            card.className = 'food-card';
+            card.innerHTML = `
+                <div class="food-image">
+                    <div class="discount-badge">${item.discount}% off</div>
+                </div>
+                <div class="food-info">
+                    <div class="food-name">${item.name}</div>
+                    <div class="food-quantity">${item.quantity}</div>
+                    <div class="price-section">
+                        <div class="current-price">₱ ${item.currentPrice.toFixed(2)}</div>
+                        <div class="original-price">₱ ${item.originalPrice.toFixed(2)}</div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary" onclick="buyNow(${item.id})">Buy Now</button>
+                        <button class="btn btn-secondary" onclick="viewDetails(${item.id})">View Details</button>
+                    </div>
+                </div>
+            `;
+
+            // Add click event for card hover effect
+            card.addEventListener('click', () => viewDetails(item.id));
+            
+            return card;
+        }
+
+        // Pagination setup
+        function setupPaginationListeners() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            prevBtn?.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderFoodGrid();
+                    updatePagination();
+                    scrollToTop();
+                }
+            });
+
+            nextBtn?.addEventListener('click', () => {
+                const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderFoodGrid();
+                    updatePagination();
+                    scrollToTop();
+                }
+            });
+
+            // Page number buttons
+            document.addEventListener('click', (e) => {
+                if (e.target.hasAttribute('data-page')) {
+                    const page = parseInt(e.target.getAttribute('data-page'));
+                    if (page !== currentPage) {
+                        currentPage = page;
+                        renderFoodGrid();
+                        updatePagination();
+                        scrollToTop();
+                    }
+                }
+            });
+        }
+
+        // Update pagination display
+        function updatePagination() {
+            const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+            const pagination = document.getElementById('pagination');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            // Update button states
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+
+            // Update page numbers
+            pagination.innerHTML = `
+                <button id="prevBtn" ${currentPage === 1 ? 'disabled' : ''}>◀ Previous</button>
+                ${generatePageNumbers(currentPage, totalPages)}
+                <button id="nextBtn" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}>Next ▶</button>
+            `;
+
+            // Re-attach event listeners
+            setupPaginationListeners();
+        }
+
+        // Generate page numbers for pagination
+        function generatePageNumbers(current, total) {
+            let pages = [];
+            
+            if (total <= 7) {
+                for (let i = 1; i <= total; i++) {
+                    pages.push(`<button ${i === current ? 'class="active"' : ''} data-page="${i}">${i}</button>`);
+                }
+            } else {
+                pages.push(`<button ${1 === current ? 'class="active"' : ''} data-page="1">1</button>`);
+                
+                if (current > 3) {
+                    pages.push(`<span>...</span>`);
+                }
+                
+                let start = Math.max(2, current - 1);
+                let end = Math.min(total - 1, current + 1);
+                
+                for (let i = start; i <= end; i++) {
+                    pages.push(`<button ${i === current ? 'class="active"' : ''} data-page="${i}">${i}</button>`);
+                }
+                
+                if (current < total - 2) {
+                    pages.push(`<span>...</span>`);
+                }
+                
+                if (total > 1) {
+                    pages.push(`<button ${total === current ? 'class="active"' : ''} data-page="${total}">${total}</button>`);
+                }
+            }
+            
+            return pages.join('');
+        }
+
+        // Scroll to top
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Action functions
+        function buyNow(itemId) {
+            const item = foodData.find(i => i.id === itemId);
+            showNotification(`Added "${item.name}" to cart!`, 'success');
+            
+            // Animate button
+            event.stopPropagation();
+            const button = event.target;
+            simulateLoading(button, 1000);
+        }
+
+        function viewDetails(itemId) {
+            const item = foodData.find(i => i.id === itemId);
+            showNotification(`Opening details for "${item.name}"...`, 'info');
+            
+            if (event) {
+                event.stopPropagation();
+            }
+        }
+
+        // Navigation handling
+        function handleNavigation(e) {
+            e.preventDefault();
+            
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(l => l.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            const page = e.target.getAttribute('data-page');
+            
+            if (window.innerWidth <= 768) {
+                closeMobileMenu();
+            }
+            
+            if (page === 'dashboard') {
+                // Redirect to dashboard (in a real app, you'd use routing)
+                showNotification('Redirecting to Dashboard...', 'info');
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html'; // or your dashboard file
+                }, 1000);
+            } else if (page !== 'food-listing') {
+                showPlaceholderContent(page);
+            }
+        }
+
+        // Show placeholder content for other pages
+        function showPlaceholderContent(page) {
+            const content = document.querySelector('.content');
+            const pageNames = {
+                'announcements': 'Announcements',
+                'orders': 'My Orders',
+                'impact': 'My Impact',
+                'settings': 'Settings',
+                'help': 'Help Center',
+                'logout': 'Logout'
+            };
+            
+            content.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px;">
+                    <h2 style="color: #2d5016; margin-bottom: 20px; font-size: 28px;">${pageNames[page]}</h2>
+                    <p style="color: #666; font-size: 18px; margin-bottom: 30px;">This page is under construction.</p>
+                    <div style="background: #f8f9fa; border-radius: 12px; padding: 40px; border: 2px dashed #dee2e6;">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="#adb5bd" style="margin-bottom: 20px;">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <p style="color: #6c757d; margin: 0;">Content for ${pageNames[page]} will be added here.</p>
+                    </div>
+                    <button onclick="location.reload()" style="background: #4a7c59; color: white; border: none; padding: 12px 24px; border-radius: 8px; margin-top: 20px; cursor: pointer; font-weight: 600;">
+                        ← Back to Food Listing
+                    </button>
+                </div>
+            `;
+        }
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const existingNotification = document.querySelector('.notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 10000;
+                transform: translateX(400px);
+                transition: transform 0.3s ease;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            `;
+            
+            const backgrounds = {
+                'success': '#4caf50',
+                'error': '#f44336',
+                'warning': '#ff9800',
+                'info': '#2196f3'
+            };
+            notification.style.background = backgrounds[type] || backgrounds.info;
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 10);
+            
+            setTimeout(() => {
+                notification.style.transform = 'translateX(400px)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Loading simulation
+        function simulateLoading(button, duration = 1000) {
+            const originalText = button.textContent;
+            button.classList.add('loading');
+            button.textContent = 'Loading...';
+            button.disabled = true;
+            
+            setTimeout(() => {
+                button.classList.remove('loading');
+                button.textContent = originalText;
+                button.disabled = false;
+            }, duration);
+        }
+
+        // Responsive handling
+        function handleResize() {
+            if (window.innerWidth > 768) {
+                closeMobileMenu();
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeMobileMenu();
+            }
+            
+            // Arrow key navigation for pagination
+            if (e.key === 'ArrowLeft' && currentPage > 1) {
+                currentPage--;
+                renderFoodGrid();
+                updatePagination();
+                scrollToTop();
+            }
+            
+            if (e.key === 'ArrowRight') {
+                const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderFoodGrid();
+                    updatePagination();
+                    scrollToTop();
+                }
+            }
+        });
+
+        // Initialize
+        console.log('Food Listing page initialized successfully!');
+    </script>
+</body>
+</html>

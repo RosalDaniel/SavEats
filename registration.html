@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - SavEats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Afacad:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Afacad', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: url('./images/background.png') center/cover no-repeat;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Header Styles */
+        .header {
+            background: transparent;
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+        }
+
+        .nav-container {
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: #347928;
+            font-weight: 500;
+            padding: 0.3rem 1rem;
+            border: 2px solid #347928;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 121, 40, 0.2);
+        }
+
+        .back-arrow {
+            font-size: 1rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 6rem 2rem 2rem;
+        }
+
+        .register-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .register-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .saveats-logo {
+            width: 150px;
+            height: auto;
+            display: block;
+            margin: 0 auto 1rem auto;
+            color: #347928;
+        }
+
+        .welcome-text {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #347928;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .subtitle-text {
+            font-size: 1rem;
+            color: #666;
+            margin: 0;
+        }
+
+        /* Step Navigation */
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 2rem;
+            gap: 1rem;
+        }
+
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            background: #347928;
+            color: white;
+        }
+
+        .step.completed {
+            background: #10b981;
+            color: white;
+        }
+
+        .step.inactive {
+            background: #e5e7eb;
+            color: #9ca3af;
+        }
+
+        .step-connector {
+            width: 30px;
+            height: 2px;
+            background: #e5e7eb;
+            transition: all 0.3s ease;
+        }
+
+        .step-connector.completed {
+            background: #10b981;
+        }
+
+        /* Account Type Selection */
+        .account-types {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .account-type {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            border: 2px solid #e1e8ed;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .account-type:hover {
+            border-color: #347928;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(52, 121, 40, 0.1);
+        }
+
+        .account-type.selected {
+            border-color: #347928;
+            background: rgba(52, 121, 40, 0.05);
+        }
+
+        .account-type-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: #C0EBA6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .account-type-info {
+            flex: 1;
+        }
+
+        .account-type-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #347928;
+            margin-bottom: 0.25rem;
+        }
+
+        .account-type-desc {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Form Steps */
+        .form-step {
+            display: none;
+        }
+
+        .form-step.active {
+            display: block;
+        }
+
+        .register-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .form-row.three-col {
+            grid-template-columns: 2fr 1.5fr 2fr;
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 900px) {
+            .form-row.three-col {
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+            }
+
+            .form-row.three-col .form-group:nth-child(3) {
+                grid-column: 1 / -1;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: #2d5a3d;
+            font-size: 0.95rem;
+        }
+
+        .form-label.required::after {
+            content: ' *';
+            color: #ef4444;
+        }
+
+        .form-input, .form-select {
+            padding: 1rem 1.25rem;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #347928;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(52, 121, 40, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .form-input::placeholder {
+            color: #9ca3af;
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            cursor: pointer;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-upload-input {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-upload-label {
+            padding: 1rem 1.25rem;
+            border: 2px dashed #e1e8ed;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #666;
+        }
+
+        .file-upload-label:hover {
+            border-color: #347928;
+            background: rgba(52, 121, 40, 0.05);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: #347928;
+            margin-top: 0.1rem;
+        }
+
+        .checkbox-label {
+            font-size: 0.9rem;
+            color: #555;
+            cursor: pointer;
+            line-height: 1.4;
+        }
+
+        .checkbox-label a {
+            color: #347928;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .checkbox-label a:hover {
+            text-decoration: underline;
+        }
+
+        /* Buttons */
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            flex: 1;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #347928, #4a7c59);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #666;
+            border: 2px solid #e1e8ed;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(52, 121, 40, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        /* Loading state */
+        .btn.loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .btn.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error states */
+        .form-input.error, .form-select.error {
+            border-color: #ef4444;
+            background-color: #fef2f2;
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+            display: none;
+        }
+
+        .form-group.has-error .error-message {
+            display: block;
+        }
+
+        /* Success message */
+        .success-message {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            text-align: center;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .login-link a {
+            color: #347928;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .login-link a:hover {
+            color: #2d5a3d;
+            text-decoration: underline;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .nav-container {
+                padding: 0 1rem;
+            }
+
+            .main-content {
+                padding: 5rem 1rem 2rem;
+            }
+
+            .register-container {
+                padding: 2rem 1.5rem;
+                margin: 1rem 0;
+            }
+
+            .welcome-text {
+                font-size: 1.4rem;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row.three-col {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row.three-col .form-group:nth-child(3) {
+                grid-column: auto;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .step-indicator {
+                gap: 0.5rem;
+            }
+
+            .step {
+                width: 35px;
+                height: 35px;
+                font-size: 0.8rem;
+            }
+
+            .step-connector {
+                width: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 0.75rem 0;
+            }
+
+            .register-container {
+                padding: 1.5rem 1rem;
+                border-radius: 20px;
+            }
+
+            .welcome-text {
+                font-size: 1.2rem;
+            }
+
+            .back-btn {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.9rem;
+            }
+
+            .account-type {
+                padding: 1rem;
+            }
+
+            .account-type-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus visible for keyboard navigation */
+        .form-input:focus-visible,
+        .form-select:focus-visible,
+        .btn:focus-visible,
+        .back-btn:focus-visible,
+        .account-type:focus-visible {
+            outline: 2px solid #347928;
+            outline-offset: 2px;
+        }
+
+        .account-type {
+            position: relative;
+        }
+
+        .account-type input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="nav-container">
+            <a href="#" class="back-btn" id="backToLanding">
+                <span class="back-arrow">←</span>
+                Back to Landing
+            </a>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="register-container">
+            <div class="register-header">
+                <img src="./images/SavEats-Logo.png" alt="SaveAts Logo" class="saveats-logo">
+                <h1 class="welcome-text">JOIN THE MOVEMENT</h1>
+                <p class="subtitle-text">Choose your role in fighting food waste</p>
+            </div>
+
+            <div class="step-indicator">
+                <div class="step active" id="step1">1</div>
+                <div class="step-connector" id="connector1"></div>
+                <div class="step inactive" id="step2">2</div>
+                <div class="step-connector" id="connector2"></div>
+                <div class="step inactive" id="step3">3</div>
+            </div>
+
+            <div class="success-message" id="successMessage">
+                Account created successfully! Welcome to SavEats!
+            </div>
+
+            <form class="register-form" id="registerForm" novalidate>
+                <!-- Step 1: Account Type Selection -->
+                <div class="form-step active" id="formStep1">
+                    <h2 style="text-align: center; color: #347928; font-size: 1.3rem; margin-bottom: 1.5rem;">SELECT ACCOUNT TYPE</h2>
+                    
+                    <div class="account-types">
+                        <label class="account-type" for="consumer">
+                            <input type="radio" id="consumer" name="accountType" value="consumer" required>
+                            <div class="account-type-icon">👤</div>
+                            <div class="account-type-info">
+                                <div class="account-type-title">Consumers</div>
+                                <div class="account-type-desc">Save money while reducing food waste</div>
+                            </div>
+                        </label>
+
+                        <label class="account-type" for="business">
+                            <input type="radio" id="business" name="accountType" value="business" required>
+                            <div class="account-type-icon">📦</div>
+                            <div class="account-type-info">
+                                <div class="account-type-title">Food Business</div>
+                                <div class="account-type-desc">List surplus food and reach more customers</div>
+                            </div>
+                        </label>
+
+                        <label class="account-type" for="foodbank">
+                            <input type="radio" id="foodbank" name="accountType" value="foodbank" required>
+                            <div class="account-type-icon">🏢</div>
+                            <div class="account-type-info">
+                                <div class="account-type-title">Food Bank</div>
+                                <div class="account-type-desc">Connect with food donations and volunteers</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" id="nextStep1">Continue</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Basic Information -->
+                <div class="form-step" id="formStep2">
+                    <h2 style="text-align: center; color: #347928; font-size: 1.3rem; margin-bottom: 1.5rem;" id="step2Title">BASIC INFORMATION</h2>
+                    
+                    <div id="step2Content">
+                        <!-- Dynamic content will be inserted here -->
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" id="prevStep2">Back</button>
+                        <button type="button" class="btn btn-primary" id="nextStep2">Continue</button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Account Setup -->
+                <div class="form-step" id="formStep3">
+                    <h2 style="text-align: center; color: #347928; font-size: 1.3rem; margin-bottom: 1.5rem;">ACCOUNT SETUP</h2>
+                    
+                    <div class="form-group full-width">
+                        <label for="username" class="form-label required">Username</label>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            class="form-input" 
+                            placeholder="Choose a username"
+                            required
+                            autocomplete="username"
+                            aria-describedby="username-error"
+                        >
+                        <div class="error-message" id="username-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="password" class="form-label required">Password</label>
+                            <input 
+                                type="password" 
+                                id="password" 
+                                name="password" 
+                                class="form-input" 
+                                placeholder="Create password"
+                                required
+                                autocomplete="new-password"
+                                aria-describedby="password-error"
+                            >
+                            <div class="error-message" id="password-error" role="alert"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="confirmPassword" class="form-label required">Confirm Password</label>
+                            <input 
+                                type="password" 
+                                id="confirmPassword" 
+                                name="confirmPassword" 
+                                class="form-input" 
+                                placeholder="Confirm password"
+                                required
+                                autocomplete="new-password"
+                                aria-describedby="confirmPassword-error"
+                            >
+                            <div class="error-message" id="confirmPassword-error" role="alert"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="location" class="form-label required">Location</label>
+                        <input 
+                            type="text" 
+                            id="location" 
+                            name="location" 
+                            class="form-input" 
+                            placeholder="Enter your city or area"
+                            required
+                            autocomplete="address-level2"
+                            aria-describedby="location-error"
+                        >
+                        <div class="error-message" id="location-error" role="alert"></div>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="terms" name="terms" class="checkbox" required>
+                        <label for="terms" class="checkbox-label">
+                            I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a>
+                        </label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="newsletter" name="newsletter" class="checkbox">
+                        <label for="newsletter" class="checkbox-label">
+                            I'd like to receive updates about SavEats and food waste reduction tips
+                        </label>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" id="prevStep3">Back</button>
+                        <button type="submit" class="btn btn-primary" id="registerBtn">Create Account</button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="login-link">
+                Already have an account? <a href="#" id="loginLink">Login Here</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('registerForm');
+            const steps = document.querySelectorAll('.form-step');
+            const stepIndicators = document.querySelectorAll('.step');
+            const connectors = document.querySelectorAll('.step-connector');
+            const successMessage = document.getElementById('successMessage');
+            const step2Content = document.getElementById('step2Content');
+            
+            let currentStep = 1;
+            let selectedAccountType = '';
+
+            // Form templates for different account types
+            const formTemplates = {
+                consumer: `
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="firstName" class="form-label required">First Name</label>
+                            <input 
+                                type="text" 
+                                id="firstName" 
+                                name="firstName" 
+                                class="form-input" 
+                                placeholder="Enter first name"
+                                required
+                                autocomplete="given-name"
+                                aria-describedby="firstName-error"
+                            >
+                            <div class="error-message" id="firstName-error" role="alert"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="middleName" class="form-label">Middle Name (optional)</label>
+                            <input 
+                                type="text" 
+                                id="middleName" 
+                                name="middleName" 
+                                class="form-input" 
+                                placeholder="Enter middle name"
+                                autocomplete="additional-name"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="lastName" class="form-label required">Last Name</label>
+                        <input 
+                            type="text" 
+                            id="lastName" 
+                            name="lastName" 
+                            class="form-input" 
+                            placeholder="Enter last name"
+                            required
+                            autocomplete="family-name"
+                            aria-describedby="lastName-error"
+                        >
+                        <div class="error-message" id="lastName-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="email" class="form-label required">Email Address</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            class="form-input" 
+                            placeholder="Enter email address"
+                            required
+                            autocomplete="email"
+                            aria-describedby="email-error"
+                        >
+                        <div class="error-message" id="email-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="phone" class="form-label required">Phone Number</label>
+                        <input 
+                            type="tel" 
+                            id="phone" 
+                            name="phone" 
+                            class="form-input" 
+                            placeholder="Enter phone number"
+                            required
+                            autocomplete="tel"
+                            aria-describedby="phone-error"
+                        >
+                        <div class="error-message" id="phone-error" role="alert"></div>
+                    </div>
+                `,
+                business: `
+                    <div class="form-group full-width">
+                        <label for="businessName" class="form-label required">Business Name</label>
+                        <input 
+                            type="text" 
+                            id="businessName" 
+                            name="businessName" 
+                            class="form-input" 
+                            placeholder="Enter Business Name"
+                            required
+                            aria-describedby="businessName-error"
+                        >
+                        <div class="error-message" id="businessName-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="businessType" class="form-label required">Business Type</label>
+                        <select 
+                            id="businessType" 
+                            name="businessType" 
+                            class="form-select" 
+                            required
+                            aria-describedby="businessType-error"
+                        >
+                            <option value="">Choose Business Type</option>
+                            <option value="restaurant">Restaurant</option>
+                            <option value="bakery">Bakery</option>
+                            <option value="grocery">Grocery Store</option>
+                            <option value="cafe">Cafe</option>
+                            <option value="catering">Catering Service</option>
+                            <option value="food-truck">Food Truck</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <div class="error-message" id="businessType-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="birCertificate" class="form-label required">Upload BIR Certificate</label>
+                        <div class="file-upload-wrapper">
+                            <input 
+                                type="file" 
+                                id="birCertificate" 
+                                name="birCertificate" 
+                                class="file-upload-input"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                required
+                                aria-describedby="birCertificate-error"
+                            >
+                            <label for="birCertificate" class="file-upload-label">
+                                📄 Choose BIR Certificate file
+                            </label>
+                        </div>
+                        <div class="error-message" id="birCertificate-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="email" class="form-label required">Email Address</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            class="form-input" 
+                            placeholder="Enter email address"
+                            required
+                            autocomplete="email"
+                            aria-describedby="email-error"
+                        >
+                        <div class="error-message" id="email-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="phone" class="form-label required">Phone Number</label>
+                        <input 
+                            type="tel" 
+                            id="phone" 
+                            name="phone" 
+                            class="form-input" 
+                            placeholder="Enter phone number"
+                            required
+                            autocomplete="tel"
+                            aria-describedby="phone-error"
+                        >
+                        <div class="error-message" id="phone-error" role="alert"></div>
+                    </div>
+                `,
+                foodbank: `
+                    <div class="form-group full-width">
+                        <label for="organizationName" class="form-label required">Organization Name</label>
+                        <input 
+                            type="text" 
+                            id="organizationName" 
+                            name="organizationName" 
+                            class="form-input" 
+                            placeholder="Enter your Organization Name"
+                            required
+                            aria-describedby="organizationName-error"
+                        >
+                        <div class="error-message" id="organizationName-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="serviceArea" class="form-label required">Service Area</label>
+                        <input 
+                            type="text" 
+                            id="serviceArea" 
+                            name="serviceArea" 
+                            class="form-input" 
+                            placeholder="Enter Service Area"
+                            required
+                            aria-describedby="serviceArea-error"
+                        >
+                        <div class="error-message" id="serviceArea-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="orgRegistration" class="form-label required">Upload Org. Registration No.</label>
+                        <div class="file-upload-wrapper">
+                            <input 
+                                type="file" 
+                                id="orgRegistration" 
+                                name="orgRegistration" 
+                                class="file-upload-input"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                required
+                                aria-describedby="orgRegistration-error"
+                            >
+                            <label for="orgRegistration" class="file-upload-label">
+                                📄 Choose Registration file
+                            </label>
+                        </div>
+                        <div class="error-message" id="orgRegistration-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="email" class="form-label required">Email Address</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            class="form-input" 
+                            placeholder="Enter email address"
+                            required
+                            autocomplete="email"
+                            aria-describedby="email-error"
+                        >
+                        <div class="error-message" id="email-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="phone" class="form-label required">Phone Number</label>
+                        <input 
+                            type="tel" 
+                            id="phone" 
+                            name="phone" 
+                            class="form-input" 
+                            placeholder="Enter phone number"
+                            required
+                            autocomplete="tel"
+                            aria-describedby="phone-error"
+                        >
+                        <div class="error-message" id="phone-error" role="alert"></div>
+                    </div>
+                `
+            };
+
+            // Form titles for different account types
+            const formTitles = {
+                consumer: 'PERSONAL INFORMATION',
+                business: 'BUSINESS INFORMATION',
+                foodbank: 'ORGANIZATION INFORMATION'
+            };
+
+            // Account type selection
+            const accountTypes = document.querySelectorAll('input[name="accountType"]');
+            accountTypes.forEach(type => {
+                type.addEventListener('change', function() {
+                    // Remove selected class from all account types
+                    document.querySelectorAll('.account-type').forEach(at => {
+                        at.classList.remove('selected');
+                    });
+                    
+                    // Add selected class to chosen type
+                    this.closest('.account-type').classList.add('selected');
+                    selectedAccountType = this.value;
+                });
+            });
+
+            // Update step 2 content based on account type
+            function updateStep2Content(accountType) {
+                const step2Title = document.getElementById('step2Title');
+                step2Title.textContent = formTitles[accountType];
+                step2Content.innerHTML = formTemplates[accountType];
+                
+                // Update file upload labels when files are selected
+                const fileInputs = step2Content.querySelectorAll('.file-upload-input');
+                fileInputs.forEach(input => {
+                    input.addEventListener('change', function() {
+                        const label = this.nextElementSibling;
+                        if (this.files.length > 0) {
+                            label.textContent = `📄 ${this.files[0].name}`;
+                            label.style.color = '#347928';
+                        } else {
+                            label.textContent = label.getAttribute('data-original-text') || '📄 Choose file';
+                            label.style.color = '#666';
+                        }
+                    });
+                });
+            }
+
+            // Step navigation functions
+            function updateStepIndicators(step) {
+                stepIndicators.forEach((indicator, index) => {
+                    const stepNum = index + 1;
+                    
+                    if (stepNum < step) {
+                        indicator.className = 'step completed';
+                    } else if (stepNum === step) {
+                        indicator.className = 'step active';
+                    } else {
+                        indicator.className = 'step inactive';
+                    }
+                });
+
+                connectors.forEach((connector, index) => {
+                    if (index + 1 < step) {
+                        connector.classList.add('completed');
+                    } else {
+                        connector.classList.remove('completed');
+                    }
+                });
+            }
+
+            function showStep(step) {
+                steps.forEach((stepEl, index) => {
+                    stepEl.classList.toggle('active', index + 1 === step);
+                });
+                updateStepIndicators(step);
+                currentStep = step;
+            }
+
+            // Validation functions
+            function validateEmail(email) {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+            }
+
+            function validatePhone(phone) {
+                const re = /^[\+]?[1-9][\d]{0,15}$/;
+                return re.test(phone.replace(/\s+/g, ''));
+            }
+
+            function validatePassword(password) {
+                return password.length >= 8;
+            }
+
+            function validateField(input, errorId, validationFn, errorMessage) {
+                const errorElement = document.getElementById(errorId);
+                const formGroup = input.closest('.form-group');
+                
+                if (!validationFn(input.value.trim())) {
+                    input.classList.add('error');
+                    formGroup.classList.add('has-error');
+                    errorElement.textContent = errorMessage;
+                    return false;
+                } else {
+                    input.classList.remove('error');
+                    formGroup.classList.remove('has-error');
+                    errorElement.textContent = '';
+                    return true;
+                }
+            }
+
+            function validateStep1() {
+                return selectedAccountType !== '';
+            }
+
+            function validateStep2() {
+                let validations = [];
+                
+                if (selectedAccountType === 'consumer') {
+                    const firstName = document.getElementById('firstName');
+                    const lastName = document.getElementById('lastName');
+                    const email = document.getElementById('email');
+                    const phone = document.getElementById('phone');
+
+                    validations = [
+                        validateField(firstName, 'firstName-error', val => val.length >= 2, 'First name must be at least 2 characters'),
+                        validateField(lastName, 'lastName-error', val => val.length >= 2, 'Last name must be at least 2 characters'),
+                        validateField(email, 'email-error', validateEmail, 'Please enter a valid email address'),
+                        validateField(phone, 'phone-error', validatePhone, 'Please enter a valid phone number')
+                    ];
+                } else if (selectedAccountType === 'business') {
+                    const businessName = document.getElementById('businessName');
+                    const businessType = document.getElementById('businessType');
+                    const birCertificate = document.getElementById('birCertificate');
+                    const email = document.getElementById('email');
+                    const phone = document.getElementById('phone');
+
+                    validations = [
+                        validateField(businessName, 'businessName-error', val => val.length >= 2, 'Business name must be at least 2 characters'),
+                        validateField(businessType, 'businessType-error', val => val !== '', 'Please select a business type'),
+                        validateField(email, 'email-error', validateEmail, 'Please enter a valid email address'),
+                        validateField(phone, 'phone-error', validatePhone, 'Please enter a valid phone number')
+                    ];
+
+                    // Validate file upload
+                    if (birCertificate.files.length === 0) {
+                        const errorElement = document.getElementById('birCertificate-error');
+                        const formGroup = birCertificate.closest('.form-group');
+                        formGroup.classList.add('has-error');
+                        errorElement.textContent = 'Please upload your BIR Certificate';
+                        validations.push(false);
+                    } else {
+                        const errorElement = document.getElementById('birCertificate-error');
+                        const formGroup = birCertificate.closest('.form-group');
+                        formGroup.classList.remove('has-error');
+                        errorElement.textContent = '';
+                        validations.push(true);
+                    }
+                } else if (selectedAccountType === 'foodbank') {
+                    const organizationName = document.getElementById('organizationName');
+                    const serviceArea = document.getElementById('serviceArea');
+                    const orgRegistration = document.getElementById('orgRegistration');
+                    const email = document.getElementById('email');
+                    const phone = document.getElementById('phone');
+
+                    validations = [
+                        validateField(organizationName, 'organizationName-error', val => val.length >= 2, 'Organization name must be at least 2 characters'),
+                        validateField(serviceArea, 'serviceArea-error', val => val.length >= 2, 'Service area must be at least 2 characters'),
+                        validateField(email, 'email-error', validateEmail, 'Please enter a valid email address'),
+                        validateField(phone, 'phone-error', validatePhone, 'Please enter a valid phone number')
+                    ];
+
+                    // Validate file upload
+                    if (orgRegistration.files.length === 0) {
+                        const errorElement = document.getElementById('orgRegistration-error');
+                        const formGroup = orgRegistration.closest('.form-group');
+                        formGroup.classList.add('has-error');
+                        errorElement.textContent = 'Please upload your Organization Registration';
+                        validations.push(false);
+                    } else {
+                        const errorElement = document.getElementById('orgRegistration-error');
+                        const formGroup = orgRegistration.closest('.form-group');
+                        formGroup.classList.remove('has-error');
+                        errorElement.textContent = '';
+                        validations.push(true);
+                    }
+                }
+
+                return validations.every(valid => valid);
+            }
+
+            function validateStep3() {
+                const username = document.getElementById('username');
+                const password = document.getElementById('password');
+                const confirmPassword = document.getElementById('confirmPassword');
+                const location = document.getElementById('location');
+                const terms = document.getElementById('terms');
+
+                const validations = [
+                    validateField(username, 'username-error', val => val.length >= 3, 'Username must be at least 3 characters'),
+                    validateField(password, 'password-error', validatePassword, 'Password must be at least 8 characters'),
+                    validateField(confirmPassword, 'confirmPassword-error', val => val === password.value, 'Passwords do not match'),
+                    validateField(location, 'location-error', val => val.length >= 2, 'Please enter your location')
+                ];
+
+                if (!terms.checked) {
+                    alert('Please accept the Terms of Service to continue.');
+                    return false;
+                }
+
+                return validations.every(valid => valid);
+            }
+
+            // Step navigation event listeners
+            document.getElementById('nextStep1').addEventListener('click', function() {
+                if (validateStep1()) {
+                    updateStep2Content(selectedAccountType);
+                    showStep(2);
+                } else {
+                    alert('Please select an account type to continue.');
+                }
+            });
+
+            document.getElementById('nextStep2').addEventListener('click', function() {
+                if (validateStep2()) {
+                    showStep(3);
+                }
+            });
+
+            document.getElementById('prevStep2').addEventListener('click', function() {
+                showStep(1);
+            });
+
+            document.getElementById('prevStep3').addEventListener('click', function() {
+                showStep(2);
+            });
+
+            // Form submission
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (validateStep3()) {
+                    const registerBtn = document.getElementById('registerBtn');
+                    registerBtn.classList.add('loading');
+                    registerBtn.disabled = true;
+
+                    // Collect form data based on account type
+                    let finalFormData = {
+                        accountType: selectedAccountType,
+                        username: document.getElementById('username').value.trim(),
+                        password: document.getElementById('password').value,
+                        location: document.getElementById('location').value.trim(),
+                        email: document.getElementById('email').value.trim(),
+                        phone: document.getElementById('phone').value.trim(),
+                        terms: document.getElementById('terms').checked,
+                        newsletter: document.getElementById('newsletter').checked
+                    };
+
+                    // Add specific fields based on account type
+                    if (selectedAccountType === 'consumer') {
+                        finalFormData.firstName = document.getElementById('firstName').value.trim();
+                        finalFormData.middleName = document.getElementById('middleName').value.trim();
+                        finalFormData.lastName = document.getElementById('lastName').value.trim();
+                    } else if (selectedAccountType === 'business') {
+                        finalFormData.businessName = document.getElementById('businessName').value.trim();
+                        finalFormData.businessType = document.getElementById('businessType').value;
+                        finalFormData.birCertificate = document.getElementById('birCertificate').files[0];
+                    } else if (selectedAccountType === 'foodbank') {
+                        finalFormData.organizationName = document.getElementById('organizationName').value.trim();
+                        finalFormData.serviceArea = document.getElementById('serviceArea').value.trim();
+                        finalFormData.orgRegistration = document.getElementById('orgRegistration').files[0];
+                    }
+
+                    // Simulate API call
+                    setTimeout(() => {
+                        console.log('Registration Data:', finalFormData);
+                        
+                        // Show success message
+                        successMessage.classList.add('show');
+                        form.style.display = 'none';
+                        
+                        // Reset button state
+                        registerBtn.classList.remove('loading');
+                        registerBtn.disabled = false;
+                        
+                        // Redirect after 3 seconds
+                        setTimeout(() => {
+                            alert('Registration successful! Redirecting to login...');
+                        }, 3000);
+                        
+                    }, 2000);
+                }
+            });
+
+            // Navigation event listeners
+            document.getElementById('backToLanding').addEventListener('click', function(e) {
+                e.preventDefault();
+                alert('Navigating back to landing page...');
+            });
+
+            document.getElementById('loginLink').addEventListener('click', function(e) {
+                e.preventDefault();
+                alert('Navigating to login page...');
+            });
+
+            // Initialize form
+            showStep(1);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Announcements - Consumer Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Afacad:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Afacad', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(135deg, #2d5016 0%, #4a7c59 100%);
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar.mobile-hidden {
+            transform: translateX(-100%);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ffc107;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #333;
+            margin-right: 12px;
+        }
+
+        .user-info h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .user-info p {
+            font-size: 12px;
+            opacity: 0.8;
+            margin: 2px 0 0;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin: 0;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: rgba(255, 255, 255, 0.1);
+            border-left-color: #ffc107;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            fill: currentColor;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 250px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        /* Header */
+        .header {
+            background: #347928;
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .notification-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            position: relative;
+        }
+
+        .notification-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff4444;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        /* Content Area */
+        .content {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Announcements Header */
+        .announcements-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .announcements-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .announcements-title h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d5016;
+        }
+
+        .news-badge {
+            background: #ffc107;
+            color: #333;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .header-actions-announcements {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .action-btn {
+            background: #4a7c59;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-btn:hover {
+            background: #2d5016;
+        }
+
+        /* Search Bar */
+        .search-section {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            margin-bottom: 30px;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #4a7c59;
+        }
+
+        .search-btn {
+            background: #4a7c59;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .search-btn:hover {
+            background: #2d5016;
+        }
+
+        /* Announcements Section */
+        .announcements-section {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            overflow: hidden;
+        }
+
+        /* Time Period Headers */
+        .time-period {
+            background: #4a7c59;
+            color: white;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .time-period:hover {
+            background: #2d5016;
+        }
+
+        .time-period.expanded {
+            background: #2d5016;
+        }
+
+        .time-period-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .time-period h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .period-badge {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 25px;
+            text-align: center;
+        }
+
+        .toggle-icon {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .time-period.expanded .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Announcement Items */
+        .announcements-content {
+            display: none;
+            padding: 0;
+        }
+
+        .announcements-content.expanded {
+            display: block;
+        }
+
+        .announcement-item {
+            padding: 20px 25px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.3s ease;
+        }
+
+        .announcement-item:last-child {
+            border-bottom: none;
+        }
+
+        .announcement-item:hover {
+            background: #f8f9fa;
+        }
+
+        .announcement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .announcement-title-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .announcement-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .announcement-icon.warning {
+            background: #fff3e0;
+            color: #ff8f00;
+        }
+
+        .announcement-icon.success {
+            background: #e8f5e8;
+            color: #4caf50;
+        }
+
+        .announcement-icon.info {
+            background: #e3f2fd;
+            color: #2196f3;
+        }
+
+        .announcement-icon.sale {
+            background: #e8f5e8;
+            color: #4a7c59;
+        }
+
+        .announcement-details {
+            flex: 1;
+        }
+
+        .announcement-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d5016;
+            margin-bottom: 5px;
+        }
+
+        .announcement-description {
+            color: #666;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .announcement-time {
+            color: #999;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .announcement-action {
+            margin-top: 15px;
+        }
+
+        .action-link {
+            background: transparent;
+            color: #4a7c59;
+            border: 1px solid #4a7c59;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .action-link:hover {
+            background: #4a7c59;
+            color: white;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state svg {
+            margin-bottom: 20px;
+        }
+
+        /* Loading Animation */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        /* Overlay for mobile menu */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.mobile-visible {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .menu-toggle {
+                display: block;
+            }
+            
+            .header {
+                padding: 15px 20px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .announcements-header {
+                flex-direction: column;
+                gap: 20px;
+                align-items: flex-start;
+            }
+            
+            .header-actions-announcements {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .search-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .announcement-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .announcement-time {
+                white-space: normal;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .announcements-title {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .announcement-item {
+                padding: 15px 20px;
+            }
+            
+            .time-period {
+                padding: 12px 20px;
+            }
+        }
+
+        /* Animation for announcement items */
+        .announcement-item.slide-in {
+            animation: slideIn 0.5s ease forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Dropdown Menu Styles */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            right: 0;
+            top: 100%;
+            margin-top: 5px;
+        }
+
+        .dropdown-content a {
+            color: #333;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            transition: background 0.3s ease;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+
+        .dropdown.show .dropdown-content {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="user-profile">
+                <div class="user-avatar">MJ</div>
+                <div class="user-info">
+                    <h3>Marianne Joy Y. Napisa</h3>
+                    <p>Consumer</p>
+                </div>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="consumer_dashboard.html" class="nav-link" data-page="dashboard">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="foodlisting.html" class="nav-link" data-page="food-listing">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
+                        </svg>
+                        Food Listing
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="announcement.html" class="nav-link active" data-page="announcements">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        Announcements
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="orders">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M7 4V2C7 1.45 7.45 1 8 1h8c.55 0 1 .45 1 1v2h5v2h-2v13c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V6H2V4h5zM9 3v1h6V3H9zM6 6v13h12V6H6z"/>
+                        </svg>
+                        My Orders
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="impact">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                        </svg>
+                        My Impact
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="settings">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.82,11.69,4.82,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                        </svg>
+                        Settings
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="help">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                        </svg>
+                        Help Center
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="logout">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                        </svg>
+                        Logout
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Overlay for mobile -->
+        <div class="overlay" id="overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="menu-toggle" id="menuToggle">☰</button>
+                    <h1>Announcements</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="notification-btn" id="notificationBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                        </svg>
+                        <span class="notification-badge">3</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Announcements Header -->
+                <div class="announcements-header">
+                    <div class="announcements-title">
+                        <h2>Get the Latest News</h2>
+                        <div class="news-badge" id="newsBadge">3</div>
+                    </div>
+                    <div class="header-actions-announcements">
+                        <div class="dropdown">
+                            <button class="action-btn" id="sortBtn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/>
+                                </svg>
+                                Sort
+                            </button>
+                            <div class="dropdown-content">
+                                <a href="#" onclick="sortAnnouncements('newest')">Newest First</a>
+                                <a href="#" onclick="sortAnnouncements('oldest')">Oldest First</a>
+                                <a href="#" onclick="sortAnnouncements('priority')">By Priority</a>
+                            </div>
+                        </div>
+                        <div class="dropdown">
+                            <button class="action-btn" id="filterBtn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+                                </svg>
+                                Filter
+                            </button>
+                            <div class="dropdown-content">
+                                <a href="#" onclick="filterAnnouncements('all')">All</a>
+                                <a href="#" onclick="filterAnnouncements('warning')">Warnings</a>
+                                <a href="#" onclick="filterAnnouncements('sale')">Sales</a>
+                                <a href="#" onclick="filterAnnouncements('info')">Info</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search Section -->
+                <div class="search-section">
+                    <div class="search-bar">
+                        <input type="text" class="search-input" placeholder="Search announcements..." id="searchInput">
+                        <button class="search-btn" id="searchBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Announcements Section -->
+                <div class="announcements-section">
+                    <!-- Today Section -->
+                    <div class="time-period expanded" data-period="today">
+                        <div class="time-period-left">
+                            <h3>Today</h3>
+                            <div class="period-badge" id="todayBadge">3</div>
+                        </div>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </div>
+                    <div class="announcements-content expanded" id="todayContent">
+                        <div class="announcement-item" data-type="warning">
+                            <div class="announcement-header">
+                                <div class="announcement-title-section">
+                                    <div class="announcement-icon warning">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="announcement-details">
+                                        <div class="announcement-title">System update notice!</div>
+                                        <div class="announcement-description">We're rolling out a new feature to make surplus claiming even smoother. Stay tuned for updates!</div>
+                                    </div>
+                                </div>
+                                <div class="announcement-time">23 mins.</div>
+                            </div>
+                        </div>
+
+                        <div class="announcement-item" data-type="sale">
+                            <div class="announcement-header">
+                                <div class="announcement-title-section">
+                                    <div class="announcement-icon sale">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="announcement-details">
+                                        <div class="announcement-title">Flash sale alert</div>
+                                        <div class="announcement-description">Limited-time offer! Fresh produce and bakery items are now available at 50% off. Claim yours before they're gone!</div>
+                                        <div class="announcement-action">
+                                            <a href="#" class="action-link" onclick="goToFoodListing()">→ Go to Food Listing</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="announcement-time">45 mins.</div>
+                            </div>
+                        </div>
+
+                        <div class="announcement-item" data-type="info">
+                            <div class="announcement-header">
+                                <div class="announcement-title-section">
+                                    <div class="announcement-icon info">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="announcement-details">
+                                        <div class="announcement-title">Technical issue alert!</div>
+                                        <div class="announcement-description">We're aware of a temporary issue affecting notifications. Our team is working on a fix—thank you for your patience!</div>
+                                    </div>
+                                </div>
+                                <div class="announcement-time">1 hr.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Yesterday Section -->
+                    <div class="time-period" data-period="yesterday">
+                        <div class="time-period-left">
+                            <h3>Yesterday</h3>
+                            <div class="period-badge" id="yesterdayBadge">0</div>
+                        </div>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </div>
+                    <div class="announcements-content" id="yesterdayContent">
+                        <div class="empty-state">
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="#ccc">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                            </svg>
+                            <h4>No announcements yesterday</h4>
+                            <p>Check back for the latest updates</p>
+                        </div>
+                    </div>
+
+                    <!-- A week ago Section -->
+                    <div class="time-period" data-period="week">
+                        <div class="time-period-left">
+                            <h3>A week ago</h3>
+                            <div class="period-badge" id="weekBadge">2</div>
+                        </div>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </div>
+                    <div class="announcements-content" id="weekContent">
+                        <div class="announcement-item" data-type="success">
+                            <div class="announcement-header">
+                                <div class="announcement-title-section">
+                                    <div class="announcement-icon success">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="announcement-details">
+                                        <div class="announcement-title">New vendor partnership!</div>
+                                        <div class="announcement-description">We've partnered with 5 new local restaurants to bring you even more surplus food options. More variety, less waste!</div>
+                                    </div>
+                                </div>
+                                <div class="announcement-time">7 days ago</div>
+                            </div>
+                        </div>
+
+                        <div class="announcement-item" data-type="info">
+                            <div class="announcement-header">
+                                <div class="announcement-title-section">
+                                    <div class="announcement-icon info">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="announcement-details">
+                                        <div class="announcement-title">App update available</div>
+                                        <div class="announcement-description">Version 2.1 is now available with improved performance and new features. Update your app for the best experience!</div>
+                                        <div class="announcement-action">
+                                            <a href="#" class="action-link">→ Update Now</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="announcement-time">6 days ago</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- A month ago Section -->
+                    <div class="time-period" data-period="month">
+                        <div class="time-period-left">
+                            <h3>A month ago</h3>
+                            <div class="period-badge" id="monthBadge">1</div>
+                        </div>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </div>
+                    <div class="announcements-content" id="monthContent">
+                        <div class="announcement-item" data-type="success">
+                            <div class="announcement-header">
+                                <div class="announcement-title-section">
+                                    <div class="announcement-icon success">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="announcement-details">
+                                        <div class="announcement-title">1 Million Meals Saved!</div>
+                                        <div class="announcement-description">Thanks to amazing users like you, we've reached a major milestone! Together, we've saved 1 million meals from going to waste. Thank you for making a difference!</div>
+                                    </div>
+                                </div>
+                                <div class="announcement-time">1 month ago</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Mobile menu toggle
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('mobile-visible');
+            overlay.classList.toggle('active');
+            mainContent.classList.toggle('expanded');
+        });
+
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('mobile-visible');
+            overlay.classList.remove('active');
+            mainContent.classList.remove('expanded');
+        });
+
+        // Time period toggle functionality
+        const timePeriods = document.querySelectorAll('.time-period');
+        
+        timePeriods.forEach(period => {
+            period.addEventListener('click', () => {
+                const content = period.nextElementSibling;
+                const isExpanded = period.classList.contains('expanded');
+                
+                if (isExpanded) {
+                    period.classList.remove('expanded');
+                    content.classList.remove('expanded');
+                } else {
+                    period.classList.add('expanded');
+                    content.classList.add('expanded');
+                    
+                    // Add animation to announcement items
+                    const items = content.querySelectorAll('.announcement-item');
+                    items.forEach((item, index) => {
+                        setTimeout(() => {
+                            item.classList.add('slide-in');
+                        }, index * 100);
+                    });
+                }
+            });
+        });
+
+        // Dropdown functionality
+        const dropdowns = document.querySelectorAll('.dropdown');
+        
+        dropdowns.forEach(dropdown => {
+            const button = dropdown.querySelector('.action-btn');
+            
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // Close other dropdowns
+                dropdowns.forEach(d => {
+                    if (d !== dropdown) {
+                        d.classList.remove('show');
+                    }
+                });
+                
+                dropdown.classList.toggle('show');
+            });
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', () => {
+            dropdowns.forEach(dropdown => {
+                dropdown.classList.remove('show');
+            });
+        });
+
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+
+        function performSearch() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const announcementItems = document.querySelectorAll('.announcement-item');
+            
+            announcementItems.forEach(item => {
+                const title = item.querySelector('.announcement-title').textContent.toLowerCase();
+                const description = item.querySelector('.announcement-description').textContent.toLowerCase();
+                
+                if (title.includes(searchTerm) || description.includes(searchTerm) || searchTerm === '') {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            // Update badge counts
+            updateBadgeCounts();
+        }
+
+        searchBtn.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // Sort functionality
+        function sortAnnouncements(sortType) {
+            const sections = ['today', 'week', 'month'];
+            
+            sections.forEach(sectionId => {
+                const content = document.getElementById(sectionId + 'Content');
+                const items = Array.from(content.querySelectorAll('.announcement-item'));
+                
+                items.sort((a, b) => {
+                    const titleA = a.querySelector('.announcement-title').textContent;
+                    const titleB = b.querySelector('.announcement-title').textContent;
+                    
+                    switch(sortType) {
+                        case 'newest':
+                            return 0; // Keep original order (newest first)
+                        case 'oldest':
+                            return 0; // Reverse would need timestamp data
+                        case 'priority':
+                            // Sort by type: warning, sale, info, success
+                            const priorityOrder = ['warning', 'sale', 'info', 'success'];
+                            const typeA = a.getAttribute('data-type');
+                            const typeB = b.getAttribute('data-type');
+                            return priorityOrder.indexOf(typeA) - priorityOrder.indexOf(typeB);
+                        default:
+                            return titleA.localeCompare(titleB);
+                    }
+                });
+                
+                // Re-append sorted items
+                items.forEach(item => content.appendChild(item));
+            });
+        }
+
+        // Filter functionality
+        function filterAnnouncements(filterType) {
+            const announcementItems = document.querySelectorAll('.announcement-item');
+            
+            announcementItems.forEach(item => {
+                const itemType = item.getAttribute('data-type');
+                
+                if (filterType === 'all' || itemType === filterType) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            // Update badge counts
+            updateBadgeCounts();
+        }
+
+        // Update badge counts based on visible items
+        function updateBadgeCounts() {
+            const sections = [
+                { id: 'today', badgeId: 'todayBadge' },
+                { id: 'yesterday', badgeId: 'yesterdayBadge' },
+                { id: 'week', badgeId: 'weekBadge' },
+                { id: 'month', badgeId: 'monthBadge' }
+            ];
+            
+            let totalCount = 0;
+            
+            sections.forEach(section => {
+                const content = document.getElementById(section.id + 'Content');
+                const visibleItems = content.querySelectorAll('.announcement-item[style*="display: block"], .announcement-item:not([style*="display: none"])');
+                const count = visibleItems.length;
+                
+                const badge = document.getElementById(section.badgeId);
+                if (badge) {
+                    badge.textContent = count;
+                }
+                
+                totalCount += count;
+            });
+            
+            // Update main news badge
+            const newsBadge = document.getElementById('newsBadge');
+            if (newsBadge) {
+                newsBadge.textContent = totalCount;
+            }
+        }
+
+        // Navigation functionality
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = link.getAttribute('data-page');
+                
+                // Remove active class from all links
+                navLinks.forEach(l => l.classList.remove('active'));
+                
+                // Add active class to clicked link
+                link.classList.add('active');
+                
+                // Here you would typically handle page navigation
+                console.log(`Navigating to ${page}`);
+            });
+        });
+
+        // Function to navigate to food listing (called by action button)
+        function goToFoodListing() {
+            // Remove active class from all nav links
+            navLinks.forEach(l => l.classList.remove('active'));
+            
+            // Add active class to food listing link
+            const foodListingLink = document.querySelector('[data-page="food-listing"]');
+            if (foodListingLink) {
+                foodListingLink.classList.add('active');
+            }
+            
+            console.log('Navigating to Food Listing page');
+            // Here you would typically handle the actual navigation
+        }
+
+        // Notification button functionality
+        const notificationBtn = document.getElementById('notificationBtn');
+        
+        notificationBtn.addEventListener('click', () => {
+            // Here you would typically show a notifications dropdown or modal
+            console.log('Opening notifications');
+        });
+
+        // Initialize badge counts on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateBadgeCounts();
+        });
+
+        // Auto-refresh announcements every 30 seconds (simulate real-time updates)
+        setInterval(() => {
+            // In a real application, you would fetch new announcements from the server
+            console.log('Checking for new announcements...');
+        }, 30000);
+    </script>
+</body>
+</html>
