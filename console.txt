@@ -1,0 +1,16 @@
+Laravel new Saveats
+
+none
+0
+MySQL
+yes
+no
+
+
+npm install vite --save-dev
+
+
+npx vite
+
+----To build version-----------
+npx vite build
