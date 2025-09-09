@@ -1,6 +1,6 @@
 <!-- resources/views/consumer/dashboard.blade.php -->
  
-@extends('layouts.dashboard')
+@extends('layouts.consumer')
 
 @section('title', 'Consumer Dashboard')
 
