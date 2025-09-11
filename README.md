@@ -50,13 +50,16 @@ SavEats provides:
    git clone https://github.com/RosalDaniel/SavEats.git
    cd SavEats
 2. Install dependencies
+   ```bash
    composer install
    npm install && npm run dev
 
-3. Copy .env.example → .env and configure your DB (Neon/Postgres).
+4. Copy .env.example → .env and configure your DB (Neon/Postgres).
 
-4. Run migrations
+5. Run migrations
+    ```bash
     php artisan migrate
 
-5. Start local server
+7. Start local server
+    ```bash
     php artisan serve
