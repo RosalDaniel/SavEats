@@ -28,20 +28,38 @@
                 Welcome back! Redirecting to your dashboard...
             </div>
 
-            <form class="login-form" id="loginForm" novalidate>
+            <form class="login-form" method="POST" action="{{ route('login.submit') }}" id="loginForm">
+                @csrf
+                
+                @if ($errors->any())
+                    <div class="error-message" style="margin-bottom: 1rem;">
+                        @foreach ($errors->all() as $error)
+                            {{ $error }}<br>
+                        @endforeach
+                    </div>
+                @endif
+
+                @if (session('success'))
+                    <div class="success-message" style="margin-bottom: 1rem;">
+                        {{ session('success') }}
+                    </div>
+                @endif
+
                 <div class="form-group">
-                    <label for="username" class="form-label">Username or Email</label>
+                    <label for="login" class="form-label">Username or Email</label>
                     <input 
                         type="text" 
-                        id="username" 
-                        name="username" 
+                        id="login" 
+                        name="login" 
                         class="form-input" 
                         placeholder="Enter Username or Email"
                         required
+                        value="{{ old('login') }}"
                         autocomplete="username"
-                        aria-describedby="username-error"
                     >
-                    <div class="error-message" id="username-error" role="alert"></div>
+                    @error('login')
+                        <div class="error-message">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="form-group">
@@ -54,9 +72,10 @@
                         placeholder="Enter Password"
                         required
                         autocomplete="current-password"
-                        aria-describedby="password-error"
                     >
-                    <div class="error-message" id="password-error" role="alert"></div>
+                    @error('password')
+                        <div class="error-message">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="form-options">
@@ -64,10 +83,10 @@
                         <input type="checkbox" id="remember" name="remember" class="checkbox">
                         <label for="remember" class="checkbox-label">Remember Me</label>
                     </div>
-                    <a href="#" class="forgot-password" id="forgotPassword">Forgot Password?</a>
+                    <a href="#" class="forgot-password">Forgot Password?</a>
                 </div>
 
-                <button type="submit" class="login-btn" id="loginBtn">
+                <button type="submit" class="login-btn">
                     Login
                 </button>
             </form>

@@ -1,44 +1,48 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FoodListingController;
 
+// Public routes
 Route::get('/', [HomeController::class, 'index']);
-
 Route::get('/home', [HomeController::class, 'index'])->name('home');
-
 Route::get('/about', function () {
     return view('about');
 })->name('about');
 
-Route::get('/login', function () {
-    return view('auth.login');
-})->name('login');
+// Authentication routes
+Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
+Route::get('/register', [AuthController::class, 'showRegistrationForm'])->name('register');
+Route::get('/registration', [AuthController::class, 'showRegistrationForm'])->name('registration');
 
-Route::get('/registration', function () {
-    return view('auth.registration');
-})->name('registration');
+Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
+Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
+Route::post('/debug-register', function(Request $request) {
+    return response()->json([
+        'success' => true,
+        'message' => 'Debug endpoint working! Registration form is submitting data correctly.',
+        'redirect' => '/dashboard/consumer',
+        'data' => $request->all()
+    ]);
+});
+Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
-Route::get('/register', function () {
-    return view('auth.registration');
-})->name('register');
-
-// Authentication routes (POST methods for form submissions)
-Route::post('/login', function () {
-    // This will be handled by your authentication logic later
-    return redirect()->route('home')->with('success', 'Login functionality coming soon!');
-})->name('login.submit');
-
-Route::post('/register', function () {
-    // This will be handled by your registration logic later
-    return redirect()->route('home')->with('success', 'Registration functionality coming soon!');
-})->name('register.submit');
-
-// Dashboard routes (protected routes - will need authentication middleware later)
-Route::get('/dashboard', function () {
-    return view('consumer.dashboard');
-})->name('dashboard');
-
-Route::get('/profile', function () {
-    return view('consumer.profile');
-})->name('profile');
+// Protected dashboard routes
+Route::middleware('custom.auth')->group(function () {
+    Route::get('/dashboard/consumer', [DashboardController::class, 'consumer'])->name('dashboard.consumer');
+    Route::get('/dashboard/establishment', [DashboardController::class, 'establishment'])->name('dashboard.establishment');
+    Route::get('/dashboard/foodbank', [DashboardController::class, 'foodbank'])->name('dashboard.foodbank');
+    Route::get('/dashboard/admin', [DashboardController::class, 'admin'])->name('dashboard.admin');
+    
+    // Backward compatibility
+    Route::get('/dashboard', [DashboardController::class, 'consumer'])->name('dashboard');
+    Route::get('/profile', [DashboardController::class, 'profile'])->name('profile');
+    
+    // Food listing routes
+    Route::get('/consumer/food-listing', [FoodListingController::class, 'index'])->name('food.listing');
+    Route::get('/consumer/my-orders', [FoodListingController::class, 'myOrders'])->name('my.orders');
+});

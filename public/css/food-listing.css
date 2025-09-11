@@ -1,0 +1,465 @@
+
+
+
+/* Content Area */
+.content {
+    padding: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Search and Filter Section */
+.search-filter-section {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    margin-bottom: 30px;
+}
+
+.search-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+    align-items: center;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.search-input {
+    flex: 1;
+    padding: 14px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 30px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    min-width: 0;
+    background: #f8f9fa;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #4a7c59;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.1);
+}
+
+.search-btn {
+    background: #4a7c59;
+    color: white;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    min-width: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-btn:hover {
+    background: #2d5016;
+    transform: translateY(-1px);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.filter-btn {
+    background: #4a7c59;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-btn:hover {
+    background: #2d5016;
+}
+
+/* Category Filters */
+.category-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.category-btn {
+    padding: 12px 24px;
+    border: 2px solid #e0e0e0;
+    background: white;
+    color: #666;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+    min-width: fit-content;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.category-btn:hover {
+    border-color: #4a7c59;
+    color: #4a7c59;
+    transform: translateY(-1px);
+}
+
+.category-btn.active {
+    background: #4a7c59;
+    color: white;
+    border-color: #4a7c59;
+    box-shadow: 0 2px 8px rgba(74, 124, 89, 0.3);
+}
+
+/* Price Range Dropdown */
+.price-range-dropdown {
+    position: relative;
+}
+
+.dropdown-btn {
+    background: white;
+    border: 2px solid #e0e0e0;
+    color: #666;
+    padding: 12px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    min-width: fit-content;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.dropdown-btn:hover {
+    background: #4a7c59;
+    color: white;
+}
+
+/* Food Grid */
+.food-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 25px;
+    margin-bottom: 40px;
+}
+
+.food-card {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+}
+
+.food-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.food-image {
+    width: 100%;
+    height: 180px;
+    background: linear-gradient(45deg, #d2691e, #8b4513);
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.discount-badge {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: #ff8f00;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.food-info {
+    padding: 20px;
+}
+
+.food-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2d5016;
+    margin-bottom: 8px;
+}
+
+.food-quantity {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+.price-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.current-price {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ff8f00;
+}
+
+.original-price {
+    font-size: 16px;
+    color: #999;
+    text-decoration: line-through;
+}
+
+.card-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    flex: 1;
+    text-align: center;
+}
+
+.btn-primary {
+    background: #4a7c59;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2d5016;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: #4a7c59;
+    border: 1px solid #4a7c59;
+}
+
+.btn-secondary:hover {
+    background: #4a7c59;
+    color: white;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 40px;
+}
+
+.pagination button {
+    background: white;
+    border: 2px solid #e0e0e0;
+    color: #666;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.pagination button:hover {
+    border-color: #4a7c59;
+    color: #4a7c59;
+}
+
+.pagination button.active {
+    background: #4a7c59;
+    border-color: #4a7c59;
+    color: white;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Loading Animation */
+.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Overlay for mobile menu */
+.overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+.overlay.active {
+    display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .search-filter-section {
+        padding: 20px;
+    }
+    
+    .category-filters {
+        gap: 8px;
+    }
+    
+    .category-btn {
+        padding: 8px 14px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .menu-toggle {
+        display: block;
+    }
+    
+    .header {
+        padding: 15px 20px;
+    }
+    
+    .content {
+        padding: 20px;
+    }
+    
+    .search-filter-section {
+        padding: 20px;
+        margin: 0 10px 20px 10px;
+    }
+    
+    .search-bar {
+        flex-direction: row;
+        gap: 8px;
+        max-width: 100%;
+        margin: 0 0 20px 0;
+    }
+    
+    .search-input {
+        font-size: 16px;
+        padding: 12px 16px;
+    }
+    
+    .search-btn {
+        padding: 12px 16px;
+        min-width: 60px;
+    }
+    
+    .filter-actions {
+        flex-direction: row;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .category-filters {
+        justify-content: center;
+        gap: 6px;
+    }
+    
+    .category-btn {
+        padding: 8px 10px;
+        font-size: 10px;
+        flex: 1;
+        min-width: 0;
+        text-align: center;
+        white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .dropdown-btn {
+        padding: 8px 10px;
+        font-size: 10px;
+        white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    
+    .food-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .food-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .card-actions {
+        flex-direction: column;
+    }
+    
+    .pagination {
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+}
+
+/* Animation for loading new items */
+.food-card.loading-animation {
+    animation: slideUp 0.6s ease forwards;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

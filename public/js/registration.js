@@ -521,24 +521,80 @@ document.addEventListener('DOMContentLoaded', function() {
                 finalFormData.orgRegistration = document.getElementById('orgRegistration').files[0];
             }
 
-            // Simulate API call
-            setTimeout(() => {
-                console.log('Registration Data:', finalFormData);
+            // Send data to Laravel backend
+            fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    role: selectedAccountType,
+                    username: finalFormData.username,
+                    password: finalFormData.password,
+                    password_confirmation: finalFormData.password,
+                    email: finalFormData.email,
+                    phone_no: finalFormData.phone,
+                    address: finalFormData.location,
+                    fname: finalFormData.firstName,
+                    lname: finalFormData.lastName,
+                    mname: finalFormData.middleName,
+                    business_name: finalFormData.businessName,
+                    business_type: finalFormData.businessType,
+                    owner_fname: finalFormData.firstName,
+                    owner_lname: finalFormData.lastName,
+                    organization_name: finalFormData.organizationName,
+                    contact_person: finalFormData.contactPerson,
+                    registration_number: finalFormData.registrationNumber
+                })
+            })
+            .then(response => {
+                // Check if response is ok
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 
-                // Show success message
-                successMessage.classList.add('show');
-                form.style.display = 'none';
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Server returned non-JSON response');
+                }
                 
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    successMessage.classList.add('show');
+                    form.style.display = 'none';
+                    
+                    // Redirect to dashboard after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 2000);
+                } else {
+                    throw new Error(data.message || 'Registration failed');
+                }
+            })
+            .catch(error => {
+                console.error('Registration error:', error);
+                
+                // Show more detailed error message
+                let errorMessage = 'Registration failed: ';
+                if (error.message.includes('non-JSON response')) {
+                    errorMessage += 'Server error. Please check the console for details.';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                alert(errorMessage);
+            })
+            .finally(() => {
                 // Reset button state
                 registerBtn.classList.remove('loading');
                 registerBtn.disabled = false;
-                
-                // Redirect after 3 seconds
-                setTimeout(() => {
-                    alert('Registration successful! Redirecting to login...');
-                }, 3000);
-                
-            }, 2000);
+            });
         }
     });
 

@@ -9,14 +9,14 @@
     <div class="profile-header">
         <div class="profile-avatar-section">
             <div class="profile-avatar large">
-                {{ substr(Auth::user()->name ?? 'U', 0, 2) }}
+                {{ substr(session('user_name', 'U'), 0, 2) }}
             </div>
             <button class="btn-secondary">Change Photo</button>
         </div>
         <div class="profile-info">
-            <h2>{{ Auth::user()->name ?? 'User Name' }}</h2>
+            <h2>{{ session('user_name', 'User Name') }}</h2>
             <p class="profile-role">Consumer</p>
-            <p class="profile-joined">Member since {{ Auth::user()->created_at ? Auth::user()->created_at->format('F Y') : 'January 2024' }}</p>
+            <p class="profile-joined">Member since January 2024</p>
         </div>
     </div>
 
@@ -26,11 +26,11 @@
             <form class="profile-form">
                 <div class="form-group">
                     <label for="name">Full Name</label>
-                    <input type="text" id="name" name="name" value="{{ Auth::user()->name ?? '' }}" class="form-input">
+                    <input type="text" id="name" name="name" value="{{ session('user_name', '') }}" class="form-input">
                 </div>
                 <div class="form-group">
                     <label for="email">Email Address</label>
-                    <input type="email" id="email" name="email" value="{{ Auth::user()->email ?? '' }}" class="form-input">
+                    <input type="email" id="email" name="email" value="{{ session('user_email', '') }}" class="form-input">
                 </div>
                 <div class="form-group">
                     <label for="phone">Phone Number</label>

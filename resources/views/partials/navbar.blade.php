@@ -22,7 +22,7 @@
         @else
             <li class="nav-item dropdown">
                 <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">
-                    {{ Auth::user()->name }}
+                    {{ session('user_name', 'User') }}
                 </a>
                 <div class="dropdown-menu">
                     <a href="{{ route('dashboard') }}" class="dropdown-item">Dashboard</a>

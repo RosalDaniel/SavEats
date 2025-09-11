@@ -1,16 +1,16 @@
 <!-- Sidebar -->
 <nav class="sidebar" id="sidebar">
     <div class="user-profile">
-        <div class="user-avatar">MJ</div>
+        <div class="user-avatar">{{ substr(session('fname', 'U'), 0, 1) }}{{ substr(session('lname', 'U'), 0, 1) }}</div>
         <div class="user-info">
-            <h3>Marianne Joy Y. Napisa</h3>
-            <p>Consumer</p>
+            <h3>{{ session('fname', 'User') }} {{ session('lname', '') }}</h3>
+            <p>{{ ucfirst(session('user_type', 'consumer')) }}</p>
         </div>
     </div>
 
     <ul class="nav-menu">
         <li class="nav-item">
-            <a href="#" class="nav-link active" data-page="dashboard">
+            <a href="{{ route('dashboard.consumer') }}" class="nav-link {{ request()->routeIs('dashboard.consumer') ? 'active' : '' }}">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
                 </svg>
@@ -18,7 +18,7 @@
             </a>
         </li>
         <li class="nav-item">
-            <a href="#" class="nav-link" data-page="food-listing">
+            <a href="{{ route('food.listing') }}" class="nav-link {{ request()->routeIs('food.listing') ? 'active' : '' }}">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
                 </svg>
@@ -26,7 +26,7 @@
             </a>
         </li>
         <li class="nav-item">
-            <a href="#" class="nav-link" data-page="announcements">
+            <a href="#" class="nav-link">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
@@ -34,7 +34,7 @@
             </a>
         </li>
         <li class="nav-item">
-            <a href="#" class="nav-link" data-page="orders">
+            <a href="{{ route('my.orders') }}" class="nav-link {{ request()->routeIs('my.orders') ? 'active' : '' }}">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M7 4V2C7 1.45 7.45 1 8 1h8c.55 0 1 .45 1 1v2h5v2h-2v13c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V6H2V4h5zM9 3v1h6V3H9zM6 6v13h12V6H6z"/>
                 </svg>
@@ -66,7 +66,7 @@
             </a>
         </li>
         <li class="nav-item">
-            <a href="#" class="nav-link" data-page="logout">
+            <a href="{{ route('logout') }}" class="nav-link" onclick="return confirm('Are you sure you want to logout?')">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
                 </svg>

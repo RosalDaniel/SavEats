@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="{{ asset('js/app.js') }}">
 
     {{-- Role-based CSS --}}
-    @php $role = Auth::user()->role; @endphp
+    @php $role = session('user_type', 'consumer'); @endphp
     @if ($role === 'consumer')
         <link rel="stylesheet" href="{{ asset('css/consumer.css') }}">
     @elseif ($role === 'establishment')

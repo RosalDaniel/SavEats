@@ -1,5 +1,5 @@
 @php
-    $role = Auth::user()->role; // Make sure 'role' column exists on users table
+    $role = session('user_type', 'consumer');
 @endphp
 
 @if ($role === 'consumer')

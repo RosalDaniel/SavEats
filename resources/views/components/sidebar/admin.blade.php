@@ -3,7 +3,7 @@
     <div class="user-profile">
         <div class="user-avatar">AD</div>
         <div class="user-info">
-            <h3>{{ Auth::user()->name ?? 'Admin User' }}</h3>
+            <h3>{{ session('user_name', 'Admin User') }}</h3>
             <p>Administrator</p>
         </div>
     </div>
