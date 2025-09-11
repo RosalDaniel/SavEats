@@ -47,7 +47,7 @@ SavEats provides:
 
 1. Clone the repository  
    ```bash
-   git clone https://github.com/<your-username>/SavEats.git
+   git clone https://github.com/RosalDaniel/SavEats.git
    cd SavEats
 2. Install dependencies
    composer install
