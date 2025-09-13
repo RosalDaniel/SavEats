@@ -88,6 +88,38 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `,
         business: `
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstName" class="form-label required">Owner First Name</label>
+                    <input 
+                        type="text" 
+                        id="firstName" 
+                        name="firstName" 
+                        class="form-input" 
+                        placeholder="Enter first name"
+                        required
+                        autocomplete="given-name"
+                        aria-describedby="firstName-error"
+                    >
+                    <div class="error-message" id="firstName-error" role="alert"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="lastName" class="form-label required">Owner Last Name</label>
+                    <input 
+                        type="text" 
+                        id="lastName" 
+                        name="lastName" 
+                        class="form-input" 
+                        placeholder="Enter last name"
+                        required
+                        autocomplete="family-name"
+                        aria-describedby="lastName-error"
+                    >
+                    <div class="error-message" id="lastName-error" role="alert"></div>
+                </div>
+            </div>
+
             <div class="form-group full-width">
                 <label for="businessName" class="form-label required">Business Name</label>
                 <input 
@@ -379,6 +411,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 validateField(phone, 'phone-error', validatePhone, 'Please enter a valid phone number')
             ];
         } else if (selectedAccountType === 'business') {
+            const firstName = document.getElementById('firstName');
+            const lastName = document.getElementById('lastName');
             const businessName = document.getElementById('businessName');
             const businessType = document.getElementById('businessType');
             const birCertificate = document.getElementById('birCertificate');
@@ -386,6 +420,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const phone = document.getElementById('phone');
 
             validations = [
+                validateField(firstName, 'firstName-error', val => val.length >= 2, 'First name must be at least 2 characters'),
+                validateField(lastName, 'lastName-error', val => val.length >= 2, 'Last name must be at least 2 characters'),
                 validateField(businessName, 'businessName-error', val => val.length >= 2, 'Business name must be at least 2 characters'),
                 validateField(businessType, 'businessType-error', val => val !== '', 'Please select a business type'),
                 validateField(email, 'email-error', validateEmail, 'Please enter a valid email address'),
@@ -512,6 +548,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 finalFormData.middleName = document.getElementById('middleName').value.trim();
                 finalFormData.lastName = document.getElementById('lastName').value.trim();
             } else if (selectedAccountType === 'business') {
+                finalFormData.firstName = document.getElementById('firstName').value.trim();
+                finalFormData.lastName = document.getElementById('lastName').value.trim();
                 finalFormData.businessName = document.getElementById('businessName').value.trim();
                 finalFormData.businessType = document.getElementById('businessType').value;
                 finalFormData.birCertificate = document.getElementById('birCertificate').files[0];
@@ -530,7 +568,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
                 body: JSON.stringify({
-                    role: selectedAccountType,
+                    role: selectedAccountType === 'business' ? 'establishment' : selectedAccountType,
                     username: finalFormData.username,
                     password: finalFormData.password,
                     password_confirmation: finalFormData.password,
@@ -584,6 +622,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 let errorMessage = 'Registration failed: ';
                 if (error.message.includes('non-JSON response')) {
                     errorMessage += 'Server error. Please check the console for details.';
+                } else if (error.message.includes('422')) {
+                    errorMessage += 'Validation error. Please check your input and try again.';
                 } else {
                     errorMessage += error.message;
                 }

@@ -29,6 +29,29 @@ Route::post('/debug-register', function(Request $request) {
         'data' => $request->all()
     ]);
 });
+
+Route::post('/test-register', function(Request $request) {
+    try {
+        $request->validate([
+            'role' => 'required|in:consumer,establishment,foodbank',
+            'email' => 'required|email|unique:consumers,email|unique:establishments,email|unique:foodbanks,email',
+            'username' => 'required|unique:consumers,username|unique:establishments,username|unique:foodbanks,username',
+            'password' => 'required|min:8|confirmed',
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Validation passed!',
+            'data' => $request->all()
+        ]);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Validation failed',
+            'errors' => $e->errors()
+        ], 422);
+    }
+});
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Protected dashboard routes

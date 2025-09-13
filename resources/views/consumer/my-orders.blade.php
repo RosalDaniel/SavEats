@@ -117,6 +117,73 @@
     flex: 1;
 }
 
+/* Order Actions */
+.order-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.btn {
+    flex: 1;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    text-align: center;
+}
+
+.btn-outline {
+    background: white;
+    color: #2d5016;
+    border: 2px solid #2d5016;
+}
+
+.btn-outline:hover {
+    background: #f8f9fa;
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background: #2d5016;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #1e3a0f;
+    transform: translateY(-1px);
+}
+
+/* Status Styling */
+.status-completed {
+    color: #28a745 !important;
+    font-weight: 600;
+}
+
+/* Buy Again Button */
+.buy-again-btn {
+    width: 100%;
+    background: #2d5016;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 15px;
+}
+
+.buy-again-btn:hover {
+    background: #1e3a0f;
+    transform: translateY(-1px);
+}
+
+/* Legacy button for other tabs */
 .view-receipt-btn {
     width: 100%;
     background: #2d5016;
@@ -173,6 +240,15 @@
     .detail-label {
         min-width: auto;
         margin-right: 0;
+    }
+    
+    .order-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .btn {
+        width: 100%;
     }
 }
 </style>
@@ -257,18 +333,27 @@
                             <span class="detail-value">{{ $order['store_name'] }}</span>
                         </div>
                         <div class="detail-row">
-                            <span class="detail-label">Completed:</span>
-                            <span class="detail-value">{{ $order['completed_date'] }}</span>
+                            <span class="detail-label">Store Time Range:</span>
+                            <span class="detail-value">{{ $order['store_hours'] }}</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Delivery Method:</span>
                             <span class="detail-value">{{ $order['delivery_method'] }}</span>
                         </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value status-completed">Successfully Picked Up</span>
+                        </div>
                     </div>
                     
-                    <button class="view-receipt-btn" onclick="viewReceipt('{{ $order['order_id'] }}')">
-                        View Receipt
-                    </button>
+                    <div class="order-actions">
+                        <button class="btn btn-outline" onclick="viewReceipt('{{ $order['order_id'] }}')">
+                            View Receipt
+                        </button>
+                        <button class="btn btn-primary" onclick="rateOrder('{{ $order['order_id'] }}')">
+                            Rate Now
+                        </button>
+                    </div>
                 </div>
                 @endforeach
             @else
@@ -311,8 +396,8 @@
                         </div>
                     </div>
                     
-                    <button class="view-receipt-btn" onclick="viewReceipt('{{ $order['order_id'] }}')">
-                        View Details
+                    <button class="buy-again-btn" onclick="buyAgain('{{ $order['order_id'] }}')">
+                        Buy Again
                     </button>
                 </div>
                 @endforeach
@@ -361,6 +446,18 @@ document.addEventListener('DOMContentLoaded', function() {
 function viewReceipt(orderId) {
     // In a real app, this would open a receipt modal or navigate to receipt page
     alert('Receipt for Order ID: ' + orderId + '\n\nThis feature will be implemented in the next version.');
+}
+
+// Rate order function
+function rateOrder(orderId) {
+    // In a real app, this would open a rating modal or navigate to rating page
+    alert('Rate Order ID: ' + orderId + '\n\nThis feature will be implemented in the next version.');
+}
+
+// Buy again function
+function buyAgain(orderId) {
+    // In a real app, this would add the items back to cart or navigate to product page
+    alert('Buy Again for Order ID: ' + orderId + '\n\nThis feature will be implemented in the next version.');
 }
 
 // Order actions

@@ -2,7 +2,7 @@
 
 @section('title', 'Establishment Dashboard - SavEats')
 
-@section('header', 'Establishment Dashboard')
+@section('header', 'Dashboard')
 
 @section('content')
 <div class="dashboard-stats">
