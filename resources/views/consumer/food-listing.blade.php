@@ -22,8 +22,8 @@
     
     <div class="filter-actions">
         <div class="category-filters">
-            <button class="category-btn" data-category="all">All</button>
-            <button class="category-btn active" data-category="grocery">Grocery</button>
+            <button class="category-btn active" data-category="all">All</button>
+            <button class="category-btn" data-category="grocery">Grocery</button>
             <button class="category-btn" data-category="bakery">Bakery</button>
             <button class="category-btn" data-category="restaurant">Restaurant</button>
         </div>
@@ -31,9 +31,6 @@
         <div class="price-range-dropdown">
             <button class="dropdown-btn" id="priceRangeBtn">
                 Price Range
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
-                </svg>
             </button>
         </div>
     </div>
