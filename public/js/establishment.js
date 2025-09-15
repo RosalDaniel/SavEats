@@ -26,6 +26,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
+            // Allow logout and external links to work normally
+            const href = link.getAttribute('href');
+            if (href === '/logout' || 
+                href.includes('logout') ||
+                href.startsWith('http') ||
+                link.textContent.toLowerCase().includes('logout')) {
+                // Don't prevent default for logout or external links
+                return;
+            }
+            
             e.preventDefault();
             
             // Remove active class from all links

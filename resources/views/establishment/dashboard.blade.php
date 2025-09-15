@@ -1,10 +1,10 @@
 @extends('layouts.establishment')
 
-@section('title', 'Dashboard - Joy SuperMart Grocery')
+@section('title', 'Dashboard')
 
 @section('content')
 <div class="welcome-section">
-    <h2>Hi Marianne!</h2>
+    <h2>Hi {{ $user->name ?? session('user_name', 'User') }}!</h2>
     <p>Ready to save food today?</p>
 </div>
 

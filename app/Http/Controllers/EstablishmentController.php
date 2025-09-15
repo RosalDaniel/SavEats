@@ -14,7 +14,23 @@ class EstablishmentController extends Controller
             return redirect()->route('login')->with('error', 'Please login as an establishment to access the dashboard.');
         }
 
-        return view('establishment.dashboard');
+        $user = $this->getUserData();
+        return view('establishment.dashboard', compact('user'));
+    }
+
+    /**
+     * Get user data from session
+     */
+    private function getUserData()
+    {
+        return (object) [
+            'id' => Session::get('user_id'),
+            'name' => Session::get('user_name', 'User'),
+            'fname' => Session::get('fname', ''),
+            'lname' => Session::get('lname', ''),
+            'email' => Session::get('user_email'),
+            'user_type' => Session::get('user_type'),
+        ];
     }
 
     public function listingManagement()

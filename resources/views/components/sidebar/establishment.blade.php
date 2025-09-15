@@ -1,7 +1,7 @@
 <!-- Establishment Sidebar -->
 <nav class="sidebar" id="sidebar">
     <div class="user-profile">
-        <div class="user-avatar">ES</div>
+        <div class="user-avatar">{{ substr(session('fname', 'E'), 0, 1) }}{{ substr(session('lname', 'S'), 0, 1) }}</div>
         <div class="user-info">
             <h3>{{ session('user_name', 'Establishment User') }}</h3>
             <p>Establishment</p>
