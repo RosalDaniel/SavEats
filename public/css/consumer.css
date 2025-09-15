@@ -68,29 +68,6 @@
     line-height: 1;
 }
 
-/* Flash Sale Banner */
-.flash-sale {
-    background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
-    padding: 20px 25px;
-    border-radius: 12px;
-    margin-bottom: 35px;
-    text-align: center;
-    border: 2px solid #81c784;
-    position: relative;
-    overflow: hidden;
-}
-
-.flash-sale::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    transform: rotate(45deg);
-    animation: shine 3s infinite;
-}
 
 @keyframes shine {
     0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }

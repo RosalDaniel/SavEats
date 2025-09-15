@@ -6,6 +6,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FoodListingController;
+use App\Http\Controllers\EstablishmentController;
 
 // Public routes
 Route::get('/', [HomeController::class, 'index']);
@@ -68,4 +69,17 @@ Route::middleware('custom.auth')->group(function () {
     // Food listing routes
     Route::get('/consumer/food-listing', [FoodListingController::class, 'index'])->name('food.listing');
     Route::get('/consumer/my-orders', [FoodListingController::class, 'myOrders'])->name('my.orders');
+    
+    // Establishment routes
+    Route::prefix('establishment')->name('establishment.')->group(function () {
+        Route::get('/dashboard', [EstablishmentController::class, 'dashboard'])->name('dashboard');
+        Route::get('/listing-management', [EstablishmentController::class, 'listingManagement'])->name('listing-management');
+        Route::get('/order-management', [EstablishmentController::class, 'orderManagement'])->name('order-management');
+        Route::get('/announcements', [EstablishmentController::class, 'announcements'])->name('announcements');
+        Route::get('/earnings', [EstablishmentController::class, 'earnings'])->name('earnings');
+        Route::get('/donation-hub', [EstablishmentController::class, 'donationHub'])->name('donation-hub');
+        Route::get('/impact-reports', [EstablishmentController::class, 'impactReports'])->name('impact-reports');
+        Route::get('/settings', [EstablishmentController::class, 'settings'])->name('settings');
+        Route::get('/help', [EstablishmentController::class, 'help'])->name('help');
+    });
 });

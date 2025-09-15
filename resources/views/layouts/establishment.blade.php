@@ -21,7 +21,7 @@
             <header class="header">
                 <div class="header-left">
                     <button class="menu-toggle" id="menuToggle">☰</button>
-                    <h1>@yield('header', 'Establishment Dashboard')</h1>
+                    <h1>@yield('header', 'Dashboard')</h1>
                 </div>
                 <div class="header-actions">
                     <button class="notification-btn" id="notificationBtn">
