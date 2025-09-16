@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\FoodListing;
+use App\Models\Establishment;
 use Illuminate\Http\Request;
 use App\Models\Consumer;
+use Illuminate\Support\Facades\Storage;
 
 class FoodListingController extends Controller
 {
@@ -16,51 +19,32 @@ class FoodListingController extends Controller
         // Get user data from session
         $userData = $this->getUserData();
         
-        // Sample food listings data (in a real app, this would come from database)
-        $foodListings = [
-            [
-                'id' => 1,
-                'name' => 'Fresh Bread Loaves',
-                'description' => 'Day-old bread, still fresh and perfect for toast',
-                'price' => 25.00,
-                'original_price' => 35.00,
-                'discount' => 29,
-                'quantity' => '10 pcs',
-                'category' => 'bakery',
-                'store' => 'Joy Bakery',
-                'image' => '/images/bread.jpg',
-                'expiry' => '2024-01-25',
-                'location' => 'Downtown Manila'
-            ],
-            [
-                'id' => 2,
-                'name' => 'Mixed Vegetables',
-                'description' => 'Fresh vegetables from local farms',
-                'price' => 50.00,
-                'original_price' => 75.00,
-                'discount' => 33,
-                'quantity' => '2 kg',
-                'category' => 'grocery',
-                'store' => 'Green Market',
-                'image' => '/images/vegetables.jpg',
-                'expiry' => '2024-01-26',
-                'location' => 'Quezon City'
-            ],
-            [
-                'id' => 3,
-                'name' => 'Pasta Dishes',
-                'description' => 'Leftover pasta from restaurant, still good',
-                'price' => 80.00,
-                'original_price' => 120.00,
-                'discount' => 33,
-                'quantity' => '3 servings',
-                'category' => 'restaurant',
-                'store' => 'Mama Mia Restaurant',
-                'image' => '/images/pasta.jpg',
-                'expiry' => '2024-01-24',
-                'location' => 'Makati City'
-            ]
-        ];
+        // Get real food listings from database
+        $foodListings = FoodListing::with('establishment')
+            ->active()
+            ->notExpired()
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'description' => $item->description,
+                    'price' => $item->discounted_price ?? $item->original_price,
+                    'original_price' => $item->original_price,
+                    'discount' => $item->discount_percentage ? round($item->discount_percentage) : 0,
+                    'quantity' => (string) $item->quantity,
+                    'category' => $item->category,
+                    'store' => $item->establishment->business_name ?? 'Unknown Store',
+                    'image' => $item->image_path ? Storage::url($item->image_path) : 'https://via.placeholder.com/300x200/4a7c59/ffffff?text=' . strtoupper(substr($item->name, 0, 1)),
+                    'expiry' => $item->expiry_date->format('Y-m-d'),
+                    'location' => $item->address ?? 'Location not specified',
+                    'pickup_available' => $item->pickup_available,
+                    'delivery_available' => $item->delivery_available,
+                    'establishment_id' => $item->establishment_id
+                ];
+            })
+            ->toArray();
 
         return view('consumer.food-listing', compact('foodListings', 'userData'));
     }
@@ -79,7 +63,7 @@ class FoodListingController extends Controller
                 [
                     'order_id' => 'ID#12323',
                     'product_name' => 'Banana Bread',
-                    'quantity' => '10 pcs.',
+                    'quantity' => '10',
                     'price' => 187.00,
                     'store_name' => 'Joy Share Grocery',
                     'store_hours' => 'Mon - Sat | 7:00 am - 5:00 pm',
@@ -90,7 +74,7 @@ class FoodListingController extends Controller
                 [
                     'order_id' => 'ID#12324',
                     'product_name' => 'Banana Bread',
-                    'quantity' => '10 pcs.',
+                    'quantity' => '10',
                     'price' => 187.00,
                     'store_name' => 'Joy Share Grocery',
                     'store_hours' => 'Mon - Sat | 7:00 am - 5:00 pm',
@@ -101,7 +85,7 @@ class FoodListingController extends Controller
                 [
                     'order_id' => 'ID#12325',
                     'product_name' => 'Banana Bread',
-                    'quantity' => '10 pcs.',
+                    'quantity' => '10',
                     'price' => 187.00,
                     'store_name' => 'Joy Share Grocery',
                     'store_hours' => 'Mon - Sat | 7:00 am - 5:00 pm',
@@ -114,7 +98,7 @@ class FoodListingController extends Controller
                 [
                     'order_id' => 'ID#12320',
                     'product_name' => 'Fresh Bread Loaves',
-                    'quantity' => '5 pcs.',
+                    'quantity' => '5',
                     'price' => 125.00,
                     'store_name' => 'Green Market',
                     'store_hours' => 'Mon - Sun | 6:00 am - 8:00 pm',
@@ -127,7 +111,7 @@ class FoodListingController extends Controller
                 [
                     'order_id' => 'ID#12315',
                     'product_name' => 'Mixed Vegetables',
-                    'quantity' => '3 kg',
+                    'quantity' => '3',
                     'price' => 75.00,
                     'store_name' => 'Fresh Market',
                     'store_hours' => 'Mon - Fri | 8:00 am - 6:00 pm',

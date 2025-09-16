@@ -1,6 +1,7 @@
 @extends('layouts.establishment')
 
 @section('title', 'Dashboard')
+@section('header', 'Dashboard')
 
 @section('content')
 <div class="welcome-section">

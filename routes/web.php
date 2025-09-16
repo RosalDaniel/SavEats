@@ -81,5 +81,10 @@ Route::middleware('custom.auth')->group(function () {
         Route::get('/impact-reports', [EstablishmentController::class, 'impactReports'])->name('impact-reports');
         Route::get('/settings', [EstablishmentController::class, 'settings'])->name('settings');
         Route::get('/help', [EstablishmentController::class, 'help'])->name('help');
+        
+        // Food listing CRUD routes
+        Route::post('/food-listings', [EstablishmentController::class, 'storeFoodListing'])->name('food-listings.store');
+        Route::put('/food-listings/{id}', [EstablishmentController::class, 'updateFoodListing'])->name('food-listings.update');
+        Route::delete('/food-listings/{id}', [EstablishmentController::class, 'deleteFoodListing'])->name('food-listings.delete');
     });
 });
