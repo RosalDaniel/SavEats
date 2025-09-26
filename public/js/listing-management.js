@@ -310,6 +310,55 @@ function resetImagePreview() {
     uploadBox.classList.remove('has-preview');
 }
 
+// Load existing image for editing
+function loadExistingImage(imageUrl) {
+    const uploadBox = document.querySelector('.image-upload-box');
+    const uploadPlaceholder = document.querySelector('.upload-placeholder');
+    
+    if (!uploadBox) return;
+    
+    // Hide the placeholder
+    if (uploadPlaceholder) {
+        uploadPlaceholder.style.display = 'none';
+    }
+    
+    // Create or update the preview image
+    let previewImg = uploadBox.querySelector('.image-preview');
+    if (!previewImg) {
+        previewImg = document.createElement('img');
+        previewImg.className = 'image-preview';
+        previewImg.style.cssText = `
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+        `;
+        uploadBox.appendChild(previewImg);
+    }
+    
+    previewImg.src = imageUrl;
+    previewImg.alt = 'Current food image';
+    
+    // Add overlay for hover effect
+    let overlay = uploadBox.querySelector('.image-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'image-overlay';
+        overlay.innerHTML = `
+            <div class="overlay-content">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                </svg>
+                <span>Change Image</span>
+            </div>
+        `;
+        uploadBox.appendChild(overlay);
+    }
+    
+    // Add preview class
+    uploadBox.classList.add('has-preview');
+}
+
 // Modal functionality
 function showModal(modalId) {
     const modal = document.getElementById(modalId);
@@ -356,35 +405,42 @@ function editItem(id) {
         return;
     }
     
-    // Extract data from the table row
-    const nameField = document.getElementById('itemName');
-    const descriptionField = document.getElementById('itemDescription');
-    const categoryField = document.getElementById('itemCategory');
-    const quantityField = document.getElementById('itemQuantity');
-    const originalPriceField = document.getElementById('itemOriginalPrice');
-    const discountField = document.getElementById('itemDiscount');
-    const expiryField = document.getElementById('itemExpiry');
-    const addressField = document.getElementById('itemAddress');
-    const pickupField = document.getElementById('itemPickup');
-    const deliveryField = document.getElementById('itemDelivery');
-    
-    // Populate form fields
-    if (nameField) nameField.value = row.dataset.name || '';
-    if (descriptionField) descriptionField.value = row.dataset.description || '';
-    if (categoryField) categoryField.value = row.dataset.category || '';
-    if (quantityField) quantityField.value = row.dataset.quantity || '1';
-    if (originalPriceField) originalPriceField.value = row.dataset.originalPrice || '';
-    if (discountField) discountField.value = row.dataset.discountPercentage || '';
-    if (expiryField) expiryField.value = row.dataset.expiry || '';
-    if (addressField) addressField.value = row.dataset.address || '';
-    if (pickupField) pickupField.checked = row.dataset.pickupAvailable === 'true';
-    if (deliveryField) deliveryField.checked = row.dataset.deliveryAvailable === 'true';
+     // Extract data from the table row
+     const nameField = document.getElementById('itemName');
+     const descriptionField = document.getElementById('itemDescription');
+     const categoryField = document.getElementById('itemCategory');
+     const quantityField = document.getElementById('itemQuantity');
+     const originalPriceField = document.getElementById('itemOriginalPrice');
+     const discountField = document.getElementById('itemDiscount');
+     const discountedPriceField = document.getElementById('itemDiscountedPrice');
+     const expiryField = document.getElementById('itemExpiry');
+     const addressField = document.getElementById('itemAddress');
+     const pickupField = document.getElementById('itemPickup');
+     const deliveryField = document.getElementById('itemDelivery');
+     
+     // Populate form fields
+     if (nameField) nameField.value = row.dataset.name || '';
+     if (descriptionField) descriptionField.value = row.dataset.description || '';
+     if (categoryField) categoryField.value = row.dataset.category || '';
+     if (quantityField) quantityField.value = row.dataset.quantity || '1';
+     if (originalPriceField) originalPriceField.value = row.dataset.originalPrice || '';
+     if (discountField) discountField.value = row.dataset.discountPercentage || '';
+     if (discountedPriceField) discountedPriceField.value = row.dataset.discountedPrice || '';
+     if (expiryField) expiryField.value = row.dataset.expiry || '';
+     if (addressField) addressField.value = row.dataset.address || '';
+     if (pickupField) pickupField.checked = row.dataset.pickupAvailable === 'true';
+     if (deliveryField) deliveryField.checked = row.dataset.deliveryAvailable === 'true';
     
     // Recalculate discounted price
     calculateDiscountedPrice();
     
-    // Reset image preview for editing (since we don't have existing image data in table)
-    resetImagePreview();
+    // Load existing image if available
+    const existingImage = row.dataset.image;
+    if (existingImage && existingImage.trim() !== '') {
+        loadExistingImage(existingImage);
+    } else {
+        resetImagePreview();
+    }
     
     showModal('itemModal');
     showNotification('Loading item details...', 'info');

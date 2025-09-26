@@ -9,29 +9,107 @@
 @endsection
 
 @section('content')
-<!-- Search and Filter Section -->
+<!-- Enhanced Search and Filter Section -->
 <div class="search-filter-section">
-    <div class="search-bar">
-        <input type="text" class="search-input" placeholder="Search for food items..." id="searchInput">
-        <button class="search-btn" id="searchBtn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-            </svg>
-        </button>
+    <div class="search-header">
+        <h2 class="search-title">Find Your Perfect Food</h2>
+        <p class="search-subtitle">Discover amazing dishes from local restaurants and stores</p>
     </div>
-    
-    <div class="filter-actions">
-        <div class="category-filters">
-            <button class="category-btn active" data-category="all">All</button>
-            <button class="category-btn" data-category="grocery">Grocery</button>
-            <button class="category-btn" data-category="bakery">Bakery</button>
-            <button class="category-btn" data-category="restaurant">Restaurant</button>
+
+    <div class="search-container">
+        <div class="search-wrapper">
+            <div class="search-input-group">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    placeholder="Search for delicious food items..." 
+                    id="searchInput"
+                >
+                <button class="clear-btn" id="clearBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+                <button class="search-btn" id="searchBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                    </svg>
+                </button>
+            </div>
         </div>
-        
-        <div class="price-range-dropdown">
-            <button class="dropdown-btn" id="priceRangeBtn">
-                Price Range
-            </button>
+    </div>
+
+    <div class="filter-section">
+        <div class="filter-row">
+            <!-- Desktop Categories -->
+            <div class="category-filters">
+                <div class="category-pill active" data-category="all">
+                    <span>All Categories</span>
+                </div>
+                <div class="category-pill" data-category="fruits-vegetables">
+                    <span>Fruits & Vegetables</span>
+                </div>
+                <div class="category-pill" data-category="baked-goods">
+                    <span>Baked Goods</span>
+                </div>
+                <div class="category-pill" data-category="cooked-meals">
+                    <span>Cooked Meals</span>
+                </div>
+                <div class="category-pill" data-category="packaged-goods">
+                    <span>Packaged Goods</span>
+                </div>
+                <div class="category-pill" data-category="beverages">
+                    <span>Beverages</span>
+                </div>
+            </div>
+
+            <!-- Mobile Categories Toggle -->
+            <div class="categories-toggle" id="categoriesToggle">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                </svg>
+                <span>Categories</span>
+                <span class="toggle-arrow">▼</span>
+            </div>
+
+            <div class="price-dropdown">
+                <div class="dropdown-trigger" id="priceDropdown">
+                    <span>Price Range</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="dropdown-menu" id="priceMenu">
+                    <div class="dropdown-item" data-price="all">All Prices</div>
+                    <div class="dropdown-item" data-price="0-50">₱0 - ₱50</div>
+                    <div class="dropdown-item" data-price="51-100">₱51 - ₱100</div>
+                    <div class="dropdown-item" data-price="101+">₱101+</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Categories Grid -->
+        <div class="categories-grid" id="categoriesGrid">
+            <div class="mobile-category-item active" data-category="all">
+                <div class="category-label">All Items</div>
+            </div>
+            <div class="mobile-category-item" data-category="fruits-vegetables">
+                <div class="category-label">Fruits & Vegetables</div>
+            </div>
+            <div class="mobile-category-item" data-category="baked-goods">
+                <div class="category-label">Baked Goods</div>
+            </div>
+            <div class="mobile-category-item" data-category="cooked-meals">
+                <div class="category-label">Cooked Meals</div>
+            </div>
+            <div class="mobile-category-item" data-category="packaged-goods">
+                <div class="category-label">Packaged Goods</div>
+            </div>
+            <div class="mobile-category-item" data-category="beverages">
+                <div class="category-label">Beverages</div>
+            </div>
+        </div>
+
+        <div class="active-filters" id="activeFilters">
+            <!-- Active filter tags will appear here -->
         </div>
     </div>
 </div>
@@ -171,8 +249,8 @@ function renderFoodGrid() {
                 <h3 class="food-name">${food.name}</h3>
                 <p class="food-quantity">${food.quantity}</p>
                 <div class="price-section">
-                    <span class="current-price">₱${food.price.toFixed(2)}</span>
-                    <span class="original-price">₱${food.original_price.toFixed(2)}</span>
+                    <span class="current-price">₱${(food.price || 0).toFixed(2)}</span>
+                    <span class="original-price">₱${(food.original_price || 0).toFixed(2)}</span>
                 </div>
                 <div class="card-actions">
                     <button class="btn btn-primary" onclick="orderFood(${food.id})">Order Now</button>
@@ -245,11 +323,8 @@ function orderFood(foodId) {
 
 // View details function
 function viewDetails(foodId) {
-    const food = foodData.find(f => f.id === foodId);
-    if (food) {
-        // In a real app, this would open a modal or navigate to details page
-        showNotification(`Viewing details for ${food.name}`, 'info');
-    }
+    // Navigate to the product detail page
+    window.location.href = `/consumer/food-detail/${foodId}`;
 }
 
 // Notification function
@@ -276,4 +351,6 @@ function handleNavigation(event) {
     // Add other navigation cases as needed
 }
 </script>
+
+<script src="{{ asset('js/food-listing.js') }}"></script>
 @endsection

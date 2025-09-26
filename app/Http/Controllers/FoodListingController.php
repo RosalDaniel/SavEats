@@ -26,16 +26,26 @@ class FoodListingController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($item) {
+                // Get establishment data
+                $establishment = $item->establishment;
+                $storeName = 'Unknown Store';
+                
+                if ($establishment) {
+                    $storeName = $establishment->business_name ?? 
+                                $establishment->owner_fname . ' ' . $establishment->owner_lname ?? 
+                                'Unknown Store';
+                }
+
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
                     'description' => $item->description,
-                    'price' => $item->discounted_price ?? $item->original_price,
-                    'original_price' => $item->original_price,
+                    'price' => (float) ($item->discounted_price ?? $item->original_price),
+                    'original_price' => (float) $item->original_price,
                     'discount' => $item->discount_percentage ? round($item->discount_percentage) : 0,
                     'quantity' => (string) $item->quantity,
                     'category' => $item->category,
-                    'store' => $item->establishment->business_name ?? 'Unknown Store',
+                    'store' => $storeName,
                     'image' => $item->image_path ? Storage::url($item->image_path) : 'https://via.placeholder.com/300x200/4a7c59/ffffff?text=' . strtoupper(substr($item->name, 0, 1)),
                     'expiry' => $item->expiry_date->format('Y-m-d'),
                     'location' => $item->address ?? 'Location not specified',
@@ -123,6 +133,81 @@ class FoodListingController extends Controller
         ];
 
         return view('consumer.my-orders', compact('userOrders', 'userData'));
+    }
+
+    /**
+     * Display a specific food item detail page
+     */
+    public function show($id)
+    {
+        // Get user data from session
+        $userData = $this->getUserData();
+        
+        // Get the specific food listing with establishment relationship
+        $foodListing = FoodListing::with('establishment')->findOrFail($id);
+        
+        // Get establishment data
+        $establishment = $foodListing->establishment;
+        $storeName = 'Unknown Store';
+        
+        if ($establishment) {
+            $storeName = $establishment->business_name ?? 
+                        $establishment->owner_fname . ' ' . $establishment->owner_lname ?? 
+                        'Unknown Store';
+        }
+
+        // Format the data for the view
+        $foodItem = [
+            'id' => $foodListing->id,
+            'name' => $foodListing->name,
+            'description' => $foodListing->description,
+            'price' => $foodListing->discounted_price ?? $foodListing->original_price,
+            'original_price' => $foodListing->original_price,
+            'discount' => $foodListing->discount_percentage ? round($foodListing->discount_percentage) : 0,
+            'quantity' => (string) $foodListing->quantity,
+            'category' => $foodListing->category,
+            'store' => $storeName,
+            'image' => $foodListing->image_path ? Storage::url($foodListing->image_path) : 'https://via.placeholder.com/400x300/4a7c59/ffffff?text=' . strtoupper(substr($foodListing->name, 0, 1)),
+            'expiry' => $foodListing->expiry_date->format('Y-m-d'),
+            'expiry_formatted' => $foodListing->expiry_date->format('F j, Y'),
+            'location' => $foodListing->address ?? 'Location not specified',
+            'pickup_available' => $foodListing->pickup_available,
+            'delivery_available' => $foodListing->delivery_available,
+            'establishment_id' => $foodListing->establishment_id,
+            'operating_hours' => 'Mon - Sat | 7:00 am - 5:00 pm', // This would come from establishment settings
+            'rating' => 4.6, // This would come from reviews table
+            'total_reviews' => 42, // This would come from reviews table
+        ];
+
+        // Sample reviews data (in a real app, this would come from database)
+        $reviews = [
+            [
+                'id' => 1,
+                'user_name' => 'John Doe',
+                'avatar' => null, // Will use initials fallback
+                'rating' => 5,
+                'comment' => 'Supporting line text lorem ipsum dolor sit amet, consectetur.',
+                'date' => '2024-01-15'
+            ],
+            [
+                'id' => 2,
+                'user_name' => 'Jane Smith',
+                'avatar' => null, // Will use initials fallback
+                'rating' => 4,
+                'comment' => 'Great quality and fresh bread. Will definitely order again.',
+                'date' => '2024-01-12'
+            ],
+            [
+                'id' => 3,
+                'user_name' => 'Mike Johnson',
+                'avatar' => null, // Will use initials fallback
+                'rating' => 5,
+                'comment' => 'Excellent value for money. Highly recommended!',
+                'date' => '2024-01-10'
+            ]
+        ];
+
+        return view('consumer.food-detail', compact('foodItem', 'reviews', 'userData'));
     }
 
     /**

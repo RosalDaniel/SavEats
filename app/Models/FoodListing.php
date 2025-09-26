@@ -35,7 +35,7 @@ class FoodListing extends Model
 
     public function establishment(): BelongsTo
     {
-        return $this->belongsTo(Establishment::class);
+        return $this->belongsTo(Establishment::class, 'establishment_id', 'establishment_id');
     }
 
     public function scopeActive($query)

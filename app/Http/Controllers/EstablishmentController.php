@@ -59,6 +59,7 @@ class EstablishmentController extends Controller
                     'quantity' => (string) $item->quantity,
                     'price' => $item->original_price,
                     'discounted_price' => $item->discounted_price,
+                    'discount' => $item->discount_percentage,
                     'expiry' => $item->expiry_date->format('Y-m-d'),
                     'status' => $item->is_expired ? 'expired' : ($item->expiry_date <= now()->addDays(3) ? 'expiring' : 'active'),
                     'image' => $item->image_path ? Storage::url($item->image_path) : 'https://via.placeholder.com/40x40/4a7c59/ffffff?text=' . strtoupper(substr($item->name, 0, 1)),
@@ -155,7 +156,7 @@ class EstablishmentController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'category' => 'required|string|in:dairy,meat,vegetables,fruits,beverages',
+            'category' => 'required|string|in:fruits-vegetables,baked-goods,cooked-meals,packaged-goods,beverages',
             'quantity' => 'required|integer|min:1',
             'original_price' => 'required|numeric|min:0',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
@@ -236,7 +237,7 @@ class EstablishmentController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'category' => 'required|string|in:dairy,meat,vegetables,fruits,beverages',
+            'category' => 'required|string|in:fruits-vegetables,baked-goods,cooked-meals,packaged-goods,beverages',
             'quantity' => 'required|integer|min:1',
             'original_price' => 'required|numeric|min:0',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',

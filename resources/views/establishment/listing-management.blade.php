@@ -116,10 +116,12 @@
                          data-quantity="{{ $item['quantity'] }}"
                          data-original-price="{{ $item['price'] }}"
                          data-discount-percentage="{{ $item['discount'] ?? 0 }}"
+                         data-discounted-price="{{ $item['discounted_price'] ?? '' }}"
                          data-expiry="{{ $item['expiry'] }}"
                          data-address="{{ $item['address'] ?? '' }}"
                          data-pickup-available="{{ $item['pickup_available'] ? 'true' : 'false' }}"
-                         data-delivery-available="{{ $item['delivery_available'] ? 'true' : 'false' }}">
+                         data-delivery-available="{{ $item['delivery_available'] ? 'true' : 'false' }}"
+                         data-image="{{ $item['image'] ?? '' }}">
                          <td>
                              <input type="checkbox" class="checkbox item-checkbox" data-id="{{ $item['id'] }}">
                          </td>
@@ -238,10 +240,10 @@
                     <div class="input-with-icon">
                         <select id="itemCategory" name="category" required>
                             <option value="">Select Item Category</option>
-                            <option value="dairy">Dairy</option>
-                            <option value="meat">Meat</option>
-                            <option value="vegetables">Vegetables</option>
-                            <option value="fruits">Fruits</option>
+                            <option value="fruits-vegetables">Fruits & Vegetables</option>
+                            <option value="baked-goods">Baked Goods</option>
+                            <option value="cooked-meals">Cooked Meals</option>
+                            <option value="packaged-goods">Packaged Goods</option>
                             <option value="beverages">Beverages</option>
                         </select>
                         <svg class="input-icon dropdown-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

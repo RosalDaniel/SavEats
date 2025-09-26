@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Search & Filter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Modern Search Section */
+        .search-filter-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.1),
+                0 8px 16px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        }
+
+        .search-header {
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .search-title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .search-subtitle {
+            color: #64748b;
+            font-size: 16px;
+            font-weight: 400;
+        }
+
+        /* Search Bar */
+        .search-container {
+            position: relative;
+            margin-bottom: 32px;
+        }
+
+        .search-wrapper {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .search-input-group {
+            position: relative;
+            background: white;
+            border-radius: 20px;
+            padding: 4px;
+            box-shadow: 
+                0 10px 25px rgba(0, 0, 0, 0.1),
+                0 4px 10px rgba(0, 0, 0, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .search-input-group:focus-within {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 20px 40px rgba(102, 126, 234, 0.2),
+                0 8px 16px rgba(102, 126, 234, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 20px 60px 20px 24px;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 500;
+            background: transparent;
+            color: #1e293b;
+            outline: none;
+        }
+
+        .search-input::placeholder {
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 14px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-50%) scale(1.05);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-btn:active {
+            transform: translateY(-50%) scale(0.98);
+        }
+
+        /* Clear Button */
+        .clear-btn {
+            position: absolute;
+            right: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(148, 163, 184, 0.1);
+            border: none;
+            border-radius: 8px;
+            padding: 8px;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #64748b;
+        }
+
+        .clear-btn.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .clear-btn:hover {
+            background: rgba(148, 163, 184, 0.2);
+            color: #475569;
+        }
+
+        /* Filter Section */
+        .filter-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .filter-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* Category Pills */
+        .category-filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+
+        .category-pill {
+            padding: 12px 20px;
+            border: 2px solid transparent;
+            background: rgba(148, 163, 184, 0.1);
+            color: #64748b;
+            border-radius: 16px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            letter-spacing: 0.02em;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-pill::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .category-pill span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .category-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .category-pill:hover::before {
+            opacity: 0.1;
+        }
+
+        .category-pill.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .category-pill.active::before {
+            opacity: 0;
+        }
+
+        /* Price Range Dropdown */
+        .price-dropdown {
+            position: relative;
+            min-width: 200px;
+        }
+
+        .dropdown-trigger {
+            width: 100%;
+            padding: 12px 20px;
+            background: rgba(148, 163, 184, 0.1);
+            border: 2px solid transparent;
+            border-radius: 16px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .dropdown-trigger:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+        }
+
+        .dropdown-trigger.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .dropdown-arrow {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 12px;
+        }
+
+        .dropdown-trigger.active .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.15),
+                0 8px 16px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100;
+        }
+
+        .dropdown-menu.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-item {
+            padding: 14px 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #64748b;
+            font-weight: 500;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        /* Active Filter Tags */
+        .active-filters {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .filter-tag {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+        }
+
+        .filter-tag-remove {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 50%;
+            transition: background 0.2s ease;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .filter-tag-remove:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Mobile Categories Toggle */
+        .categories-toggle {
+            display: none;
+            background: rgba(148, 163, 184, 0.1);
+            border: 2px solid transparent;
+            border-radius: 16px;
+            padding: 12px 16px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            color: #64748b;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 100%;
+            justify-content: center;
+        }
+
+        .categories-toggle:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+
+        .categories-toggle.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .categories-toggle .toggle-arrow {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .categories-toggle.active .toggle-arrow {
+            transform: rotate(180deg);
+        }
+
+        .categories-grid {
+            display: none;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .categories-grid.open {
+            display: grid;
+            animation: slideDown 0.3s ease;
+        }
+
+        .mobile-category-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 12px;
+            border: 2px solid transparent;
+            background: white;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .mobile-category-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .mobile-category-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .category-icon {
+            font-size: 24px;
+            transition: transform 0.3s ease;
+        }
+
+        .mobile-category-item:hover .category-icon {
+            transform: scale(1.1);
+        }
+
+        .category-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .search-filter-section {
+                padding: 24px;
+                border-radius: 20px;
+            }
+            
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 16px;
+            }
+            
+            .category-filters {
+                display: none;
+            }
+            
+            .categories-toggle {
+                display: flex;
+            }
+            
+            .price-dropdown {
+                min-width: auto;
+            }
+            
+            .search-title {
+                font-size: 24px;
+            }
+
+            .filter-section {
+                gap: 20px;
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .category-pill {
+            animation: fadeInUp 0.5s ease forwards;
+        }
+
+        .category-pill:nth-child(1) { animation-delay: 0.1s; }
+        .category-pill:nth-child(2) { animation-delay: 0.2s; }
+        .category-pill:nth-child(3) { animation-delay: 0.3s; }
+        .category-pill:nth-child(4) { animation-delay: 0.4s; }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Loading state */
+        .search-btn.loading {
+            pointer-events: none;
+        }
+
+        .search-btn.loading svg {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="search-filter-section">
+            <div class="search-header">
+                <h2 class="search-title">Find Your Perfect Food</h2>
+                <p class="search-subtitle">Discover amazing dishes from local restaurants and stores</p>
+            </div>
+
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <div class="search-input-group">
+                        <input 
+                            type="text" 
+                            class="search-input" 
+                            placeholder="Search for delicious food items..." 
+                            id="searchInput"
+                        >
+                        <button class="clear-btn" id="clearBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                            </svg>
+                        </button>
+                        <button class="search-btn" id="searchBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="filter-row">
+                    <!-- Desktop Categories -->
+                    <div class="category-filters">
+                        <div class="category-pill active" data-category="all">
+                            <span>All Categories</span>
+                        </div>
+                        <div class="category-pill" data-category="grocery">
+                            <span>🛒 Grocery</span>
+                        </div>
+                        <div class="category-pill" data-category="bakery">
+                            <span>🥖 Bakery</span>
+                        </div>
+                        <div class="category-pill" data-category="restaurant">
+                            <span>🍽️ Restaurant</span>
+                        </div>
+                        <div class="category-pill" data-category="fastfood">
+                            <span>🍔 Fast Food</span>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Categories Toggle -->
+                    <div class="categories-toggle" id="categoriesToggle">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                        </svg>
+                        <span>Categories</span>
+                        <span class="toggle-arrow">▼</span>
+                    </div>
+
+                    <div class="price-dropdown">
+                        <div class="dropdown-trigger" id="priceDropdown">
+                            <span>Price Range</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="dropdown-menu" id="priceMenu">
+                            <div class="dropdown-item" data-price="all">All Prices</div>
+                            <div class="dropdown-item" data-price="0-100">₱0 - ₱100</div>
+                            <div class="dropdown-item" data-price="100-300">₱100 - ₱300</div>
+                            <div class="dropdown-item" data-price="300-500">₱300 - ₱500</div>
+                            <div class="dropdown-item" data-price="500+">₱500+</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mobile Categories Grid -->
+                <div class="categories-grid" id="categoriesGrid">
+                    <div class="mobile-category-item active" data-category="all">
+                        <div class="category-icon">🏠</div>
+                        <div class="category-label">All Items</div>
+                    </div>
+                    <div class="mobile-category-item" data-category="grocery">
+                        <div class="category-icon">🛒</div>
+                        <div class="category-label">Grocery</div>
+                    </div>
+                    <div class="mobile-category-item" data-category="bakery">
+                        <div class="category-icon">🥖</div>
+                        <div class="category-label">Bakery</div>
+                    </div>
+                    <div class="mobile-category-item" data-category="restaurant">
+                        <div class="category-icon">🍽️</div>
+                        <div class="category-label">Restaurant</div>
+                    </div>
+                    <div class="mobile-category-item" data-category="fastfood">
+                        <div class="category-icon">🍔</div>
+                        <div class="category-label">Fast Food</div>
+                    </div>
+                    <div class="mobile-category-item" data-category="dessert">
+                        <div class="category-icon">🍰</div>
+                        <div class="category-label">Dessert</div>
+                    </div>
+                    <div class="mobile-category-item" data-category="drinks">
+                        <div class="category-icon">🥤</div>
+                        <div class="category-label">Drinks</div>
+                    </div>
+                    <div class="mobile-category-item" data-category="healthy">
+                        <div class="category-icon">🥗</div>
+                        <div class="category-label">Healthy</div>
+                    </div>
+                </div>
+
+                <div class="active-filters" id="activeFilters">
+                    <!-- Active filter tags will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        
+        // Category filters
+        const categoryPills = document.querySelectorAll('.category-pill');
+        const mobileCategoryItems = document.querySelectorAll('.mobile-category-item');
+        const categoriesToggle = document.getElementById('categoriesToggle');
+        const categoriesGrid = document.getElementById('categoriesGrid');
+        
+        // Price dropdown
+        const priceDropdown = document.getElementById('priceDropdown');
+        const priceMenu = document.getElementById('priceMenu');
+        const priceItems = document.querySelectorAll('.dropdown-item');
+        
+        // Active filters
+        const activeFiltersContainer = document.getElementById('activeFilters');
+        
+        // State
+        let activeFilters = {
+            category: 'all',
+            price: 'all',
+            search: ''
+        };
+
+        // Search input handlers
+        searchInput.addEventListener('input', (e) => {
+            const value = e.target.value;
+            clearBtn.classList.toggle('visible', value.length > 0);
+            activeFilters.search = value;
+            updateActiveFilters();
+        });
+
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        searchBtn.addEventListener('click', performSearch);
+        
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.classList.remove('visible');
+            activeFilters.search = '';
+            updateActiveFilters();
+            searchInput.focus();
+        });
+
+        // Category filter handlers (Desktop)
+        categoryPills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                // Remove active class from all pills
+                categoryPills.forEach(p => p.classList.remove('active'));
+                // Add active class to clicked pill
+                pill.classList.add('active');
+                
+                activeFilters.category = pill.dataset.category;
+                updateActiveFilters();
+            });
+        });
+
+        // Mobile categories toggle
+        categoriesToggle.addEventListener('click', () => {
+            categoriesToggle.classList.toggle('active');
+            categoriesGrid.classList.toggle('open');
+        });
+
+        // Mobile category handlers
+        mobileCategoryItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // Remove active class from all mobile items
+                mobileCategoryItems.forEach(i => i.classList.remove('active'));
+                // Add active class to clicked item
+                item.classList.add('active');
+                
+                // Also sync with desktop pills
+                categoryPills.forEach(p => p.classList.remove('active'));
+                const desktopPill = document.querySelector(`[data-category="${item.dataset.category}"]`);
+                if (desktopPill) {
+                    desktopPill.classList.add('active');
+                }
+                
+                activeFilters.category = item.dataset.category;
+                updateActiveFilters();
+                
+                // Close mobile menu after selection
+                categoriesToggle.classList.remove('active');
+                categoriesGrid.classList.remove('open');
+            });
+        });
+
+        // Price dropdown handlers
+        priceDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+            priceDropdown.classList.toggle('active');
+            priceMenu.classList.toggle('open');
+        });
+
+        priceItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // Update dropdown text
+                const selectedText = item.textContent;
+                priceDropdown.querySelector('span').textContent = selectedText;
+                
+                // Close dropdown
+                priceDropdown.classList.remove('active');
+                priceMenu.classList.remove('open');
+                
+                activeFilters.price = item.dataset.price;
+                updateActiveFilters();
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            priceDropdown.classList.remove('active');
+            priceMenu.classList.remove('open');
+        });
+
+        // Update active filters display
+        function updateActiveFilters() {
+            const filters = [];
+            
+            if (activeFilters.search) {
+                filters.push({
+                    type: 'search',
+                    text: `Search: "${activeFilters.search}"`,
+                    value: activeFilters.search
+                });
+            }
+            
+            if (activeFilters.category !== 'all') {
+                const categoryName = document.querySelector(`[data-category="${activeFilters.category}"] span`).textContent;
+                filters.push({
+                    type: 'category',
+                    text: `Category: ${categoryName}`,
+                    value: activeFilters.category
+                });
+            }
+            
+            if (activeFilters.price !== 'all') {
+                const priceText = document.querySelector(`[data-price="${activeFilters.price}"]`).textContent;
+                filters.push({
+                    type: 'price',
+                    text: `Price: ${priceText}`,
+                    value: activeFilters.price
+                });
+            }
+            
+            // Update display
+            if (filters.length > 0) {
+                activeFiltersContainer.innerHTML = filters.map(filter => `
+                    <div class="filter-tag" data-type="${filter.type}" data-value="${filter.value}">
+                        <span>${filter.text}</span>
+                        <button class="filter-tag-remove" onclick="removeFilter('${filter.type}', '${filter.value}')">×</button>
+                    </div>
+                `).join('');
+                activeFiltersContainer.style.display = 'flex';
+            } else {
+                activeFiltersContainer.style.display = 'none';
+            }
+        }
+
+        // Remove filter
+        function removeFilter(type, value) {
+            if (type === 'search') {
+                searchInput.value = '';
+                clearBtn.classList.remove('visible');
+                activeFilters.search = '';
+            } else if (type === 'category') {
+                document.querySelector('[data-category="all"]').classList.add('active');
+                document.querySelector(`[data-category="${value}"]`).classList.remove('active');
+                activeFilters.category = 'all';
+            } else if (type === 'price') {
+                priceDropdown.querySelector('span').textContent = 'Price Range';
+                activeFilters.price = 'all';
+            }
+            
+            updateActiveFilters();
+        }
+
+        // Perform search
+        function performSearch() {
+            searchBtn.classList.add('loading');
+            
+            // Simulate search delay
+            setTimeout(() => {
+                searchBtn.classList.remove('loading');
+                console.log('Searching with filters:', activeFilters);
+                // Here you would typically make an API call with the filters
+            }, 1000);
+        }
+
+        // Initialize
+        updateActiveFilters();
+    </script>
+</body>
+</html>
