@@ -565,9 +565,19 @@
     cursor: pointer;
 }
 
-.food-card:hover {
+.food-card.clickable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.food-card.clickable:hover {
     transform: translateY(-8px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.food-card.clickable:active {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .food-image {
@@ -627,43 +637,7 @@
     text-decoration: line-through;
 }
 
-.card-actions {
-    display: flex;
-    gap: 10px;
-}
-
-.btn {
-    padding: 10px 20px;
-    border-radius: 8px;
-    border: none;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 14px;
-    flex: 1;
-    text-align: center;
-}
-
-.btn-primary {
-    background: #2d5016;
-    color: white;
-}
-
-.btn-primary:hover {
-    background: #2d5016;
-    transform: translateY(-2px);
-}
-
-.btn-secondary {
-    background: transparent;
-    color: #2d5016;
-    border: 1px solid #2d5016;
-}
-
-.btn-secondary:hover {
-    background: #2d5016;
-    color: white;
-}
+/* Card actions removed - entire card is now clickable */
 
 /* Pagination */
 .pagination {
@@ -846,9 +820,7 @@
         gap: 15px;
     }
     
-    .card-actions {
-        flex-direction: column;
-    }
+    /* Card actions removed - entire card is now clickable */
     
     .pagination {
         flex-wrap: wrap;

@@ -228,8 +228,10 @@ function decreaseQuantity() {
 // Buy now function
 function buyNow(foodId) {
     const quantity = document.getElementById('quantityInput').value;
-    // In a real app, this would make an API call to create an order
-    showNotification(`Order placed successfully! Quantity: ${quantity}`, 'success');
+    
+    // Navigate to order confirmation page with product ID and quantity
+    const url = `/consumer/order-confirmation?id=${foodId}&quantity=${quantity}`;
+    window.location.href = url;
 }
 
 // Show more reviews function

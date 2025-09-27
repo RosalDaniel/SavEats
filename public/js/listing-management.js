@@ -447,7 +447,7 @@ function editItem(id) {
 }
 
 function viewItem(id) {
-    showNotification(`Viewing details for item ${id}...`, 'info');
+    viewDetails(id);
 }
 
 function duplicateItem(id) {
@@ -872,5 +872,160 @@ window.addEventListener('error', (e) => {
     console.error('Application error:', e.error);
     showNotification('An error occurred. Please refresh the page.', 'error');
 });
+
+// View Details Modal functionality
+const viewDetailsModal = document.getElementById('viewDetailsModal');
+const closeViewModal = document.getElementById('closeViewModal');
+
+// Close modal functions
+function closeViewDetailsModal() {
+    viewDetailsModal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Event listeners for View Details modal
+if (closeViewModal) {
+    closeViewModal.addEventListener('click', closeViewDetailsModal);
+}
+
+// Close modal when clicking outside
+if (viewDetailsModal) {
+    viewDetailsModal.addEventListener('click', (e) => {
+        if (e.target === viewDetailsModal) {
+            closeViewDetailsModal();
+        }
+    });
+}
+
+// View details function
+function viewDetails(itemId) {
+    // Find the item data from the table
+    const row = document.querySelector(`tr[data-id="${itemId}"]`);
+    if (!row) return;
+
+    // Extract data from the row
+    const itemData = {
+        id: row.dataset.id,
+        name: row.dataset.name,
+        description: row.dataset.description,
+        category: row.dataset.category,
+        quantity: row.dataset.quantity,
+        originalPrice: parseFloat(row.dataset.originalPrice),
+        discountPercentage: parseFloat(row.dataset.discountPercentage) || 0,
+        discountedPrice: parseFloat(row.dataset.discountedPrice) || parseFloat(row.dataset.originalPrice),
+        expiry: row.dataset.expiry,
+        address: row.dataset.address,
+        pickupAvailable: row.dataset.pickupAvailable === 'true',
+        deliveryAvailable: row.dataset.deliveryAvailable === 'true',
+        image: row.dataset.image
+    };
+
+    // Calculate current price
+    const currentPrice = itemData.discountedPrice || itemData.originalPrice;
+    const discount = itemData.discountPercentage;
+
+    // Populate modal with data
+    document.getElementById('viewProductTitle').textContent = itemData.name;
+    document.getElementById('viewBakeryName').textContent = 'Sample Bakery'; // You can get this from establishment data
+    document.getElementById('viewProductImage').src = itemData.image || 'https://via.placeholder.com/400x300/4a7c59/ffffff?text=' + encodeURIComponent(itemData.name.charAt(0));
+    document.getElementById('viewCurrentPrice').textContent = `₱ ${currentPrice.toFixed(2)}`;
+    document.getElementById('viewOriginalPrice').textContent = `₱ ${itemData.originalPrice.toFixed(2)}`;
+    document.getElementById('viewLocation').textContent = itemData.address || 'Location not specified';
+    document.getElementById('viewPickupOption').textContent = itemData.pickupAvailable ? 'Pick-Up Available' : 'Pick-Up Not Available';
+    document.getElementById('viewExpiryDate').textContent = `Expiry Date: ${new Date(itemData.expiry).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+    document.getElementById('viewOperatingHours').textContent = 'Mon - Sat | 7:00 am - 5:00 pm';
+    document.getElementById('viewAvailability').textContent = `${itemData.quantity} pieces available`;
+    document.getElementById('viewQuantityInput').max = itemData.quantity;
+
+    // Show/hide discount badge
+    const discountBadge = document.getElementById('viewDiscountBadge');
+    if (discount > 0) {
+        discountBadge.textContent = `${Math.round(discount)}% OFF`;
+        discountBadge.style.display = 'inline-block';
+    } else {
+        discountBadge.style.display = 'none';
+    }
+
+    // Show modal
+    viewDetailsModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+// Quantity controls for View Details modal
+const viewDecreaseQty = document.getElementById('viewDecreaseQty');
+const viewIncreaseQty = document.getElementById('viewIncreaseQty');
+const viewQuantityInput = document.getElementById('viewQuantityInput');
+
+if (viewDecreaseQty) {
+    viewDecreaseQty.addEventListener('click', () => {
+        const currentValue = parseInt(viewQuantityInput.value) || 1;
+        if (currentValue > 1) {
+            viewQuantityInput.value = currentValue - 1;
+        }
+    });
+}
+
+if (viewIncreaseQty) {
+    viewIncreaseQty.addEventListener('click', () => {
+        const currentValue = parseInt(viewQuantityInput.value) || 1;
+        const maxValue = parseInt(viewQuantityInput.max) || 1;
+        if (currentValue < maxValue) {
+            viewQuantityInput.value = currentValue + 1;
+        }
+    });
+}
+
+// Review filter functionality
+const reviewFilterBtns = document.querySelectorAll('.rating-filters .filter-btn');
+reviewFilterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        // Remove active class from all buttons
+        reviewFilterBtns.forEach(b => b.classList.remove('active'));
+        // Add active class to clicked button
+        btn.classList.add('active');
+        
+        // Filter reviews based on rating
+        const rating = btn.dataset.rating;
+        filterReviews(rating);
+    });
+});
+
+function filterReviews(rating) {
+    const reviewItems = document.querySelectorAll('.review-item');
+    
+    reviewItems.forEach(item => {
+        if (rating === 'all') {
+            item.style.display = 'flex';
+        } else {
+            const itemRating = parseInt(item.dataset.rating) || 5; // Default to 5 stars
+            if (itemRating.toString() === rating) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        }
+    });
+}
+
+// Show more reviews functionality
+const showMoreBtn = document.getElementById('viewShowMoreBtn');
+if (showMoreBtn) {
+    showMoreBtn.addEventListener('click', () => {
+        // In a real app, this would load more reviews from the server
+        showNotification('Loading more reviews...', 'info');
+    });
+}
+
+// Buy Now function
+function buyNow() {
+    const quantity = document.getElementById('viewQuantityInput').value;
+    const productName = document.getElementById('viewProductTitle').textContent;
+    showNotification(`Order placed successfully! ${quantity} x ${productName}`, 'success');
+    closeViewDetailsModal();
+}
+
+// Make functions globally available
+window.viewDetails = viewDetails;
+window.buyNow = buyNow;
 
 console.log('Listing Management page initialized successfully!');

@@ -1,0 +1,447 @@
+/* Payment Options Page Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Afacad', Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: #f5f5f5;
+}
+
+.payment-options-page {
+    background: #f5f5f5;
+    min-height: 100vh;
+    padding: 0;
+}
+
+.payment-header {
+    background: #4a7c59;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.back-button {
+    background: #fbbf24;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: white;
+}
+
+.back-button:hover {
+    background: #f59e0b;
+    transform: translateY(-2px);
+}
+
+.payment-title {
+    color: white;
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.payment-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #f5f5f5;
+}
+
+.payment-content {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Payment Breakdown Section */
+.payment-breakdown-section {
+    margin-bottom: 30px;
+}
+
+.breakdown-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.breakdown-table {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table-header {
+    background: #ff8c42;
+    display: flex;
+    padding: 15px 20px;
+    font-weight: 600;
+    color: white;
+}
+
+.table-row {
+    display: flex;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: white;
+}
+
+.table-total {
+    display: flex;
+    padding: 15px 20px;
+    background: #f8f9fa;
+    font-weight: 700;
+    color: #dc2626;
+}
+
+.fees-column {
+    flex: 1;
+}
+
+.price-column {
+    flex: 1;
+    text-align: right;
+}
+
+/* Payment Methods */
+.payment-methods {
+    margin-bottom: 30px;
+}
+
+.payment-method {
+    margin-bottom: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.method-header {
+    background: #2d5016;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.method-header:hover {
+    background: #1e3a0f;
+}
+
+.method-title {
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.method-arrow {
+    color: white;
+    font-size: 14px;
+    transition: transform 0.3s ease;
+}
+
+.method-content {
+    padding: 20px;
+    background: white;
+    transition: all 0.3s ease;
+    max-height: 1000px;
+    overflow: hidden;
+}
+
+.method-content.collapsed {
+    max-height: 0;
+    padding: 0 20px;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.payment-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: #4a7c59;
+}
+
+.checkbox-label {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    cursor: pointer;
+}
+
+.method-description {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Bank Logos */
+.bank-logos {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
+
+.bank-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 15px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 100px;
+}
+
+.bank-logo:hover {
+    border-color: #4a7c59;
+    transform: translateY(-2px);
+}
+
+.logo-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.unionbank .logo-circle {
+    background: #ff8c42;
+}
+
+.bpi .logo-circle {
+    background: #dc2626;
+}
+
+.bdo .logo-circle {
+    background: #2563eb;
+}
+
+.security .logo-circle {
+    background: #4a7c59;
+}
+
+.bank-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    text-align: center;
+}
+
+/* Card Form */
+.card-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon input {
+    width: 100%;
+    padding: 12px 40px 12px 15px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.input-with-icon input:focus {
+    outline: none;
+    border-color: #4a7c59;
+}
+
+.input-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+}
+
+.form-group input {
+    padding: 12px 15px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #4a7c59;
+}
+
+/* File Upload */
+.file-upload {
+    position: relative;
+}
+
+.file-upload input[type="file"] {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+.upload-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    border: 2px dashed #e5e7eb;
+    border-radius: 8px;
+    background: #f8f9fa;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-placeholder:hover {
+    border-color: #4a7c59;
+    background: #f0f9ff;
+}
+
+.upload-icon {
+    color: #666;
+}
+
+/* Place Order Button */
+.place-order-section {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.place-order-btn {
+    background: #2d5016;
+    color: white;
+    border: none;
+    padding: 16px 40px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 200px;
+}
+
+.place-order-btn:hover {
+    background: #1e3a0f;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(45, 80, 22, 0.3);
+}
+
+.place-order-btn:active {
+    transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .payment-container {
+        padding: 15px;
+    }
+    
+    .payment-content {
+        padding: 20px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .bank-logos {
+        justify-content: center;
+    }
+    
+    .bank-logo {
+        min-width: 80px;
+    }
+    
+    .breakdown-title {
+        font-size: 20px;
+    }
+    
+    .table-header,
+    .table-row,
+    .table-total {
+        padding: 12px 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .payment-header {
+        padding: 12px 15px;
+    }
+    
+    .payment-title {
+        font-size: 18px;
+    }
+    
+    .back-button {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .bank-logos {
+        gap: 10px;
+    }
+    
+    .bank-logo {
+        min-width: 70px;
+        padding: 10px;
+    }
+    
+    .logo-circle {
+        width: 35px;
+        height: 35px;
+        font-size: 10px;
+    }
+}

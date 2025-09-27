@@ -236,4 +236,56 @@ class FoodListingController extends Controller
                 return null;
         }
     }
+
+    /**
+     * Display order confirmation page
+     */
+    public function orderConfirmation(Request $request)
+    {
+        // Get user data from session
+        $userData = $this->getUserData();
+        
+        // Get product ID and quantity from URL parameters
+        $productId = $request->get('id');
+        $quantity = $request->get('quantity', 1);
+        
+        // If no product ID provided, redirect to food listing
+        if (!$productId) {
+            return redirect()->route('consumer.food-listing');
+        }
+        
+        // Fetch the food item with establishment details
+        $foodItem = FoodListing::with('establishment')->find($productId);
+        
+        // If food item not found, redirect to food listing
+        if (!$foodItem) {
+            return redirect()->route('consumer.food-listing');
+        }
+        
+        // Calculate pricing
+        $originalPrice = (float) $foodItem->original_price;
+        $discountedPrice = (float) $foodItem->discounted_price;
+        $discountPercentage = (float) $foodItem->discount_percentage;
+        
+        // Get establishment name with fallback
+        $establishmentName = $foodItem->establishment->business_name ?? 
+                           ($foodItem->establishment->owner_fname . ' ' . $foodItem->establishment->owner_lname) ?? 
+                           'Unknown Store';
+        
+        // Get establishment address with fallback
+        $establishmentAddress = $foodItem->establishment->address ?? 
+                              $foodItem->address ?? 
+                              'Location not specified';
+        
+        return view('consumer.order-confirmation', compact(
+            'foodItem', 
+            'quantity', 
+            'originalPrice', 
+            'discountedPrice', 
+            'discountPercentage',
+            'establishmentName',
+            'establishmentAddress',
+            'userData'
+        ));
+    }
 }

@@ -349,6 +349,175 @@
 
 <!-- Overlay -->
 <div class="overlay" id="overlay"></div>
+
+<!-- View Details Modal -->
+<div class="view-details-modal" id="viewDetailsModal">
+    <div class="modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header">
+            <button class="close-btn" id="closeViewModal">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </button>
+            <div class="product-title-section">
+                <h2 class="product-title" id="viewProductTitle">Joy Bread</h2>
+                <p class="bakery-name" id="viewBakeryName">Henry Happy Bakery</p>
+            </div>
+            <button class="more-options-btn" id="viewMoreOptions">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Product Image -->
+        <div class="product-image-section">
+            <img id="viewProductImage" src="" alt="Product Image" class="product-image">
+        </div>
+
+        <!-- Pricing Section -->
+        <div class="pricing-section">
+            <div class="price-info">
+                <span class="current-price" id="viewCurrentPrice">₱ 25.00</span>
+                <div class="discount-badge" id="viewDiscountBadge">50% off</div>
+            </div>
+            <span class="original-price" id="viewOriginalPrice">₱ 50.00</span>
+        </div>
+
+        <!-- Product Details -->
+        <div class="product-details-section">
+            <div class="detail-item">
+                <svg class="detail-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+                <span id="viewLocation">Sunny Side St. 1234</span>
+            </div>
+            <div class="detail-item">
+                <svg class="detail-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                <span id="viewPickupOption">Pick-Up Only</span>
+            </div>
+            <div class="detail-row">
+                <div class="detail-item">
+                    <svg class="detail-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    <span id="viewExpiryDate">Expiry Date: June 27, 2025</span>
+                </div>
+                <div class="operating-hours" id="viewOperatingHours">Mon - Sat | 7:00 am - 5:00 pm</div>
+            </div>
+        </div>
+
+        <!-- Quantity Selector -->
+        <div class="quantity-section">
+            <div class="quantity-controls">
+                <button class="quantity-btn decrease" id="viewDecreaseQty">-</button>
+                <input type="number" id="viewQuantityInput" class="quantity-input" value="1" min="1">
+                <button class="quantity-btn increase" id="viewIncreaseQty">+</button>
+            </div>
+            <div class="availability-info">
+                <span id="viewAvailability">10 pieces available</span>
+            </div>
+        </div>
+
+        <!-- Reviews Section -->
+        <div class="reviews-section">
+            <div class="rating-summary">
+                <div class="stars">
+                    <svg class="star filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    <svg class="star filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    <svg class="star filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    <svg class="star filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    <svg class="star half" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                </div>
+                <span class="rating-text" id="viewRatingText">4.6 out 5</span>
+            </div>
+            
+            <div class="rating-filters">
+                <button class="filter-btn active" data-rating="all">All</button>
+                <button class="filter-btn" data-rating="5">5 Stars</button>
+                <button class="filter-btn" data-rating="4">4 Stars</button>
+                <button class="filter-btn" data-rating="3">3 Stars</button>
+                <button class="filter-btn" data-rating="2">2 Stars</button>
+                <button class="filter-btn" data-rating="1">1 Star</button>
+            </div>
+
+            <div class="reviews-list" id="viewReviewsList">
+                <div class="review-item">
+                    <div class="review-avatar">
+                        <div class="review-avatar-initials">JD</div>
+                    </div>
+                    <div class="review-content">
+                        <div class="review-header">
+                            <span class="reviewer-name">John Doe</span>
+                            <div class="review-stars">
+                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="review-text">Supporting line text lorem ipsum dolor sit amet, consectetur.</p>
+                    </div>
+                </div>
+                <div class="review-item">
+                    <div class="review-avatar">
+                        <div class="review-avatar-initials">JD</div>
+                    </div>
+                    <div class="review-content">
+                        <div class="review-header">
+                            <span class="reviewer-name">John Doe</span>
+                            <div class="review-stars">
+                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="review-text">Supporting line text lorem ipsum dolor sit amet, consectetur.</p>
+                    </div>
+                </div>
+            </div>
+
+            <button class="show-more-btn" id="viewShowMoreBtn">Show more (20)</button>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')

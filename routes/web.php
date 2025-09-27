@@ -69,6 +69,13 @@ Route::middleware('custom.auth')->group(function () {
     // Food listing routes
     Route::get('/consumer/food-listing', [FoodListingController::class, 'index'])->name('food.listing');
     Route::get('/consumer/food-detail/{id}', [FoodListingController::class, 'show'])->name('food.detail');
+    Route::get('/consumer/order-confirmation', [FoodListingController::class, 'orderConfirmation'])->name('order.confirmation');
+    Route::get('/consumer/payment-options', function () {
+        return view('consumer.payment-options');
+    })->name('payment.options');
+    Route::get('/consumer/payment', function () {
+        return redirect()->route('payment.options');
+    });
     Route::get('/consumer/my-orders', [FoodListingController::class, 'myOrders'])->name('my.orders');
     
     // Establishment routes

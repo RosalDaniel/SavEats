@@ -241,7 +241,7 @@ function renderFoodGrid() {
     const pageData = filteredData.slice(startIndex, endIndex);
     
     foodGrid.innerHTML = pageData.map(food => `
-        <div class="food-card" data-category="${food.category}">
+        <div class="food-card clickable" data-category="${food.category}" onclick="viewDetails(${food.id})">
             <div class="food-image" style="background-image: url('${food.image}')">
                 <div class="discount-badge">${food.discount}% OFF</div>
             </div>
@@ -251,10 +251,6 @@ function renderFoodGrid() {
                 <div class="price-section">
                     <span class="current-price">₱${(food.price || 0).toFixed(2)}</span>
                     <span class="original-price">₱${(food.original_price || 0).toFixed(2)}</span>
-                </div>
-                <div class="card-actions">
-                    <button class="btn btn-primary" onclick="orderFood(${food.id})">Order Now</button>
-                    <button class="btn btn-secondary" onclick="viewDetails(${food.id})">View Details</button>
                 </div>
             </div>
         </div>
@@ -313,13 +309,7 @@ function updatePagination() {
 }
 
 // Order food function
-function orderFood(foodId) {
-    const food = foodData.find(f => f.id === foodId);
-    if (food) {
-        // In a real app, this would make an API call to create an order
-        showNotification(`Order placed for ${food.name}!`, 'success');
-    }
-}
+// orderFood function removed - entire card is now clickable for view details
 
 // View details function
 function viewDetails(foodId) {

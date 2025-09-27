@@ -100,7 +100,7 @@
 }
 
 .btn-primary {
-    background: #4a7c59;
+    background: #2d5016;
     color: white;
 }
 
@@ -111,12 +111,12 @@
 
 .btn-secondary {
     background: transparent;
-    color: #4a7c59;
+    color: #2d5016;
     border: 1px solid #4a7c59;
 }
 
 .btn-secondary:hover {
-    background: #4a7c59;
+    background: #2d5016;
     color: white;
 }
 
@@ -455,13 +455,13 @@
 }
 
 .page-btn:hover {
-    border-color: #4a7c59;
+    border-color: #2d5016;
     background: #4a7c59;
     color: white;
 }
 
 .page-btn.active {
-    background: #4a7c59;
+    background: #2d5016;
     border-color: #4a7c59;
     color: white;
 }
@@ -494,7 +494,7 @@
 
 .bulk-info {
     flex: 1;
-    color: #2e7d32;
+    color: #2d5016;
     font-weight: 600;
 }
 
@@ -660,7 +660,7 @@
 }
 
 .upload-placeholder svg {
-    color: #4a7c59;
+    color: #2d5016;
     margin-bottom: 10px;
 }
 
@@ -695,7 +695,7 @@
     color: #333;
     margin: 0 0 20px 0;
     padding-bottom: 10px;
-    border-bottom: 2px solid #4a7c59;
+    border-bottom: 2px solid #2d5016;
 }
 
 .form-group {
@@ -729,7 +729,7 @@
 .input-with-icon input:focus,
 .input-with-icon select:focus {
     outline: none;
-    border-color: #4a7c59;
+    border-color: #2d5016;
     box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.1);
 }
 
@@ -743,7 +743,7 @@
 }
 
 .dropdown-icon {
-    color: #4a7c59;
+    color: #2d5016;
 }
 
 /* Quantity Controls */
@@ -757,9 +757,9 @@
 .quantity-btn {
     width: 40px;
     height: 40px;
-    border: 1px solid #4a7c59;
+    border: 1px solid #2d5016;
     background: white;
-    color: #4a7c59;
+    color: #2d5016;
     border-radius: 8px;
     cursor: pointer;
     font-size: 18px;
@@ -771,7 +771,7 @@
 }
 
 .quantity-btn:hover {
-    background: #4a7c59;
+    background: #2d5016;
     color: white;
 }
 
@@ -800,7 +800,7 @@ textarea {
 
 textarea:focus {
     outline: none;
-    border-color: #4a7c59;
+    border-color: #2d5016;
     box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.1);
 }
 
@@ -835,7 +835,7 @@ textarea:focus {
 }
 
 .checkbox-label input[type="checkbox"]:checked + .checkmark {
-    background: #4a7c59;
+    background: #2d5016;
     border-color: #4a7c59;
 }
 
@@ -862,7 +862,7 @@ textarea:focus {
 
 /* Publish Button */
 .publish-btn {
-    background: linear-gradient(135deg, #4a7c59, #2d5016);
+    background: #2d5016;
     color: white;
     border: none;
     padding: 15px 40px;
@@ -875,7 +875,7 @@ textarea:focus {
 }
 
 .publish-btn:hover {
-    background: linear-gradient(135deg, #2d5016, #1a3a0f);
+    background: #2d5016;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(74, 124, 89, 0.3);
 }
@@ -891,7 +891,7 @@ textarea:focus {
     width: 16px;
     height: 16px;
     border: 2px solid #f3f3f3;
-    border-top: 2px solid #4a7c59;
+    border-top: 2px solid #2d5016;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -966,5 +966,433 @@ textarea:focus {
     .pagination-controls {
         flex-wrap: wrap;
         justify-content: center;
+    }
+}
+
+/* View Details Modal */
+.view-details-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(74, 124, 89, 0.8);
+    z-index: 2000;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.view-details-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.view-details-modal .modal-content {
+    background: white;
+    border-radius: 16px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Modal Header */
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.close-btn {
+    background: #4a7c59;
+    border: none;
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+}
+
+.close-btn:hover {
+    background: #2d5016;
+}
+
+.product-title-section {
+    flex: 1;
+    text-align: center;
+    margin: 0 20px;
+}
+
+.product-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2d5016;
+    margin: 0 0 4px 0;
+}
+
+.bakery-name {
+    font-size: 16px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.more-options-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: #6b7280;
+    border-radius: 8px;
+    transition: background 0.2s ease;
+}
+
+.more-options-btn:hover {
+    background: #f3f4f6;
+}
+
+/* Product Image */
+.product-image-section {
+    padding: 0 24px 20px;
+}
+
+.product-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+/* Pricing Section */
+.pricing-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px 20px;
+}
+
+.price-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.current-price {
+    font-size: 28px;
+    font-weight: 700;
+    color: #f59e0b;
+}
+
+.discount-badge {
+    background: #fbbf24;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.original-price {
+    font-size: 18px;
+    color: #9ca3af;
+    text-decoration: line-through;
+}
+
+/* Product Details */
+.product-details-section {
+    padding: 0 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #374151;
+    font-size: 14px;
+}
+
+.detail-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.detail-icon {
+    color: #4a7c59;
+    flex-shrink: 0;
+}
+
+.operating-hours {
+    font-size: 12px;
+    color: #6b7280;
+    margin-left: auto;
+}
+
+/* Quantity Section */
+.quantity-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px 20px;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+}
+
+.quantity-btn {
+    background: #f3f4f6;
+    border: none;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.quantity-btn:hover {
+    background: #e5e7eb;
+}
+
+.quantity-input {
+    width: 60px;
+    height: 40px;
+    border: none;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #2d5016;
+    background: white;
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+.quantity-input::-webkit-outer-spin-button,
+.quantity-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.availability-info {
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Reviews Section */
+.reviews-section {
+    padding: 0 24px 24px;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 20px;
+}
+
+.rating-summary {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding-top: 20px;
+}
+
+.stars {
+    display: flex;
+    gap: 4px;
+}
+
+.star {
+    color: #fbbf24;
+}
+
+.star.half {
+    color: #fbbf24;
+}
+
+.rating-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: #f59e0b;
+}
+
+.rating-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: 1px solid #fbbf24;
+    background: white;
+    color: #6b7280;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.filter-btn.active {
+    background: #fbbf24;
+    color: #f59e0b;
+    border-color: #fbbf24;
+}
+
+.filter-btn:hover:not(.active) {
+    background: #fef3c7;
+    color: #f59e0b;
+}
+
+.reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.review-item {
+    display: flex;
+    gap: 12px;
+}
+
+.review-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #4a7c59;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.review-avatar-initials {
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.review-content {
+    flex: 1;
+}
+
+.review-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.reviewer-name {
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+}
+
+.review-stars {
+    display: flex;
+    gap: 2px;
+}
+
+.review-text {
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.show-more-btn {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #f59e0b;
+    background: white;
+    color: #f59e0b;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.show-more-btn:hover {
+    background: #f59e0b;
+    color: white;
+}
+
+/* Mobile Responsive for View Details Modal */
+@media (max-width: 768px) {
+    .view-details-modal {
+        padding: 10px;
+    }
+    
+    .view-details-modal .modal-content {
+        max-height: 95vh;
+    }
+    
+    .modal-header {
+        padding: 16px 20px 12px;
+    }
+    
+    .product-title {
+        font-size: 20px;
+    }
+    
+    .bakery-name {
+        font-size: 14px;
+    }
+    
+    .product-image-section,
+    .pricing-section,
+    .product-details-section,
+    .quantity-section,
+    .reviews-section {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+    
+    .current-price {
+        font-size: 24px;
+    }
+    
+    .detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .operating-hours {
+        margin-left: 0;
+    }
+    
+    .rating-filters {
+        gap: 6px;
+    }
+    
+    .filter-btn {
+        padding: 6px 12px;
+        font-size: 12px;
     }
 }
