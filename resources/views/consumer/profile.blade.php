@@ -1,6 +1,6 @@
 @extends('layouts.consumer')
 
-@section('title', 'My Profile - SavEats')
+@section('title', 'My Profile | SavEats')
 
 @section('header', 'My Profile')
 

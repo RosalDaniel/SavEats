@@ -1,6 +1,6 @@
 @extends('layouts.foodbank')
 
-@section('title', 'Donations - SavEats Foodbank')
+@section('title', 'Donations | SavEats')
 
 @section('header', 'Donations Management')
 

@@ -1,6 +1,6 @@
 @extends('layouts.establishment')
 
-@section('title', 'Listing Management')
+@section('title', 'Listing Management | SavEats')
 @section('header', 'Listing Management')
 
 @section('styles')

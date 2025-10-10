@@ -1,0 +1,259 @@
+@extends('layouts.establishment')
+
+@section('title', 'Help Center | SavEats')
+
+@section('header', 'Help Center')
+
+@section('styles')
+<link href="https://fonts.googleapis.com/css2?family=Afacad:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/help-center.css') }}">
+@endsection
+
+@section('content')
+<div class="help-center-container">
+    <!-- Search Section -->
+    <div class="search-section">
+        <div class="search-container">
+            <h2 class="search-title">How can we help you?</h2>
+            <div class="search-box">
+                <input type="text" id="helpSearch" placeholder="Search for help topics, questions, or issues..." class="search-input">
+                <button class="search-btn" onclick="searchHelp()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Help Categories -->
+    <div class="quick-help-section">
+        <h3 class="section-title">Quick Help</h3>
+        <div class="help-categories">
+            <div class="help-category" onclick="showCategory('getting-started')">
+                <div class="category-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                </div>
+                <h4>Getting Started</h4>
+                <p>Learn the basics of using SavEats</p>
+            </div>
+            
+            <div class="help-category" onclick="showCategory('food-listing')">
+                <div class="category-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 4V2c0-.55-.45-1-1-1s-1 .45-1 1v2c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2V2c0-.55-.45-1-1-1s-1 .45-1 1v2H7zm0 2h10v9H7V6z"/>
+                    </svg>
+                </div>
+                <h4>Food Listing</h4>
+                <p>Manage your food listings and inventory</p>
+            </div>
+            
+            <div class="help-category" onclick="showCategory('orders')">
+                <div class="category-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                    </svg>
+                </div>
+                <h4>Orders & Payments</h4>
+                <p>Handle orders and payment processing</p>
+            </div>
+            
+            <div class="help-category" onclick="showCategory('earnings')">
+                <div class="category-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                    </svg>
+                </div>
+                <h4>Earnings & Reports</h4>
+                <p>Track your earnings and view reports</p>
+            </div>
+            
+            <div class="help-category" onclick="showCategory('account')">
+                <div class="category-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                </div>
+                <h4>Account Settings</h4>
+                <p>Manage your account and profile</p>
+            </div>
+            
+            <div class="help-category" onclick="showCategory('troubleshooting')">
+                <div class="category-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
+                <h4>Troubleshooting</h4>
+                <p>Common issues and solutions</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <div class="faq-section">
+        <h3 class="section-title">Frequently Asked Questions</h3>
+        <div class="faq-list">
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h4>How do I add a new food listing?</h4>
+                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                </div>
+                <div class="faq-answer">
+                    <p>To add a new food listing:</p>
+                    <ol>
+                        <li>Go to the "Listing Management" page</li>
+                        <li>Click the "Add New Listing" button</li>
+                        <li>Fill in the food details (name, description, price, etc.)</li>
+                        <li>Upload a photo of the food item</li>
+                        <li>Set availability and pickup/delivery options</li>
+                        <li>Click "Save" to publish your listing</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h4>How do I manage my orders?</h4>
+                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                </div>
+                <div class="faq-answer">
+                    <p>You can manage your orders through the dashboard:</p>
+                    <ul>
+                        <li>View all incoming orders in real-time</li>
+                        <li>Accept or decline orders</li>
+                        <li>Update order status (preparing, ready, completed)</li>
+                        <li>Communicate with customers about their orders</li>
+                        <li>Track order history and analytics</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h4>How do I track my earnings?</h4>
+                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                </div>
+                <div class="faq-answer">
+                    <p>The earnings page provides comprehensive tracking:</p>
+                    <ul>
+                        <li>View total earnings and daily trends</li>
+                        <li>See detailed breakdown of each sale</li>
+                        <li>Filter earnings by date range</li>
+                        <li>Export reports for accounting purposes</li>
+                        <li>Monitor payment methods and transaction history</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h4>What payment methods do you support?</h4>
+                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                </div>
+                <div class="faq-answer">
+                    <p>SavEats supports multiple payment methods:</p>
+                    <ul>
+                        <li>Credit/Debit Cards (Visa, Mastercard)</li>
+                        <li>E-Wallets (GCash, PayMaya, GrabPay)</li>
+                        <li>Cash on Delivery/Pickup</li>
+                        <li>Bank Transfers</li>
+                        <li>Digital Banking Apps</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h4>How do I update my business information?</h4>
+                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                </div>
+                <div class="faq-answer">
+                    <p>To update your business information:</p>
+                    <ol>
+                        <li>Go to your Profile page</li>
+                        <li>Click "Edit" on the section you want to update</li>
+                        <li>Make your changes</li>
+                        <li>Click "Save Changes" to confirm</li>
+                        <li>Some changes may require verification</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h4>How do I contact customer support?</h4>
+                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                </div>
+                <div class="faq-answer">
+                    <p>You can contact our support team through:</p>
+                    <ul>
+                        <li>Email: support@saveats.com</li>
+                        <li>Phone: +63 2 1234 5678</li>
+                        <li>Live Chat: Available 24/7 on the platform</li>
+                        <li>Help Center: Search our knowledge base</li>
+                        <li>Social Media: @SaveatsOfficial</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Support Section -->
+    <div class="contact-section">
+        <h3 class="section-title">Still Need Help?</h3>
+        <div class="contact-options">
+            <div class="contact-option">
+                <div class="contact-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                    </svg>
+                </div>
+                <h4>Email Support</h4>
+                <p>Get help via email within 24 hours</p>
+                <a href="mailto:support@saveats.com" class="contact-btn">Send Email</a>
+            </div>
+            
+            <div class="contact-option">
+                <div class="contact-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                    </svg>
+                </div>
+                <h4>Phone Support</h4>
+                <p>Call us for immediate assistance</p>
+                <a href="tel:+63212345678" class="contact-btn">Call Now</a>
+            </div>
+            
+            <div class="contact-option">
+                <div class="contact-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+                    </svg>
+                </div>
+                <h4>Live Chat</h4>
+                <p>Chat with our support team instantly</p>
+                <button class="contact-btn" onclick="startLiveChat()">Start Chat</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+@section('scripts')
+<script src="{{ asset('js/help-center.js') }}"></script>
+@endsection

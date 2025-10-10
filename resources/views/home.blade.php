@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'SaveEats - Fighting Food Waste, One Meal at a Time')
+@section('title', 'SaveEats')
 
 @section('styles')
     <link href="{{ asset('css/home.css') }}" rel="stylesheet">

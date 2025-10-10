@@ -2,7 +2,7 @@
  
 @extends('layouts.consumer')
 
-@section('title', 'Consumer Dashboard')
+@section('title', 'SavEats')
 
 @section('header', 'Dashboard')
 
