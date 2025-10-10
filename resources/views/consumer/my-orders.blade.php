@@ -53,112 +53,109 @@
 .orders-list {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
 }
 
 .order-card {
     background: white;
-    border-radius: 8px;
-    padding: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e9ecef;
     transition: all 0.3s ease;
 }
 
 .order-card:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .order-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 12px;
+    margin-bottom: 15px;
 }
 
 .product-info h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0 0 4px 0;
-    line-height: 1.3;
+    font-size: 20px;
+    font-weight: 700;
+    color: #ff8c00;
+    margin: 0 0 5px 0;
 }
 
 .product-info .quantity {
     font-size: 14px;
-    color: #6b7280;
+    color: #6c757d;
     margin: 0;
-    font-weight: 500;
 }
 
 .order-price {
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 700;
-    color: #059669;
+    color: #2d5016;
     margin: 0;
 }
 
 .order-details {
-    margin: 12px 0;
+    margin: 15px 0;
 }
 
 .detail-row {
     display: flex;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     font-size: 14px;
-    align-items: center;
 }
 
 .detail-label {
-    font-weight: 500;
-    color: #374151;
-    min-width: 100px;
-    margin-right: 8px;
+    font-weight: 600;
+    color: #495057;
+    min-width: 120px;
+    margin-right: 10px;
 }
 
 .detail-value {
-    color: #6b7280;
+    color: #6c757d;
     flex: 1;
-    font-weight: 400;
 }
 
 /* Order Actions */
 .order-actions {
     display: flex;
-    gap: 8px;
-    margin-top: 12px;
+    gap: 12px;
+    margin-top: 15px;
 }
 
 .btn {
     flex: 1;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 14px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     border: none;
     text-align: center;
 }
 
 .btn-outline {
     background: white;
-    color: #059669;
-    border: 1px solid #059669;
+    color: #2d5016;
+    border: 2px solid #2d5016;
 }
 
 .btn-outline:hover {
-    background: #f0fdf4;
+    background: #f8f9fa;
     transform: translateY(-1px);
 }
 
 .btn-primary {
-    background: #059669;
+    background: #2d5016;
     color: white;
 }
 
 .btn-primary:hover {
-    background: #047857;
+    background: #1e3a0f;
     transform: translateY(-1px);
 }
 
@@ -171,42 +168,40 @@
 /* Buy Again Button */
 .buy-again-btn {
     width: 100%;
-    background: #059669;
+    background: #2d5016;
     color: white;
     border: none;
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-size: 14px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    margin-top: 12px;
-    text-align: center;
+    transition: all 0.3s ease;
+    margin-top: 15px;
 }
 
 .buy-again-btn:hover {
-    background: #047857;
+    background: #1e3a0f;
     transform: translateY(-1px);
 }
 
 /* Legacy button for other tabs */
 .view-receipt-btn {
     width: 100%;
-    background: #059669;
+    background: #2d5016;
     color: white;
     border: none;
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-size: 14px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    margin-top: 12px;
-    text-align: center;
+    transition: all 0.3s ease;
+    margin-top: 15px;
 }
 
 .view-receipt-btn:hover {
-    background: #047857;
+    background: #1e3a0f;
     transform: translateY(-1px);
 }
 
