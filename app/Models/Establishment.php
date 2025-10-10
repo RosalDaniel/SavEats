@@ -43,6 +43,7 @@ class Establishment extends Authenticatable
         'phone_no',
         'address',
         'business_type',
+        'bir_file',
         'profile_image',
         'username',
         'password',

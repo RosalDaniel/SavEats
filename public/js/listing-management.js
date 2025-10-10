@@ -512,8 +512,8 @@ function saveItem() {
     formData.append('discount_percentage', parseFloat(document.getElementById('itemDiscount').value) || 0);
     formData.append('expiry_date', document.getElementById('itemExpiry').value);
     formData.append('address', document.getElementById('itemAddress').value.trim());
-    formData.append('pickup', document.getElementById('itemPickup').checked ? 1 : 0);
-    formData.append('delivery', document.getElementById('itemDelivery').checked ? 1 : 0);
+    formData.append('pickup', document.getElementById('itemPickup').checked ? '1' : '0');
+    formData.append('delivery', document.getElementById('itemDelivery').checked ? '1' : '0');
     
     // Add image if selected
     const imageFile = document.getElementById('itemImage').files[0];
@@ -536,8 +536,28 @@ function saveItem() {
     const method = isEdit ? 'PUT' : 'POST';
 
     // Add CSRF token
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    formData.append('_token', csrfToken);
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    console.log('CSRF Token:', csrfToken);
+    if (csrfToken) {
+        formData.append('_token', csrfToken);
+    } else {
+        console.error('CSRF token not found!');
+        showNotification('CSRF token not found. Please refresh the page.', 'error');
+        return;
+    }
+
+    // Debug: Log form data
+    console.log('Form data being sent:');
+    for (let [key, value] of formData.entries()) {
+        console.log(key, ':', value);
+    }
+    
+    // Debug: Check if all required fields are filled
+    const requiredFields = ['itemName', 'itemQuantity', 'itemOriginalPrice', 'itemCategory', 'itemExpiry'];
+    requiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        console.log(`${fieldId}:`, field ? field.value : 'NOT FOUND');
+    });
 
     // Make API call
     fetch(url, {
@@ -547,8 +567,15 @@ function saveItem() {
             'X-CSRF-TOKEN': csrfToken
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
     .then(data => {
+        console.log('Response data:', data);
+        console.log('Response errors:', data.errors);
+        console.log('Response message:', data.message);
+        
         if (data.success) {
             const action = isEdit ? 'updated' : 'added';
             showNotification(`Item "${formData.get('name')}" ${action} successfully!`, 'success');
@@ -559,7 +586,19 @@ function saveItem() {
                 window.location.reload();
             }, 1000);
         } else {
-            showNotification(data.message || 'Failed to save item', 'error');
+            console.error('Save failed:', data);
+            
+            // Show detailed validation errors
+            if (data.errors) {
+                let errorMessage = 'Validation errors:\n';
+                for (const [field, errors] of Object.entries(data.errors)) {
+                    errorMessage += `${field}: ${errors.join(', ')}\n`;
+                }
+                console.error('Validation errors:', errorMessage);
+                showNotification(errorMessage, 'error');
+            } else {
+                showNotification(data.message || data.error || 'Failed to save item', 'error');
+            }
         }
     })
     .catch(error => {
@@ -746,7 +785,7 @@ document.getElementById('notificationBtn')?.addEventListener('click', () => {
 
 // Form validation enhancement
 function validateForm() {
-    const requiredFields = ['itemName', 'itemQuantity', 'itemPrice', 'itemCategory', 'itemExpiry'];
+    const requiredFields = ['itemName', 'itemQuantity', 'itemOriginalPrice', 'itemCategory', 'itemExpiry'];
     let isValid = true;
     
     requiredFields.forEach(fieldId => {
@@ -760,7 +799,7 @@ function validateForm() {
     });
     
     // Validate price
-    const priceField = document.getElementById('itemPrice');
+    const priceField = document.getElementById('itemOriginalPrice');
     if (priceField && priceField.value && (isNaN(priceField.value) || parseFloat(priceField.value) <= 0)) {
         priceField.style.borderColor = '#f44336';
         isValid = false;

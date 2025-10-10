@@ -3,16 +3,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const mobileToggle = document.getElementById('mobileToggle');
     const navMenu = document.getElementById('navMenu');
 
-    mobileToggle.addEventListener('click', function() {
-        navMenu.classList.toggle('active');
-        
-        const icon = mobileToggle.querySelector('span');
-        if (navMenu.classList.contains('active')) {
-            icon.innerHTML = '✕';
-        } else {
-            icon.innerHTML = '☰';
-        }
-    });
+    // Check if elements exist before adding event listeners
+    if (mobileToggle && navMenu) {
+        mobileToggle.addEventListener('click', function() {
+            navMenu.classList.toggle('active');
+            
+            const icon = mobileToggle.querySelector('span');
+            if (navMenu.classList.contains('active')) {
+                icon.innerHTML = '✕';
+            } else {
+                icon.innerHTML = '☰';
+            }
+        });
+    }
 
     // Close mobile menu when clicking on a link
     const navLinks = document.querySelectorAll('.nav-link');
@@ -24,15 +27,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Close mobile menu when clicking outside
-    document.addEventListener('click', function(event) {
-        const isClickInsideNav = navMenu.contains(event.target);
-        const isClickOnToggle = mobileToggle.contains(event.target);
-        
-        if (!isClickInsideNav && !isClickOnToggle && navMenu.classList.contains('active')) {
-            navMenu.classList.remove('active');
-            mobileToggle.querySelector('span').innerHTML = '☰';
-        }
-    });
+    if (navMenu && mobileToggle) {
+        document.addEventListener('click', function(event) {
+            const isClickInsideNav = navMenu.contains(event.target);
+            const isClickOnToggle = mobileToggle.contains(event.target);
+            
+            if (!isClickInsideNav && !isClickOnToggle && navMenu.classList.contains('active')) {
+                navMenu.classList.remove('active');
+                const toggleSpan = mobileToggle.querySelector('span');
+                if (toggleSpan) {
+                    toggleSpan.innerHTML = '☰';
+                }
+            }
+        });
+    }
 
     // Smooth scrolling for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
@@ -50,17 +58,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Header scroll effect
     let lastScrollTop = 0;
-    window.addEventListener('scroll', function() {
-        let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const header = document.querySelector('.header');
-        
-        if (scrollTop > lastScrollTop && scrollTop > 100) {
-            header.style.transform = 'translateY(-100%)';
-        } else {
-            header.style.transform = 'translateY(0)';
-        }
-        lastScrollTop = scrollTop;
-    });
+    const header = document.querySelector('.header');
+    
+    if (header) {
+        window.addEventListener('scroll', function() {
+            let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            if (scrollTop > lastScrollTop && scrollTop > 100) {
+                header.style.transform = 'translateY(-100%)';
+            } else {
+                header.style.transform = 'translateY(0)';
+            }
+            lastScrollTop = scrollTop;
+        });
+    }
 
     // Intersection Observer for animations
     const observerOptions = {

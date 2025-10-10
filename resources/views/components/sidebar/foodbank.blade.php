@@ -1,7 +1,14 @@
+@php use Illuminate\Support\Facades\Storage; @endphp
 <!-- Foodbank Sidebar -->
 <nav class="sidebar" id="sidebar">
-    <div class="user-profile">
-        <div class="user-avatar">FB</div>
+    <div class="user-profile" onclick="window.location.href='{{ route('profile') }}'" style="cursor: pointer;">
+        <div class="user-avatar">
+            @if(session('user_profile_picture'))
+                <img src="{{ Storage::url(session('user_profile_picture')) }}" alt="Profile Picture" class="avatar-image">
+            @else
+                FB
+            @endif
+        </div>
         <div class="user-info">
             <h3>{{ session('user_name', 'Foodbank User') }}</h3>
             <p>Food Bank</p>
@@ -66,7 +73,7 @@
             </a>
         </li>
         <li class="nav-item">
-            <a href="{{ route('logout') }}" class="nav-link" onclick="return confirm('Are you sure you want to logout?')">
+            <a href="{{ route('logout') }}" class="nav-link">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
                 </svg>

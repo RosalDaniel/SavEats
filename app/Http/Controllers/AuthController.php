@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use App\Models\Consumer;
 use App\Models\Establishment;
@@ -50,6 +51,12 @@ class AuthController extends Controller
                 'password' => 'required|min:8|confirmed',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Registration validation failed', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all(),
+                'role' => $request->role
+            ]);
+            
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
@@ -111,16 +118,37 @@ class AuthController extends Controller
                     'phone_no' => 'nullable|string|max:20',
                     'address' => 'nullable|string',
                     'business_type' => 'nullable|string|max:255',
+                    'birCertificate' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
                 ]);
-
-                $user = Establishment::create(array_merge($userData, [
+                
+                // Convert empty strings to null for nullable fields
+                $establishmentData = [
                     'business_name' => $request->business_name,
                     'owner_fname' => $request->owner_fname,
                     'owner_lname' => $request->owner_lname,
-                    'phone_no' => $request->phone_no,
-                    'address' => $request->address,
-                    'business_type' => $request->business_type,
-                ]));
+                    'phone_no' => $request->phone_no ?: null,
+                    'address' => $request->address ?: null,
+                    'business_type' => $request->business_type ?: null,
+                ];
+                
+                // Handle BIR file upload
+                if ($request->hasFile('birCertificate')) {
+                    try {
+                        $birFile = $request->file('birCertificate');
+                        $birFilePath = $birFile->store('bir-certificates', 'public');
+                        
+                        // Verify the file was actually stored
+                        if (Storage::disk('public')->exists($birFilePath)) {
+                            $establishmentData['bir_file'] = $birFilePath;
+                        } else {
+                            \Log::error('BIR file upload failed: File not found after storage', ['path' => $birFilePath]);
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error('BIR file upload failed: ' . $e->getMessage());
+                    }
+                }
+
+                $user = Establishment::create(array_merge($userData, $establishmentData));
                 break;
 
             case 'foodbank':
@@ -263,7 +291,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         // Clear our custom session data
-        $request->session()->forget(['user_id', 'user_type', 'user_email', 'user_name', 'authenticated']);
+        $request->session()->forget(['user_id', 'user_type', 'user_email', 'user_name', 'user_profile_picture', 'fname', 'lname', 'authenticated']);
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
@@ -284,6 +312,7 @@ class AuthController extends Controller
             'user_name' => $user->fname ?? $user->business_name ?? $user->organization_name ?? 'User',
             'fname' => $user->fname ?? '',
             'lname' => $user->lname ?? '',
+            'user_profile_picture' => $user->profile_image ?? null,
             'authenticated' => true
         ]);
     }

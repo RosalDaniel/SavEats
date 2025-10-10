@@ -46,7 +46,7 @@ class FoodListingController extends Controller
                     'quantity' => (string) $item->quantity,
                     'category' => $item->category,
                     'store' => $storeName,
-                    'image' => $item->image_path ? Storage::url($item->image_path) : 'https://via.placeholder.com/300x200/4a7c59/ffffff?text=' . strtoupper(substr($item->name, 0, 1)),
+                    'image' => $item->image_url,
                     'expiry' => $item->expiry_date->format('Y-m-d'),
                     'location' => $item->address ?? 'Location not specified',
                     'pickup_available' => $item->pickup_available,
@@ -167,7 +167,7 @@ class FoodListingController extends Controller
             'quantity' => (string) $foodListing->quantity,
             'category' => $foodListing->category,
             'store' => $storeName,
-            'image' => $foodListing->image_path ? Storage::url($foodListing->image_path) : 'https://via.placeholder.com/400x300/4a7c59/ffffff?text=' . strtoupper(substr($foodListing->name, 0, 1)),
+            'image' => $foodListing->image_url,
             'expiry' => $foodListing->expiry_date->format('Y-m-d'),
             'expiry_formatted' => $foodListing->expiry_date->format('F j, Y'),
             'location' => $foodListing->address ?? 'Location not specified',
@@ -286,6 +286,64 @@ class FoodListingController extends Controller
             'establishmentName',
             'establishmentAddress',
             'userData'
+        ));
+    }
+
+    public function paymentOptions(Request $request)
+    {
+        $userData = $this->getUserData();
+        $productId = $request->get('id');
+        $quantity = $request->get('quantity', 1);
+        $receiveMethod = $request->get('method', 'pickup');
+        $phoneNumber = $request->get('phone', '');
+        $startTime = $request->get('startTime', '');
+        $endTime = $request->get('endTime', '');
+        
+        if (!$productId) {
+            return redirect()->route('consumer.food-listing');
+        }
+        
+        $foodItem = FoodListing::with('establishment')->find($productId);
+        
+        if (!$foodItem) {
+            return redirect()->route('consumer.food-listing');
+        }
+        
+        $originalPrice = (float) $foodItem->original_price;
+        $discountedPrice = (float) $foodItem->discounted_price;
+        $discountPercentage = (float) $foodItem->discount_percentage;
+        
+        $establishmentName = $foodItem->establishment->business_name ?? 
+                           ($foodItem->establishment->owner_fname . ' ' . $foodItem->establishment->owner_lname) ?? 
+                           'Unknown Store';
+        
+        $establishmentAddress = $foodItem->establishment->address ?? 
+                              $foodItem->address ?? 
+                              'Location not specified';
+        
+        // Calculate prices
+        $unitPrice = $discountedPrice > 0 ? $discountedPrice : $originalPrice;
+        $subtotal = $unitPrice * $quantity;
+        $deliveryFee = $receiveMethod === 'delivery' ? 57.00 : 0.00;
+        $total = $subtotal + $deliveryFee;
+        
+        return view('consumer.payment-options', compact(
+            'foodItem', 
+            'quantity', 
+            'originalPrice', 
+            'discountedPrice', 
+            'discountPercentage',
+            'establishmentName',
+            'establishmentAddress',
+            'userData',
+            'receiveMethod',
+            'phoneNumber',
+            'startTime',
+            'endTime',
+            'unitPrice',
+            'subtotal',
+            'deliveryFee',
+            'total'
         ));
     }
 }

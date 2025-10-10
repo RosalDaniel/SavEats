@@ -1,9 +1,14 @@
+@php
+    use Illuminate\Support\Facades\Storage;
+@endphp
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payment Options - SavEats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Afacad&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/payment-options.css') }}">
 </head>
 <body>
@@ -29,16 +34,18 @@
                         <div class="price-column">Price</div>
                     </div>
                     <div class="table-row">
-                        <div class="fees-column">Joy Bread</div>
-                        <div class="price-column">₱ 25.00</div>
+                        <div class="fees-column">{{ $foodItem->name }}</div>
+                        <div class="price-column">₱ {{ number_format($unitPrice, 2) }}</div>
                     </div>
+                    @if($deliveryFee > 0)
                     <div class="table-row">
                         <div class="fees-column">Delivery Fee</div>
-                        <div class="price-column">₱ 57.00</div>
+                        <div class="price-column">₱ {{ number_format($deliveryFee, 2) }}</div>
                     </div>
+                    @endif
                     <div class="table-total">
                         <div class="fees-column">TOTAL</div>
-                        <div class="price-column">₱ 182.00</div>
+                        <div class="price-column">₱ {{ number_format($total, 2) }}</div>
                     </div>
                 </div>
             </div>

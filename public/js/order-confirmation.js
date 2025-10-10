@@ -159,9 +159,17 @@ function handleProceedToPayment() {
     // Show success message
     showNotification('Redirecting to payment...', 'success');
     
-    // Redirect to payment options page
+    // Redirect to payment options page with order data
     setTimeout(() => {
-        window.location.href = '/consumer/payment-options';
+        const urlParams = new URLSearchParams();
+        urlParams.set('id', orderData.productId);
+        urlParams.set('quantity', orderData.quantity);
+        urlParams.set('method', orderData.receiveMethod);
+        urlParams.set('phone', orderData.phoneNumber);
+        urlParams.set('startTime', orderData.startTime);
+        urlParams.set('endTime', orderData.endTime);
+        
+        window.location.href = '/consumer/payment-options?' + urlParams.toString();
     }, 1500);
 }
 

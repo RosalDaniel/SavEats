@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FoodListingController;
 use App\Http\Controllers\EstablishmentController;
+use App\Http\Controllers\ProfileController;
 
 // Public routes
 Route::get('/', [HomeController::class, 'index']);
@@ -64,15 +65,14 @@ Route::middleware('custom.auth')->group(function () {
     
     // Backward compatibility
     Route::get('/dashboard', [DashboardController::class, 'consumer'])->name('dashboard');
-    Route::get('/profile', [DashboardController::class, 'profile'])->name('profile');
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
+    Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
     
     // Food listing routes
     Route::get('/consumer/food-listing', [FoodListingController::class, 'index'])->name('food.listing');
     Route::get('/consumer/food-detail/{id}', [FoodListingController::class, 'show'])->name('food.detail');
     Route::get('/consumer/order-confirmation', [FoodListingController::class, 'orderConfirmation'])->name('order.confirmation');
-    Route::get('/consumer/payment-options', function () {
-        return view('consumer.payment-options');
-    })->name('payment.options');
+    Route::get('/consumer/payment-options', [FoodListingController::class, 'paymentOptions'])->name('payment.options');
     Route::get('/consumer/payment', function () {
         return redirect()->route('payment.options');
     });

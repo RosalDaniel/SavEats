@@ -559,15 +559,57 @@ document.addEventListener('DOMContentLoaded', function() {
                 finalFormData.orgRegistration = document.getElementById('orgRegistration').files[0];
             }
 
-            // Send data to Laravel backend
-            fetch('/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            console.log('CSRF Token:', csrfToken);
+            
+            if (!csrfToken) {
+                throw new Error('CSRF token not found');
+            }
+
+            // Check if there are files to upload
+            const hasFiles = finalFormData.birCertificate || finalFormData.orgRegistration;
+            
+            let requestBody;
+            let headers;
+            
+            if (hasFiles) {
+                // Use FormData for file uploads
+                const formData = new FormData();
+                formData.append('role', selectedAccountType === 'business' ? 'establishment' : selectedAccountType);
+                formData.append('username', finalFormData.username);
+                formData.append('password', finalFormData.password);
+                formData.append('password_confirmation', finalFormData.password);
+                formData.append('email', finalFormData.email);
+                formData.append('phone_no', finalFormData.phone);
+                formData.append('address', finalFormData.location);
+                formData.append('fname', finalFormData.firstName);
+                formData.append('lname', finalFormData.lastName);
+                formData.append('mname', finalFormData.middleName);
+                formData.append('business_name', finalFormData.businessName);
+                formData.append('business_type', finalFormData.businessType);
+                formData.append('owner_fname', finalFormData.firstName);
+                formData.append('owner_lname', finalFormData.lastName);
+                formData.append('organization_name', finalFormData.organizationName);
+                formData.append('contact_person', finalFormData.contactPerson);
+                formData.append('registration_number', finalFormData.registrationNumber);
+                
+                if (finalFormData.birCertificate) {
+                    formData.append('birCertificate', finalFormData.birCertificate);
+                }
+                if (finalFormData.orgRegistration) {
+                    formData.append('orgRegistration', finalFormData.orgRegistration);
+                }
+                
+                requestBody = formData;
+                headers = {
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                body: JSON.stringify({
+                    'X-CSRF-TOKEN': csrfToken
+                };
+                console.log('Sending FormData with files');
+            } else {
+                // Use JSON for non-file data
+                const requestData = {
                     role: selectedAccountType === 'business' ? 'establishment' : selectedAccountType,
                     username: finalFormData.username,
                     password: finalFormData.password,
@@ -585,12 +627,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     organization_name: finalFormData.organizationName,
                     contact_person: finalFormData.contactPerson,
                     registration_number: finalFormData.registrationNumber
-                })
+                };
+                console.log('Sending registration data:', requestData);
+                
+                requestBody = JSON.stringify(requestData);
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                };
+            }
+
+            // Send data to Laravel backend
+            fetch('/register', {
+                method: 'POST',
+                headers: headers,
+                body: requestBody
             })
             .then(response => {
                 // Check if response is ok
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    // Log the response for debugging
+                    console.log('Response status:', response.status);
+                    console.log('Response headers:', response.headers);
+                    return response.json().then(data => {
+                        console.log('Error response data:', data);
+                        console.log('Validation errors:', data.errors);
+                        
+                        // Create a more detailed error message
+                        let errorMessage = data.message || 'Validation failed';
+                        if (data.errors) {
+                            const errorMessages = [];
+                            Object.keys(data.errors).forEach(field => {
+                                errorMessages.push(`${field}: ${data.errors[field].join(', ')}`);
+                            });
+                            errorMessage += ' - ' + errorMessages.join('; ');
+                        }
+                        
+                        throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
+                    });
                 }
                 
                 // Check if response is JSON
@@ -623,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (error.message.includes('non-JSON response')) {
                     errorMessage += 'Server error. Please check the console for details.';
                 } else if (error.message.includes('422')) {
-                    errorMessage += 'Validation error. Please check your input and try again.';
+                    errorMessage += 'Email or username already exists. Please use different credentials.';
                 } else {
                     errorMessage += error.message;
                 }

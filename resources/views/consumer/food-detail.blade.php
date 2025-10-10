@@ -5,6 +5,7 @@
 @section('header', 'Product Details')
 
 @section('styles')
+<link href="https://fonts.googleapis.com/css2?family=Afacad&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ asset('css/food-detail.css') }}">
 @endsection
 

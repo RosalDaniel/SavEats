@@ -160,10 +160,10 @@ class EstablishmentController extends Controller
             'quantity' => 'required|integer|min:1',
             'original_price' => 'required|numeric|min:0',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
-            'expiry_date' => 'required|date|after:today',
+            'expiry_date' => 'required|date|after_or_equal:today',
             'address' => 'nullable|string|max:500',
-            'pickup' => 'boolean',
-            'delivery' => 'boolean',
+            'pickup' => 'nullable|in:0,1,true,false',
+            'delivery' => 'nullable|in:0,1,true,false',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
@@ -185,7 +185,18 @@ class EstablishmentController extends Controller
             // Handle image upload
             $imagePath = null;
             if ($request->hasFile('image')) {
-                $imagePath = $request->file('image')->store('food-listings', 'public');
+                try {
+                    $imagePath = $request->file('image')->store('food-listings', 'public');
+                    
+                    // Verify the file was actually stored
+                    if (!Storage::disk('public')->exists($imagePath)) {
+                        \Log::error('Image upload failed: File not found after storage', ['path' => $imagePath]);
+                        $imagePath = null;
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Image upload failed: ' . $e->getMessage());
+                    $imagePath = null;
+                }
             }
 
             $foodListing = FoodListing::create([
@@ -199,8 +210,8 @@ class EstablishmentController extends Controller
                 'discounted_price' => $discountedPrice,
                 'expiry_date' => $data['expiry_date'],
                 'address' => $data['address'],
-                'pickup_available' => $data['pickup'] ?? false,
-                'delivery_available' => $data['delivery'] ?? false,
+                'pickup_available' => in_array($data['pickup'], ['1', 1, 'true', true]),
+                'delivery_available' => in_array($data['delivery'], ['1', 1, 'true', true]),
                 'image_path' => $imagePath,
                 'status' => 'active'
             ]);
@@ -212,7 +223,12 @@ class EstablishmentController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to create food listing'], 500);
+            \Log::error('Food listing creation failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to create food listing',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -241,10 +257,10 @@ class EstablishmentController extends Controller
             'quantity' => 'required|integer|min:1',
             'original_price' => 'required|numeric|min:0',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
-            'expiry_date' => 'required|date|after:today',
+            'expiry_date' => 'required|date|after_or_equal:today',
             'address' => 'nullable|string|max:500',
-            'pickup' => 'boolean',
-            'delivery' => 'boolean',
+            'pickup' => 'nullable|in:0,1,true,false',
+            'delivery' => 'nullable|in:0,1,true,false',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
@@ -264,12 +280,23 @@ class EstablishmentController extends Controller
 
             // Handle image upload
             if ($request->hasFile('image')) {
-                // Delete old image if exists
-                if ($foodListing->image_path) {
-                    Storage::disk('public')->delete($foodListing->image_path);
+                try {
+                    // Delete old image if exists
+                    if ($foodListing->image_path) {
+                        Storage::disk('public')->delete($foodListing->image_path);
+                    }
+                    
+                    $imagePath = $request->file('image')->store('food-listings', 'public');
+                    
+                    // Verify the file was actually stored
+                    if (Storage::disk('public')->exists($imagePath)) {
+                        $data['image_path'] = $imagePath;
+                    } else {
+                        \Log::error('Image upload failed: File not found after storage', ['path' => $imagePath]);
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Image upload failed: ' . $e->getMessage());
                 }
-                $imagePath = $request->file('image')->store('food-listings', 'public');
-                $data['image_path'] = $imagePath;
             }
 
             $foodListing->update([
@@ -282,8 +309,8 @@ class EstablishmentController extends Controller
                 'discounted_price' => $discountedPrice,
                 'expiry_date' => $data['expiry_date'],
                 'address' => $data['address'],
-                'pickup_available' => $data['pickup'] ?? false,
-                'delivery_available' => $data['delivery'] ?? false,
+                'pickup_available' => in_array($data['pickup'], ['1', 1, 'true', true]),
+                'delivery_available' => in_array($data['delivery'], ['1', 1, 'true', true]),
                 'image_path' => $data['image_path'] ?? $foodListing->image_path,
             ]);
 

@@ -62,4 +62,36 @@ class FoodListing extends Model
     {
         return $this->discounted_price ? '₱' . number_format($this->discounted_price, 2) : null;
     }
+
+    /**
+     * Get the image URL with fallback for missing images
+     */
+    public function getImageUrlAttribute()
+    {
+        if ($this->image_path && \Storage::disk('public')->exists($this->image_path)) {
+            return \Storage::url($this->image_path);
+        }
+        
+        // Return a placeholder image if the file doesn't exist
+        return 'https://via.placeholder.com/400x300/4a7c59/ffffff?text=' . strtoupper(substr($this->name, 0, 1));
+    }
+
+    /**
+     * Clean up orphaned image references
+     */
+    public static function cleanupOrphanedImages()
+    {
+        $orphaned = self::whereNotNull('image_path')
+            ->where('image_path', '!=', '')
+            ->get()
+            ->filter(function ($item) {
+                return !\Storage::disk('public')->exists($item->image_path);
+            });
+
+        foreach ($orphaned as $item) {
+            $item->update(['image_path' => null]);
+        }
+
+        return $orphaned->count();
+    }
 }

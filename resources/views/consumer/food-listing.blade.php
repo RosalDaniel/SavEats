@@ -329,10 +329,8 @@ function handleNavigation(event) {
     const page = event.target.dataset.page;
     
     if (page === 'logout') {
-        if (confirm('Are you sure you want to logout?')) {
-            // In a real app, this would make a logout API call
-            window.location.href = '/login';
-        }
+        // Direct logout without confirmation
+        window.location.href = '/logout';
     } else if (page === 'orders') {
         window.location.href = '/consumer/my-orders';
     } else if (page === 'dashboard') {

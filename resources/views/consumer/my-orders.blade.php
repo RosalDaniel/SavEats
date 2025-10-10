@@ -5,6 +5,8 @@
 @section('header', 'My Orders')
 
 @section('styles')
+<link href="https://fonts.googleapis.com/css2?family=Afacad&display=swap" rel="stylesheet">
+
 <link rel="stylesheet" href="{{ asset('css/food-listing.css') }}">
 <style>
 /* My Orders Specific Styles */
@@ -51,109 +53,112 @@
 .orders-list {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
 }
 
 .order-card {
     background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
     transition: all 0.3s ease;
 }
 
 .order-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .order-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 }
 
 .product-info h3 {
-    font-size: 20px;
-    font-weight: 700;
-    color: #ff8c00;
-    margin: 0 0 5px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 4px 0;
+    line-height: 1.3;
 }
 
 .product-info .quantity {
     font-size: 14px;
-    color: #6c757d;
+    color: #6b7280;
     margin: 0;
+    font-weight: 500;
 }
 
 .order-price {
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 700;
-    color: #2d5016;
+    color: #059669;
     margin: 0;
 }
 
 .order-details {
-    margin: 15px 0;
+    margin: 12px 0;
 }
 
 .detail-row {
     display: flex;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     font-size: 14px;
+    align-items: center;
 }
 
 .detail-label {
-    font-weight: 600;
-    color: #495057;
-    min-width: 120px;
-    margin-right: 10px;
+    font-weight: 500;
+    color: #374151;
+    min-width: 100px;
+    margin-right: 8px;
 }
 
 .detail-value {
-    color: #6c757d;
+    color: #6b7280;
     flex: 1;
+    font-weight: 400;
 }
 
 /* Order Actions */
 .order-actions {
     display: flex;
-    gap: 12px;
-    margin-top: 15px;
+    gap: 8px;
+    margin-top: 12px;
 }
 
 .btn {
     flex: 1;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-size: 16px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     border: none;
     text-align: center;
 }
 
 .btn-outline {
     background: white;
-    color: #2d5016;
-    border: 2px solid #2d5016;
+    color: #059669;
+    border: 1px solid #059669;
 }
 
 .btn-outline:hover {
-    background: #f8f9fa;
+    background: #f0fdf4;
     transform: translateY(-1px);
 }
 
 .btn-primary {
-    background: #2d5016;
+    background: #059669;
     color: white;
 }
 
 .btn-primary:hover {
-    background: #1e3a0f;
+    background: #047857;
     transform: translateY(-1px);
 }
 
@@ -166,40 +171,42 @@
 /* Buy Again Button */
 .buy-again-btn {
     width: 100%;
-    background: #2d5016;
+    background: #059669;
     color: white;
     border: none;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-size: 16px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
-    margin-top: 15px;
+    transition: all 0.2s ease;
+    margin-top: 12px;
+    text-align: center;
 }
 
 .buy-again-btn:hover {
-    background: #1e3a0f;
+    background: #047857;
     transform: translateY(-1px);
 }
 
 /* Legacy button for other tabs */
 .view-receipt-btn {
     width: 100%;
-    background: #2d5016;
+    background: #059669;
     color: white;
     border: none;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-size: 16px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
-    margin-top: 15px;
+    transition: all 0.2s ease;
+    margin-top: 12px;
+    text-align: center;
 }
 
 .view-receipt-btn:hover {
-    background: #1e3a0f;
+    background: #047857;
     transform: translateY(-1px);
 }
 

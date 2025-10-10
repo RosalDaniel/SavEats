@@ -19,16 +19,14 @@ body {
 }
 
 .payment-header {
-    background: #4a7c59;
     padding: 15px 20px;
     display: flex;
     align-items: center;
     gap: 15px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .back-button {
-    background: #fbbf24;
+    background: #F0BE49;
     border: none;
     border-radius: 50%;
     width: 40px;
@@ -47,9 +45,7 @@ body {
 }
 
 .payment-title {
-    color: white;
     font-size: 20px;
-    font-weight: 600;
     margin: 0;
 }
 
@@ -86,7 +82,7 @@ body {
 }
 
 .table-header {
-    background: #ff8c42;
+    background: #DD5D36;
     display: flex;
     padding: 15px 20px;
     font-weight: 600;
@@ -96,7 +92,7 @@ body {
 .table-row {
     display: flex;
     padding: 15px 20px;
-    border-bottom: 1px solid #e5e7eb;
+
     background: white;
 }
 

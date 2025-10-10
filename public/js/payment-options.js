@@ -3,6 +3,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     initializePaymentOptions();
     setupEventListeners();
+    loadOrderData();
 });
 
 function initializePaymentOptions() {
@@ -31,6 +32,32 @@ function initializePaymentOptions() {
         content.classList.add('collapsed');
         arrow.textContent = '▼';
     }
+}
+
+function loadOrderData() {
+    // Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const receiveMethod = urlParams.get('method') || 'pickup';
+    const phoneNumber = urlParams.get('phone') || '';
+    const startTime = urlParams.get('startTime') || '';
+    const endTime = urlParams.get('endTime') || '';
+    
+    // Pre-populate phone number if available
+    if (phoneNumber) {
+        const phoneInput = document.getElementById('phoneNumber');
+        if (phoneInput) {
+            phoneInput.value = phoneNumber;
+        }
+    }
+    
+    // Set receive method visual state
+    updateReceiveMethodDisplay(receiveMethod);
+}
+
+function updateReceiveMethodDisplay(method) {
+    // This function can be used to show which receive method was selected
+    // For now, we'll just log it or add visual indicators if needed
+    console.log('Receive method:', method);
 }
 
 function setupEventListeners() {
@@ -149,6 +176,20 @@ function handlePlaceOrder() {
         return;
     }
     
+    // Get order data from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderData = {
+        productId: urlParams.get('id'),
+        quantity: urlParams.get('quantity'),
+        receiveMethod: urlParams.get('method'),
+        phoneNumber: urlParams.get('phone'),
+        startTime: urlParams.get('startTime'),
+        endTime: urlParams.get('endTime'),
+        paymentMethod: getSelectedPaymentMethod(),
+        cardDetails: getCardDetails(),
+        timestamp: new Date().toISOString()
+    };
+    
     // Show loading state
     const placeOrderBtn = document.getElementById('placeOrderBtn');
     const originalText = placeOrderBtn.textContent;
@@ -164,11 +205,44 @@ function handlePlaceOrder() {
         // Show success message
         showNotification('Order placed successfully!', 'success');
         
+        // Log order data for debugging
+        console.log('Order placed:', orderData);
+        
         // Redirect to confirmation page or dashboard
         setTimeout(() => {
             window.location.href = '/consumer/dashboard';
         }, 2000);
     }, 2000);
+}
+
+function getSelectedPaymentMethod() {
+    const cashCheckbox = document.getElementById('cashCheckbox');
+    if (cashCheckbox && cashCheckbox.checked) {
+        return 'cash';
+    }
+    
+    const cardNumber = document.getElementById('cardNumber');
+    if (cardNumber && cardNumber.value.trim()) {
+        return 'card';
+    }
+    
+    return 'unknown';
+}
+
+function getCardDetails() {
+    const cardNumber = document.getElementById('cardNumber');
+    const expiryDate = document.getElementById('expiryDate');
+    const securityCode = document.getElementById('securityCode');
+    
+    if (cardNumber && cardNumber.value.trim()) {
+        return {
+            number: cardNumber.value.trim(),
+            expiry: expiryDate ? expiryDate.value.trim() : '',
+            cvv: securityCode ? securityCode.value.trim() : ''
+        };
+    }
+    
+    return null;
 }
 
 function validatePaymentForm() {
