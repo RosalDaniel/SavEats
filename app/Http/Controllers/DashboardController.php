@@ -64,6 +64,23 @@ class DashboardController extends Controller
     }
 
     /**
+     * Show help center for foodbank
+     */
+    public function foodbankHelp()
+    {
+        return view('foodbank.help');
+    }
+
+    /**
+     * Show settings page for foodbank
+     */
+    public function foodbankSettings()
+    {
+        $userData = $this->getUserData();
+        return view('foodbank.settings', compact('userData'));
+    }
+
+    /**
      * Show admin dashboard
      */
     public function admin()

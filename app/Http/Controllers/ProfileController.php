@@ -39,6 +39,19 @@ class ProfileController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
+        // Debug: Log what we're receiving
+        \Log::info('Profile update request', [
+            'has_profile_picture' => $request->hasFile('profile_picture'),
+            'has_bir_file' => $request->hasFile('bir_file'),
+            'has_first_name' => $request->has('first_name'),
+            'has_last_name' => $request->has('last_name'),
+            'has_email' => $request->has('email'),
+            'has_phone' => $request->has('phone'),
+            'has_address' => $request->has('address'),
+            'has_username' => $request->has('username'),
+            'all_input' => $request->all()
+        ]);
+
         // Check if this is just a profile picture upload
         $isProfilePictureOnly = $request->hasFile('profile_picture') && 
                                !$request->has('first_name') && 
@@ -46,22 +59,28 @@ class ProfileController extends Controller
                                !$request->has('email') && 
                                !$request->has('phone') && 
                                !$request->has('address') && 
-                               !$request->has('username');
+                               !$request->has('username') &&
+                               !$request->has('bir_file');
 
         // Check if this is a BIR file upload
-        $isBirFileUpload = $request->hasFile('bir_file') && !$request->has('first_name');
+        $isBirFileUpload = $request->hasFile('bir_file') && 
+                          !$request->has('first_name') && 
+                          !$request->has('profile_picture');
         
         if ($isProfilePictureOnly) {
+            \Log::info('Using profile picture only validation');
             // Only validate profile picture for image-only uploads
             $validator = Validator::make($request->all(), [
                 'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'
             ]);
         } elseif ($isBirFileUpload) {
+            \Log::info('Using BIR file only validation');
             // Only validate BIR file for BIR-only uploads
             $validator = Validator::make($request->all(), [
                 'bir_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:2048'
             ]);
         } else {
+            \Log::info('Using full profile validation');
             // Validate all fields for full profile updates
             $validator = Validator::make($request->all(), [
                 'first_name' => 'required|string|max:255',

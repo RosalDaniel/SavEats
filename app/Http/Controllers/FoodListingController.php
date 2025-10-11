@@ -12,6 +12,23 @@ use Illuminate\Support\Facades\Storage;
 class FoodListingController extends Controller
 {
     /**
+     * Display help center for consumers
+     */
+    public function help()
+    {
+        return view('consumer.help');
+    }
+
+    /**
+     * Display settings page for consumers
+     */
+    public function settings()
+    {
+        $userData = $this->getUserData();
+        return view('consumer.settings', compact('userData'));
+    }
+
+    /**
      * Display the food listing page (global list for all consumers)
      */
     public function index()

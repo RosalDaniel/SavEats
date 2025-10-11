@@ -132,7 +132,14 @@ class EstablishmentController extends Controller
             return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
         }
 
-        return view('establishment.settings');
+        $establishmentId = Session::get('user_id');
+        $userData = Establishment::find($establishmentId);
+        
+        if (!$userData) {
+            return redirect()->route('login')->with('error', 'Establishment not found.');
+        }
+
+        return view('establishment.settings', compact('userData'));
     }
 
     public function help()

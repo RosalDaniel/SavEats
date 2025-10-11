@@ -62,6 +62,8 @@ Route::middleware('custom.auth')->group(function () {
     Route::get('/dashboard/establishment', [DashboardController::class, 'establishment'])->name('dashboard.establishment');
     Route::get('/dashboard/foodbank', [DashboardController::class, 'foodbank'])->name('dashboard.foodbank');
     Route::get('/dashboard/admin', [DashboardController::class, 'admin'])->name('dashboard.admin');
+    Route::get('/foodbank/help', [DashboardController::class, 'foodbankHelp'])->name('foodbank.help');
+    Route::get('/foodbank/settings', [DashboardController::class, 'foodbankSettings'])->name('foodbank.settings');
     
     // Backward compatibility
     Route::get('/dashboard', [DashboardController::class, 'consumer'])->name('dashboard');
@@ -77,6 +79,8 @@ Route::middleware('custom.auth')->group(function () {
         return redirect()->route('payment.options');
     });
     Route::get('/consumer/my-orders', [FoodListingController::class, 'myOrders'])->name('my.orders');
+    Route::get('/consumer/help', [FoodListingController::class, 'help'])->name('consumer.help');
+    Route::get('/consumer/settings', [FoodListingController::class, 'settings'])->name('consumer.settings');
     
     // Establishment routes
     Route::prefix('establishment')->name('establishment.')->group(function () {

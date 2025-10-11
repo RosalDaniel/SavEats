@@ -11,14 +11,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function initializeProfile() {
     // Store original data for cancel functionality
+    const firstNameEl = document.getElementById('firstName');
+    const lastNameEl = document.getElementById('lastName');
+    const middleNameEl = document.getElementById('middleName');
+    const addressEl = document.getElementById('address');
+    const phoneEl = document.getElementById('phone');
+    const emailEl = document.getElementById('email');
+    const usernameEl = document.getElementById('username');
+    
     originalData = {
-        firstName: document.getElementById('firstName').value,
-        lastName: document.getElementById('lastName').value,
-        middleName: document.getElementById('middleName').value,
-        address: document.getElementById('address').value,
-        phone: document.getElementById('phone').value,
-        email: document.getElementById('email').value,
-        username: document.getElementById('username').value
+        firstName: firstNameEl ? firstNameEl.value : '',
+        lastName: lastNameEl ? lastNameEl.value : '',
+        middleName: middleNameEl ? middleNameEl.value : '',
+        address: addressEl ? addressEl.value : '',
+        phone: phoneEl ? phoneEl.value : '',
+        email: emailEl ? emailEl.value : '',
+        username: usernameEl ? usernameEl.value : ''
     };
 }
 
@@ -193,6 +201,14 @@ function saveProfilePicture() {
     formData.append('profile_picture', selectedProfilePictureFile);
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
 
+    // Debug: Log what we're sending
+    console.log('Uploading profile picture:', {
+        file: selectedProfilePictureFile,
+        fileName: selectedProfilePictureFile.name,
+        fileSize: selectedProfilePictureFile.size,
+        fileType: selectedProfilePictureFile.type
+    });
+
     fetch('/profile/update', {
         method: 'POST',
         body: formData,
@@ -200,8 +216,12 @@ function saveProfilePicture() {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
     .then(data => {
+        console.log('Response data:', data);
         if (data.success) {
             // Update the main profile image
             const profileImage = document.getElementById('profileImage');
@@ -218,7 +238,12 @@ function saveProfilePicture() {
             showNotification('Profile picture updated successfully!', 'success');
             closeEditProfileModal();
         } else {
-            showNotification(data.message || 'Failed to update profile picture', 'error');
+            console.error('Upload failed:', data);
+            let errorMessage = data.message || 'Failed to update profile picture';
+            if (data.errors) {
+                errorMessage += ': ' + Object.values(data.errors).flat().join(', ');
+            }
+            showNotification(errorMessage, 'error');
         }
     })
     .catch(error => {
