@@ -12,7 +12,7 @@
 
 ---
 
-## 🍽️ About SavEats  
+##  About SavEats  
 
 **SavEats** is a one-stop platform that helps reduce food waste while making food more accessible and affordable.  
 It connects **consumers**, **establishments**, and **food banks** in a shared mission to **save food, save money, and save the planet** 🌍.  
@@ -25,16 +25,16 @@ SavEats provides:
 
 ---
 
-## ✨ Features  
+##  Features  
 
-- 👤 **Consumers** – browse listings, track orders, earn badges  
-- 🏪 **Establishments** – manage surplus food sales, view analytics  
-- 🏢 **Food Banks** – receive food donations, manage inventory  
-- 🔑 **Admins** – oversee users, transactions, and reports  
+-  **Consumers** – browse listings, track orders, earn badges  
+-  **Establishments** – manage surplus food sales, view analytics  
+-  **Food Banks** – receive food donations, manage inventory  
+-  **Admins** – oversee users, transactions, and reports  
 
 ---
 
-## 🛠️ Tech Stack  
+##  Tech Stack  
 
 - **Backend**: Laravel (PHP)  
 - **Frontend**: Blade templates, JavaScript, CSS  
@@ -43,7 +43,7 @@ SavEats provides:
 
 ---
 
-## ⚙️ Installation  
+##  Installation  
 
 1. Clone the repository  
    ```bash
