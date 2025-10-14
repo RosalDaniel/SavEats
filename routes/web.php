@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
@@ -9,94 +8,100 @@ use App\Http\Controllers\FoodListingController;
 use App\Http\Controllers\EstablishmentController;
 use App\Http\Controllers\ProfileController;
 
-// Public routes
-Route::get('/', [HomeController::class, 'index']);
-Route::get('/home', [HomeController::class, 'index'])->name('home');
-Route::get('/about', function () {
-    return view('about');
-})->name('about');
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register web routes for your application. These
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "web" middleware group. Make something great!
+|
+*/
 
-// Authentication routes
-Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::get('/register', [AuthController::class, 'showRegistrationForm'])->name('register');
-Route::get('/registration', [AuthController::class, 'showRegistrationForm'])->name('registration');
+// ============================================================================
+// PUBLIC ROUTES
+// ============================================================================
 
-Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
-Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
-Route::post('/debug-register', function(Request $request) {
-    return response()->json([
-        'success' => true,
-        'message' => 'Debug endpoint working! Registration form is submitting data correctly.',
-        'redirect' => '/dashboard/consumer',
-        'data' => $request->all()
-    ]);
+Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/about', fn() => view('about'))->name('about');
+
+// Authentication
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
+    Route::get('/register', [AuthController::class, 'showRegistrationForm'])->name('register');
+    Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
+    Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
 });
 
-Route::post('/test-register', function(Request $request) {
-    try {
-        $request->validate([
-            'role' => 'required|in:consumer,establishment,foodbank',
-            'email' => 'required|email|unique:consumers,email|unique:establishments,email|unique:foodbanks,email',
-            'username' => 'required|unique:consumers,username|unique:establishments,username|unique:foodbanks,username',
-            'password' => 'required|min:8|confirmed',
-        ]);
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Validation passed!',
-            'data' => $request->all()
-        ]);
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Validation failed',
-            'errors' => $e->errors()
-        ], 422);
-    }
-});
-Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Protected dashboard routes
+// ============================================================================
+// PROTECTED ROUTES
+// ============================================================================
+
 Route::middleware('custom.auth')->group(function () {
-    Route::get('/dashboard/consumer', [DashboardController::class, 'consumer'])->name('dashboard.consumer');
-    Route::get('/dashboard/establishment', [DashboardController::class, 'establishment'])->name('dashboard.establishment');
-    Route::get('/dashboard/foodbank', [DashboardController::class, 'foodbank'])->name('dashboard.foodbank');
-    Route::get('/dashboard/admin', [DashboardController::class, 'admin'])->name('dashboard.admin');
-    Route::get('/foodbank/help', [DashboardController::class, 'foodbankHelp'])->name('foodbank.help');
-    Route::get('/foodbank/settings', [DashboardController::class, 'foodbankSettings'])->name('foodbank.settings');
     
-    // Backward compatibility
-    Route::get('/dashboard', [DashboardController::class, 'consumer'])->name('dashboard');
+    // Profile Management
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
     Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
     
-    // Food listing routes
-    Route::get('/consumer/food-listing', [FoodListingController::class, 'index'])->name('food.listing');
-    Route::get('/consumer/food-detail/{id}', [FoodListingController::class, 'show'])->name('food.detail');
-    Route::get('/consumer/order-confirmation', [FoodListingController::class, 'orderConfirmation'])->name('order.confirmation');
-    Route::get('/consumer/payment-options', [FoodListingController::class, 'paymentOptions'])->name('payment.options');
-    Route::get('/consumer/payment', function () {
-        return redirect()->route('payment.options');
+    // Dashboard Routes
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/consumer', [DashboardController::class, 'consumer'])->name('dashboard.consumer');
+        Route::get('/establishment', [DashboardController::class, 'establishment'])->name('dashboard.establishment');
+        Route::get('/foodbank', [DashboardController::class, 'foodbank'])->name('dashboard.foodbank');
+        Route::get('/admin', [DashboardController::class, 'admin'])->name('dashboard.admin');
     });
-    Route::get('/consumer/my-orders', [FoodListingController::class, 'myOrders'])->name('my.orders');
-    Route::get('/consumer/help', [FoodListingController::class, 'help'])->name('consumer.help');
-    Route::get('/consumer/settings', [FoodListingController::class, 'settings'])->name('consumer.settings');
     
-    // Establishment routes
+    // Consumer Routes
+    Route::prefix('consumer')->name('consumer.')->group(function () {
+        Route::get('/food-listing', [FoodListingController::class, 'index'])->name('food-listing');
+        Route::get('/food-detail/{id}', [FoodListingController::class, 'show'])->name('food-detail');
+        Route::get('/order-confirmation', [FoodListingController::class, 'orderConfirmation'])->name('order-confirmation');
+        Route::get('/payment-options', [FoodListingController::class, 'paymentOptions'])->name('payment-options');
+        Route::get('/my-orders', [FoodListingController::class, 'myOrders'])->name('my-orders');
+        Route::get('/my-impact', [FoodListingController::class, 'myImpact'])->name('my-impact');
+        Route::get('/announcements', [FoodListingController::class, 'announcements'])->name('announcements');
+        Route::get('/help', [FoodListingController::class, 'help'])->name('help');
+        Route::get('/settings', [FoodListingController::class, 'settings'])->name('settings');
+    });
+    
+    // Establishment Routes
     Route::prefix('establishment')->name('establishment.')->group(function () {
         Route::get('/dashboard', [EstablishmentController::class, 'dashboard'])->name('dashboard');
         Route::get('/listing-management', [EstablishmentController::class, 'listingManagement'])->name('listing-management');
         Route::get('/order-management', [EstablishmentController::class, 'orderManagement'])->name('order-management');
-        Route::get('/announcements', [EstablishmentController::class, 'announcements'])->name('announcements');
         Route::get('/earnings', [EstablishmentController::class, 'earnings'])->name('earnings');
         Route::get('/donation-hub', [EstablishmentController::class, 'donationHub'])->name('donation-hub');
         Route::get('/impact-reports', [EstablishmentController::class, 'impactReports'])->name('impact-reports');
+        Route::get('/announcements', [EstablishmentController::class, 'announcements'])->name('announcements');
         Route::get('/settings', [EstablishmentController::class, 'settings'])->name('settings');
         Route::get('/help', [EstablishmentController::class, 'help'])->name('help');
         
-        // Food listing CRUD routes
+        // Food Listing CRUD
         Route::post('/food-listings', [EstablishmentController::class, 'storeFoodListing'])->name('food-listings.store');
         Route::put('/food-listings/{id}', [EstablishmentController::class, 'updateFoodListing'])->name('food-listings.update');
         Route::delete('/food-listings/{id}', [EstablishmentController::class, 'deleteFoodListing'])->name('food-listings.delete');
     });
+    
+    // Foodbank Routes
+    Route::prefix('foodbank')->name('foodbank.')->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'foodbank'])->name('dashboard');
+        Route::get('/help', [DashboardController::class, 'foodbankHelp'])->name('help');
+        Route::get('/settings', [DashboardController::class, 'foodbankSettings'])->name('settings');
+    });
+    
+    // Legacy Routes (for backward compatibility)
+    Route::get('/dashboard', [DashboardController::class, 'consumer'])->name('dashboard');
+    Route::get('/consumer/food-listing', [FoodListingController::class, 'index'])->name('food.listing');
+    Route::get('/consumer/food-detail/{id}', [FoodListingController::class, 'show'])->name('food.detail');
+    Route::get('/consumer/order-confirmation', [FoodListingController::class, 'orderConfirmation'])->name('order.confirmation');
+    Route::get('/consumer/payment-options', [FoodListingController::class, 'paymentOptions'])->name('payment.options');
+    Route::get('/consumer/payment', fn() => redirect()->route('payment.options'));
+    Route::get('/consumer/my-orders', [FoodListingController::class, 'myOrders'])->name('my.orders');
+    Route::get('/consumer/help', [FoodListingController::class, 'help'])->name('consumer.help');
+    Route::get('/consumer/settings', [FoodListingController::class, 'settings'])->name('consumer.settings');
+    Route::get('/consumer/my-impact', [FoodListingController::class, 'myImpact'])->name('consumer.my-impact');
+    Route::get('/consumer/announcements', [FoodListingController::class, 'announcements'])->name('consumer.announcements');
 });

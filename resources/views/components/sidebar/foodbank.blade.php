@@ -17,7 +17,7 @@
 
     <ul class="nav-menu">
         <li class="nav-item">
-            <a href="#" class="nav-link active" data-page="dashboard">
+            <a href="{{ route('foodbank.dashboard') }}" class="nav-link {{ request()->routeIs('foodbank.dashboard') ? 'active' : '' }}">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
                 </svg>
@@ -25,43 +25,43 @@
             </a>
         </li>
         <li class="nav-item">
-            <a href="#" class="nav-link" data-page="donations">
+            <a href="#" class="nav-link" data-page="donation-request">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm3.5 6L12 10.5 8.5 8 12 5.5 15.5 8zM12 17.5L8.5 15 12 12.5 15.5 15 12 17.5z"/>
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
                 </svg>
-                Donations Received
+                Donation Request
             </a>
         </li>
         <li class="nav-item">
-            <a href="#" class="nav-link" data-page="inventory">
+            <a href="#" class="nav-link" data-page="donation-history">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M7 4V2C7 1.45 7.45 1 8 1h8c.55 0 1 .45 1 1v2h5v2h-2v13c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V6H2V4h5zM9 3v1h6V3H9zM6 6v13h12V6H6z"/>
+                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
                 </svg>
-                Inventory
+                Donation History
             </a>
         </li>
         <li class="nav-item">
-            <a href="#" class="nav-link" data-page="distribution">
+            <a href="#" class="nav-link" data-page="announcements">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM8.9 6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2H8.9V6zM16 16h-3v3h-2v-3H8v-2h3v-3h2v3h3v2z"/>
+                    <path d="M12,2A3,3 0 0,1 15,5V7A3,3 0 0,1 12,10A3,3 0 0,1 9,7V5A3,3 0 0,1 12,2M19,11V7L17,9V7A7,7 0 0,0 5,7V9L3,7V11A1,1 0 0,0 2,12V20A1,1 0 0,0 3,21H21A1,1 0 0,0 22,20V12A1,1 0 0,0 21,11H19M12,13A2,2 0 0,1 14,15A2,2 0 0,1 12,17A2,2 0 0,1 10,15A2,2 0 0,1 12,13Z"/>
                 </svg>
-                Food Distribution
+                Announcements
             </a>
         </li>
         <li class="nav-item">
-            <a href="#" class="nav-link" data-page="volunteers">
+            <a href="#" class="nav-link" data-page="impact-reports">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM4 18v-6h3v2h2v-2h3v6H4zM12.5 11.5c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5.67 1.5 1.5 1.5 1.5-.67 1.5-1.5zM15.5 7L14 8.5 12.5 7 11 8.5 9.5 7 8 8.5 6.5 7 5 8.5V10h14V8.5L15.5 7z"/>
+                    <path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/>
                 </svg>
-                Volunteers
+                Impact Reports
             </a>
         </li>
         <li class="nav-item">
-            <a href="#" class="nav-link" data-page="impact">
+            <a href="#" class="nav-link" data-page="partner-network">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
                 </svg>
-                Impact Report
+                Partner Network
             </a>
         </li>
         <li class="nav-item">

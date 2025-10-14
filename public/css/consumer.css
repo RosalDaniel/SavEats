@@ -245,7 +245,7 @@
     }
     
     .content {
-        padding: 50px; /* Increased from 20px to 25px (5% more space) */
+        padding: 20px; /* Reduced padding for better mobile experience */
         margin: 0 auto; /* Ensure content stays centered on mobile */
     }
     
@@ -263,6 +263,13 @@
     .main-content-grid {
         grid-template-columns: 1.5fr 1fr;
         gap: 25px;
+    }
+}
+
+/* Small Mobile Devices */
+@media (max-width: 480px) {
+    .content {
+        padding: 15px; /* Even smaller padding for very small screens */
     }
 }
 

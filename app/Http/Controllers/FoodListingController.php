@@ -28,6 +28,18 @@ class FoodListingController extends Controller
         return view('consumer.settings', compact('userData'));
     }
 
+    public function myImpact()
+    {
+        $userData = $this->getUserData();
+        return view('consumer.my-impact', compact('userData'));
+    }
+
+    public function announcements()
+    {
+        $userData = $this->getUserData();
+        return view('consumer.announcements', compact('userData'));
+    }
+
     /**
      * Display the food listing page (global list for all consumers)
      */

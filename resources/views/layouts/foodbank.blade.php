@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Afacad&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/sidebar.css') }}">
     <link rel="stylesheet" href="{{ asset('css/foodbank.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/foodbank-dashboard.css') }}">
     @yield('styles')
 </head>
 <body>

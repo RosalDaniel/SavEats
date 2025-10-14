@@ -1,0 +1,40 @@
+/* Main Content Positioning */
+.main-content {
+    margin-left: 250px; /* Width of the sidebar */
+    flex: 1;
+    min-height: 100vh;
+    background-color: #f5f5f5;
+}
+
+/* Content Area */
+.content {
+    padding: 50px; /* Increased padding for more space */
+    max-width: 1200px;
+    margin: 0 auto; /* Center the content */
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main-content {
+        margin-left: 0; /* Remove sidebar margin on mobile */
+    }
+    
+    .content {
+        padding: 20px; /* Reduced padding for better mobile experience */
+        margin: 0 auto; /* Ensure content stays centered on mobile */
+    }
+}
+
+/* Small Mobile Devices */
+@media (max-width: 480px) {
+    .content {
+        padding: 15px; /* Even smaller padding for very small screens */
+    }
+}
+
+/* Large Desktop Responsive Design */
+@media (min-width: 1400px) {
+    .content {
+        max-width: 1400px; /* Allow more space on very large screens */
+    }
+}
