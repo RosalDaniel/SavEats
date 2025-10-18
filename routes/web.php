@@ -30,11 +30,12 @@ Route::get('/about', fn() => view('about'))->name('about');
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::get('/register', [AuthController::class, 'showRegistrationForm'])->name('register');
+    Route::get('/registration', [AuthController::class, 'showRegistrationForm'])->name('registration');
     Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
     Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
 });
 
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
 
 // ============================================================================
 // PROTECTED ROUTES
@@ -98,8 +99,10 @@ Route::middleware('custom.auth')->group(function () {
     Route::get('/consumer/food-detail/{id}', [FoodListingController::class, 'show'])->name('food.detail');
     Route::get('/consumer/order-confirmation', [FoodListingController::class, 'orderConfirmation'])->name('order.confirmation');
     Route::get('/consumer/payment-options', [FoodListingController::class, 'paymentOptions'])->name('payment.options');
+    Route::post('/consumer/place-order', [FoodListingController::class, 'placeOrder'])->name('place.order');
     Route::get('/consumer/payment', fn() => redirect()->route('payment.options'));
     Route::get('/consumer/my-orders', [FoodListingController::class, 'myOrders'])->name('my.orders');
+    Route::get('/consumer/orders/api', [FoodListingController::class, 'getConsumerOrders'])->name('consumer.orders.api');
     Route::get('/consumer/help', [FoodListingController::class, 'help'])->name('consumer.help');
     Route::get('/consumer/settings', [FoodListingController::class, 'settings'])->name('consumer.settings');
     Route::get('/consumer/my-impact', [FoodListingController::class, 'myImpact'])->name('consumer.my-impact');

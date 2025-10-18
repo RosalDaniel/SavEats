@@ -1,0 +1,255 @@
+/* Order Management Specific Styles */
+.orders-container {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    margin-bottom: 30px;
+}
+
+/* Tab Navigation */
+.order-tabs {
+    display: flex;
+    justify-content: center;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 25px;
+    gap: 0;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #6c757d;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.tab-button.active {
+    color: #2d5016;
+    border-bottom-color: #2d5016;
+}
+
+.tab-button:hover {
+    color: #2d5016;
+}
+
+/* Order Cards */
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.order-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.product-info {
+    flex: 1;
+}
+
+.product-name {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ff8c00;
+    margin: 0 0 5px 0;
+}
+
+.product-quantity {
+    font-size: 16px;
+    color: #ff8c00;
+    margin: 0;
+    font-weight: 500;
+}
+
+.order-price {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2d5016;
+    margin: 0;
+}
+
+.order-details {
+    margin: 15px 0;
+}
+
+.detail-row {
+    display: flex;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #495057;
+    min-width: 120px;
+    margin-right: 10px;
+}
+
+.detail-value {
+    color: #6c757d;
+    flex: 1;
+}
+
+/* Order Actions */
+.order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.btn-accept {
+    background: #2d5016;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+    min-width: 120px;
+}
+
+.btn-accept:hover {
+    background: #1e3a0f;
+    transform: translateY(-1px);
+}
+
+.btn-cancel {
+    background: #ff6b35;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+    min-width: 120px;
+}
+
+.btn-cancel:hover {
+    background: #e55a2b;
+    transform: translateY(-1px);
+}
+
+.btn-view {
+    background: white;
+    color: #2d5016;
+    border: 2px solid #2d5016;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.btn-view:hover {
+    background: #2d5016;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Status Styling */
+.status-completed {
+    color: #28a745 !important;
+    font-weight: 600;
+}
+
+.status-pending {
+    color: #ffc107 !important;
+    font-weight: 600;
+}
+
+.status-accepted {
+    color: #17a2b8 !important;
+    font-weight: 600;
+}
+
+.status-cancelled {
+    color: #dc3545 !important;
+    font-weight: 600;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+}
+
+.empty-state h3 {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.empty-state p {
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .orders-container {
+        padding: 20px;
+    }
+    
+    .order-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .order-price {
+        font-size: 20px;
+    }
+    
+    .detail-row {
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .detail-label {
+        min-width: auto;
+        margin-right: 0;
+    }
+    
+    .order-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .btn-accept,
+    .btn-cancel {
+        width: 100%;
+    }
+}

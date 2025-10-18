@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\FoodListing;
 use App\Models\Establishment;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use App\Models\Consumer;
 use Illuminate\Support\Facades\Storage;
@@ -69,7 +70,7 @@ class FoodListingController extends Controller
                     'id' => $item->id,
                     'name' => $item->name,
                     'description' => $item->description,
-                    'price' => (float) ($item->discounted_price ?? $item->original_price),
+                    'price' => $this->calculateDiscountedPrice($item->original_price, $item->discount_percentage),
                     'original_price' => (float) $item->original_price,
                     'discount' => $item->discount_percentage ? round($item->discount_percentage) : 0,
                     'quantity' => (string) $item->quantity,
@@ -96,69 +97,63 @@ class FoodListingController extends Controller
         // Get user data from session
         $userData = $this->getUserData();
         
-        // Sample user orders data organized by status (in a real app, this would come from database)
+        // Get real orders from database
+        $consumerId = session('user_id');
+        $orders = Order::with(['foodListing', 'establishment'])
+            ->where('consumer_id', $consumerId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Organize orders by status
         $userOrders = [
-            'upcoming' => [
-                [
-                    'order_id' => 'ID#12323',
-                    'product_name' => 'Banana Bread',
-                    'quantity' => '10',
-                    'price' => 187.00,
-                    'store_name' => 'Joy Share Grocery',
-                    'store_hours' => 'Mon - Sat | 7:00 am - 5:00 pm',
-                    'delivery_method' => 'Pick-Up',
-                    'order_date' => '2024-01-20',
-                    'pickup_time' => '14:00-16:00'
-                ],
-                [
-                    'order_id' => 'ID#12324',
-                    'product_name' => 'Banana Bread',
-                    'quantity' => '10',
-                    'price' => 187.00,
-                    'store_name' => 'Joy Share Grocery',
-                    'store_hours' => 'Mon - Sat | 7:00 am - 5:00 pm',
-                    'delivery_method' => 'Pick-Up',
-                    'order_date' => '2024-01-20',
-                    'pickup_time' => '14:00-16:00'
-                ],
-                [
-                    'order_id' => 'ID#12325',
-                    'product_name' => 'Banana Bread',
-                    'quantity' => '10',
-                    'price' => 187.00,
-                    'store_name' => 'Joy Share Grocery',
-                    'store_hours' => 'Mon - Sat | 7:00 am - 5:00 pm',
-                    'delivery_method' => 'Pick-Up',
-                    'order_date' => '2024-01-20',
-                    'pickup_time' => '14:00-16:00'
-                ]
-            ],
-            'completed' => [
-                [
-                    'order_id' => 'ID#12320',
-                    'product_name' => 'Fresh Bread Loaves',
-                    'quantity' => '5',
-                    'price' => 125.00,
-                    'store_name' => 'Green Market',
-                    'store_hours' => 'Mon - Sun | 6:00 am - 8:00 pm',
-                    'delivery_method' => 'Pick-Up',
-                    'completed_date' => '2024-01-18',
-                    'order_date' => '2024-01-17'
-                ]
-            ],
-            'cancelled' => [
-                [
-                    'order_id' => 'ID#12315',
-                    'product_name' => 'Mixed Vegetables',
-                    'quantity' => '3',
-                    'price' => 75.00,
-                    'store_name' => 'Fresh Market',
-                    'store_hours' => 'Mon - Fri | 8:00 am - 6:00 pm',
-                    'delivery_method' => 'Pick-Up',
-                    'cancelled_date' => '2024-01-15',
-                    'cancellation_reason' => 'Store closed unexpectedly'
-                ]
-            ]
+            'upcoming' => $orders->whereIn('status', ['pending', 'accepted'])->map(function ($order) {
+                return [
+                    'order_id' => 'ID#' . $order->id,
+                    'product_name' => $order->foodListing->name,
+                    'quantity' => $order->quantity,
+                    'price' => $order->total_price,
+                    'store_name' => $order->establishment->business_name ?? 
+                        ($order->establishment->owner_fname . ' ' . $order->establishment->owner_lname),
+                    'store_hours' => 'Mon - Sat | 7:00 am - 5:00 pm', // Default hours
+                    'delivery_method' => ucfirst($order->delivery_method),
+                    'order_date' => $order->created_at->format('Y-m-d'),
+                    'pickup_time' => $order->pickup_start_time && $order->pickup_end_time ? 
+                        $order->pickup_start_time . '-' . $order->pickup_end_time : 'TBD',
+                    'status' => $order->status
+                ];
+            })->values()->toArray(),
+            'completed' => $orders->where('status', 'completed')->map(function ($order) {
+                return [
+                    'order_id' => 'ID#' . $order->id,
+                    'product_name' => $order->foodListing->name,
+                    'quantity' => $order->quantity,
+                    'price' => $order->total_price,
+                    'store_name' => $order->establishment->business_name ?? 
+                        ($order->establishment->owner_fname . ' ' . $order->establishment->owner_lname),
+                    'store_hours' => 'Mon - Sat | 7:00 am - 5:00 pm', // Default hours
+                    'delivery_method' => ucfirst($order->delivery_method),
+                    'order_date' => $order->created_at->format('Y-m-d'),
+                    'pickup_time' => $order->pickup_start_time && $order->pickup_end_time ? 
+                        $order->pickup_start_time . '-' . $order->pickup_end_time : 'TBD',
+                    'status' => $order->status
+                ];
+            })->values()->toArray(),
+            'cancelled' => $orders->where('status', 'cancelled')->map(function ($order) {
+                return [
+                    'order_id' => 'ID#' . $order->id,
+                    'product_name' => $order->foodListing->name,
+                    'quantity' => $order->quantity,
+                    'price' => $order->total_price,
+                    'store_name' => $order->establishment->business_name ?? 
+                        ($order->establishment->owner_fname . ' ' . $order->establishment->owner_lname),
+                    'store_hours' => 'Mon - Sat | 7:00 am - 5:00 pm', // Default hours
+                    'delivery_method' => ucfirst($order->delivery_method),
+                    'order_date' => $order->created_at->format('Y-m-d'),
+                    'pickup_time' => $order->pickup_start_time && $order->pickup_end_time ? 
+                        $order->pickup_start_time . '-' . $order->pickup_end_time : 'TBD',
+                    'status' => $order->status
+                ];
+            })->values()->toArray()
         ];
 
         return view('consumer.my-orders', compact('userOrders', 'userData'));
@@ -190,7 +185,7 @@ class FoodListingController extends Controller
             'id' => $foodListing->id,
             'name' => $foodListing->name,
             'description' => $foodListing->description,
-            'price' => $foodListing->discounted_price ?? $foodListing->original_price,
+            'price' => $this->calculateDiscountedPrice($foodListing->original_price, $foodListing->discount_percentage),
             'original_price' => $foodListing->original_price,
             'discount' => $foodListing->discount_percentage ? round($foodListing->discount_percentage) : 0,
             'quantity' => (string) $foodListing->quantity,
@@ -293,8 +288,15 @@ class FoodListingController extends Controller
         
         // Calculate pricing
         $originalPrice = (float) $foodItem->original_price;
-        $discountedPrice = (float) $foodItem->discounted_price;
         $discountPercentage = (float) $foodItem->discount_percentage;
+        
+        // Calculate discounted price properly
+        if ($discountPercentage > 0) {
+            $discountAmount = ($originalPrice * $discountPercentage) / 100;
+            $discountedPrice = $originalPrice - $discountAmount;
+        } else {
+            $discountedPrice = $originalPrice; // No discount, use original price
+        }
         
         // Get establishment name with fallback
         $establishmentName = $foodItem->establishment->business_name ?? 
@@ -339,8 +341,8 @@ class FoodListingController extends Controller
         }
         
         $originalPrice = (float) $foodItem->original_price;
-        $discountedPrice = (float) $foodItem->discounted_price;
         $discountPercentage = (float) $foodItem->discount_percentage;
+        $discountedPrice = $this->calculateDiscountedPrice($originalPrice, $discountPercentage);
         
         $establishmentName = $foodItem->establishment->business_name ?? 
                            ($foodItem->establishment->owner_fname . ' ' . $foodItem->establishment->owner_lname) ?? 
@@ -374,5 +376,136 @@ class FoodListingController extends Controller
             'deliveryFee',
             'total'
         ));
+    }
+
+    /**
+     * Place order from payment options page
+     */
+    public function placeOrder(Request $request)
+    {
+        $request->validate([
+            'food_listing_id' => 'required|exists:food_listings,id',
+            'quantity' => 'required|integer|min:1',
+            'delivery_method' => 'required|in:pickup,delivery',
+            'payment_method' => 'required|in:cash,card,ewallet',
+            'customer_name' => 'required|string|max:255',
+            'customer_phone' => 'required|string|max:20',
+            'delivery_address' => 'nullable|string|max:500',
+            'pickup_start_time' => 'nullable|date_format:H:i',
+            'pickup_end_time' => 'nullable|date_format:H:i',
+        ]);
+
+        try {
+            $foodItem = FoodListing::with('establishment')->find($request->food_listing_id);
+            
+            if (!$foodItem) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Food item not found'
+                ], 404);
+            }
+
+            // Get consumer from session
+            $consumerId = session('user_id');
+            if (!$consumerId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            // Calculate prices
+            $originalPrice = (float) $foodItem->original_price;
+            $discountPercentage = (float) $foodItem->discount_percentage;
+            $unitPrice = $this->calculateDiscountedPrice($originalPrice, $discountPercentage);
+            $totalPrice = $unitPrice * $request->quantity;
+
+            // Create order
+            $order = Order::create([
+                'order_number' => Order::generateOrderNumber(),
+                'consumer_id' => $consumerId,
+                'establishment_id' => $foodItem->establishment_id,
+                'food_listing_id' => $foodItem->id,
+                'quantity' => $request->quantity,
+                'unit_price' => $unitPrice,
+                'total_price' => $totalPrice,
+                'delivery_method' => $request->delivery_method,
+                'payment_method' => $request->payment_method,
+                'status' => 'pending',
+                'customer_name' => $request->customer_name,
+                'customer_phone' => $request->customer_phone,
+                'delivery_address' => $request->delivery_address,
+                'pickup_start_time' => $request->pickup_start_time,
+                'pickup_end_time' => $request->pickup_end_time,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order placed successfully',
+                'order_id' => $order->id,
+                'order_number' => $order->order_number
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to place order: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get consumer orders for my-orders page
+     */
+    public function getConsumerOrders()
+    {
+        $consumerId = session('user_id');
+        if (!$consumerId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated'
+            ], 401);
+        }
+
+        $orders = Order::with(['foodListing', 'establishment'])
+            ->where('consumer_id', $consumerId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'product_name' => $order->foodListing->name,
+                    'quantity' => $order->quantity . ' pcs.',
+                    'price' => $order->total_price,
+                    'status' => $order->status,
+                    'delivery_method' => ucfirst($order->delivery_method),
+                    'payment_method' => ucfirst($order->payment_method),
+                    'created_at' => $order->created_at->format('M d, Y H:i'),
+                    'establishment_name' => $order->establishment->business_name ?? 
+                        ($order->establishment->owner_fname . ' ' . $order->establishment->owner_lname),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'orders' => $orders
+        ]);
+    }
+
+    /**
+     * Calculate discounted price based on original price and discount percentage
+     */
+    private function calculateDiscountedPrice($originalPrice, $discountPercentage)
+    {
+        $originalPrice = (float) $originalPrice;
+        $discountPercentage = (float) $discountPercentage;
+        
+        if ($discountPercentage > 0) {
+            $discountAmount = ($originalPrice * $discountPercentage) / 100;
+            return $originalPrice - $discountAmount;
+        }
+        
+        return $originalPrice; // No discount, return original price
     }
 }

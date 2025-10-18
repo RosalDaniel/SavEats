@@ -275,7 +275,10 @@ function handleImagePreview(event) {
                 // Click to change image
                 changeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    imageInput.click();
+                    const imageInput = document.getElementById('itemImage');
+                    if (imageInput) {
+                        imageInput.click();
+                    }
                 });
             }
         };
@@ -332,6 +335,9 @@ function loadExistingImage(imageUrl) {
             height: 100%;
             object-fit: cover;
             border-radius: 8px;
+            position: absolute;
+            top: 0;
+            left: 0;
         `;
         uploadBox.appendChild(previewImg);
     }
@@ -344,15 +350,54 @@ function loadExistingImage(imageUrl) {
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.className = 'image-overlay';
-        overlay.innerHTML = `
-            <div class="overlay-content">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                </svg>
-                <span>Change Image</span>
-            </div>
+        overlay.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         `;
+        
+        const changeBtn = document.createElement('button');
+        changeBtn.textContent = 'Change Image';
+        changeBtn.style.cssText = `
+            background: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        `;
+        
+        overlay.appendChild(changeBtn);
         uploadBox.appendChild(overlay);
+        
+        // Show overlay on hover
+        uploadBox.addEventListener('mouseenter', () => {
+            overlay.style.opacity = '1';
+        });
+        
+        uploadBox.addEventListener('mouseleave', () => {
+            overlay.style.opacity = '0';
+        });
+        
+        // Click to change image
+        changeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const imageInput = document.getElementById('itemImage');
+            if (imageInput) {
+                imageInput.click();
+            }
+        });
     }
     
     // Add preview class
@@ -392,6 +437,10 @@ function closeModal(modalId) {
 
 // Item management functions
 function editItem(id) {
+    // Prevent any form submission
+    event.preventDefault();
+    event.stopPropagation();
+    
     currentEditingId = id;
     const modalTitle = document.getElementById('modalTitle');
     if (modalTitle) {
@@ -442,8 +491,9 @@ function editItem(id) {
         resetImagePreview();
     }
     
+    // Show modal
     showModal('itemModal');
-    showNotification('Loading item details...', 'info');
+    showNotification('Item details loaded successfully', 'success');
 }
 
 function viewItem(id) {
@@ -533,31 +583,21 @@ function saveItem() {
     const url = isEdit 
         ? `/establishment/food-listings/${currentEditingId}` 
         : '/establishment/food-listings';
-    const method = isEdit ? 'PUT' : 'POST';
+    const method = 'POST'; // Always use POST with method spoofing
 
-    // Add CSRF token
+    // Add CSRF token and method spoofing for PUT requests
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    console.log('CSRF Token:', csrfToken);
     if (csrfToken) {
         formData.append('_token', csrfToken);
     } else {
-        console.error('CSRF token not found!');
         showNotification('CSRF token not found. Please refresh the page.', 'error');
         return;
     }
-
-    // Debug: Log form data
-    console.log('Form data being sent:');
-    for (let [key, value] of formData.entries()) {
-        console.log(key, ':', value);
-    }
     
-    // Debug: Check if all required fields are filled
-    const requiredFields = ['itemName', 'itemQuantity', 'itemOriginalPrice', 'itemCategory', 'itemExpiry'];
-    requiredFields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        console.log(`${fieldId}:`, field ? field.value : 'NOT FOUND');
-    });
+    // Add method spoofing for PUT requests
+    if (isEdit) {
+        formData.append('_method', 'PUT');
+    }
 
     // Make API call
     fetch(url, {
@@ -567,14 +607,8 @@ function saveItem() {
             'X-CSRF-TOKEN': csrfToken
         }
     })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-        console.log('Response data:', data);
-        console.log('Response errors:', data.errors);
-        console.log('Response message:', data.message);
         
         if (data.success) {
             const action = isEdit ? 'updated' : 'added';
@@ -586,15 +620,12 @@ function saveItem() {
                 window.location.reload();
             }, 1000);
         } else {
-            console.error('Save failed:', data);
-            
             // Show detailed validation errors
             if (data.errors) {
                 let errorMessage = 'Validation errors:\n';
                 for (const [field, errors] of Object.entries(data.errors)) {
                     errorMessage += `${field}: ${errors.join(', ')}\n`;
                 }
-                console.error('Validation errors:', errorMessage);
                 showNotification(errorMessage, 'error');
             } else {
                 showNotification(data.message || data.error || 'Failed to save item', 'error');
@@ -602,7 +633,6 @@ function saveItem() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         showNotification('An error occurred while saving the item', 'error');
     })
     .finally(() => {

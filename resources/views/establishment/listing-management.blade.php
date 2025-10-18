@@ -154,11 +154,11 @@
                                      </svg>
                                  </button>
                                  <div class="dropdown-menu">
-                                     <button class="dropdown-item" onclick="editItem({{ $item['id'] }})">Edit</button>
-                                     <button class="dropdown-item" onclick="viewItem({{ $item['id'] }})">View Details</button>
-                                     <button class="dropdown-item" onclick="duplicateItem({{ $item['id'] }})">Duplicate</button>
-                                     <button class="dropdown-item" onclick="donateItem({{ $item['id'] }})">Mark for Donation</button>
-                                     <button class="dropdown-item danger" onclick="deleteItem({{ $item['id'] }})">Delete</button>
+                                     <button class="dropdown-item" type="button" onclick="editItem({{ $item['id'] }})">Edit</button>
+                                     <button class="dropdown-item" type="button" onclick="viewItem({{ $item['id'] }})">View Details</button>
+                                     <button class="dropdown-item" type="button" onclick="duplicateItem({{ $item['id'] }})">Duplicate</button>
+                                     <button class="dropdown-item" type="button" onclick="donateItem({{ $item['id'] }})">Mark for Donation</button>
+                                     <button class="dropdown-item danger" type="button" onclick="deleteItem({{ $item['id'] }})">Delete</button>
                                  </div>
                              </div>
                          </td>

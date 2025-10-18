@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\FoodListing;
 use App\Models\Establishment;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
@@ -87,7 +88,42 @@ class EstablishmentController extends Controller
             return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
         }
 
-        return view('establishment.order-management');
+        // Get establishment data
+        $establishmentId = Session::get('user_id');
+        $establishment = Establishment::find($establishmentId);
+        
+        if (!$establishment) {
+            return redirect()->route('login')->with('error', 'Establishment not found.');
+        }
+
+        // Get real orders from database
+        $orders = Order::with(['foodListing', 'consumer'])
+            ->where('establishment_id', $establishmentId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'product_name' => $order->foodListing->name,
+                    'quantity' => $order->quantity . ' pcs.',
+                    'price' => number_format($order->total_price, 2),
+                    'customer_name' => $order->customer_name,
+                    'delivery_method' => ucfirst($order->delivery_method),
+                    'status' => $order->status,
+                    'created_at' => $order->created_at
+                ];
+            })
+            ->toArray();
+
+        // Calculate order counts by status
+        $orderCounts = [
+            'pending' => count(array_filter($orders, fn($order) => $order['status'] === 'pending')),
+            'accepted' => count(array_filter($orders, fn($order) => $order['status'] === 'accepted')),
+            'completed' => count(array_filter($orders, fn($order) => $order['status'] === 'completed')),
+            'cancelled' => count(array_filter($orders, fn($order) => $order['status'] === 'cancelled'))
+        ];
+
+        return view('establishment.order-management', compact('establishment', 'orders', 'orderCounts'));
     }
 
     public function announcements()
@@ -256,6 +292,7 @@ class EstablishmentController extends Controller
         if (!$foodListing) {
             return response()->json(['error' => 'Food listing not found'], 404);
         }
+
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
