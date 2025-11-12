@@ -18,18 +18,47 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Payment method selection
     const paymentMethods = document.querySelectorAll('.payment-method');
-    let selectedPaymentMethod = 'cash'; // Default
+    
+    // Set default payment method (cash) as active
+    const cashMethod = document.getElementById('cashMethod');
+    if (cashMethod) {
+        cashMethod.classList.add('active');
+    }
 
+    // Handle payment method selection
     paymentMethods.forEach(method => {
-        method.addEventListener('click', function() {
+        method.addEventListener('click', function(e) {
+            // Don't trigger if clicking inside the method content
+            if (e.target.closest('.method-content')) {
+                return;
+            }
+            
             // Remove active class from all methods
             paymentMethods.forEach(m => m.classList.remove('active'));
             // Add active class to clicked method
             this.classList.add('active');
-            // Update selected payment method
-            selectedPaymentMethod = this.getAttribute('data-method');
+            
+            // Update checkbox state for cash method
+            const cashCheckbox = document.getElementById('cashCheckbox');
+            if (this.id === 'cashMethod' && cashCheckbox) {
+                cashCheckbox.checked = true;
+            } else if (cashCheckbox) {
+                cashCheckbox.checked = false;
+            }
         });
     });
+    
+    // Handle cash checkbox change
+    const cashCheckbox = document.getElementById('cashCheckbox');
+    if (cashCheckbox) {
+        cashCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                // Set cash as active payment method
+                paymentMethods.forEach(m => m.classList.remove('active'));
+                cashMethod.classList.add('active');
+            }
+        });
+    }
 
     // Place Order button functionality
     const placeOrderBtn = document.getElementById('placeOrderBtn');
@@ -51,11 +80,48 @@ function placeOrder() {
 
     // Get selected payment method
     const activePaymentMethod = document.querySelector('.payment-method.active');
-    const selectedPaymentMethod = activePaymentMethod ? activePaymentMethod.getAttribute('data-method') : 'cash';
+    let selectedPaymentMethod = 'cash'; // Default
+    
+    if (activePaymentMethod) {
+        selectedPaymentMethod = activePaymentMethod.getAttribute('data-method') || 'cash';
+    }
+    
+    // Validate payment method
+    if (!selectedPaymentMethod || !['cash', 'card', 'ewallet'].includes(selectedPaymentMethod)) {
+        console.error('Invalid payment method:', selectedPaymentMethod);
+        selectedPaymentMethod = 'cash'; // Fallback to cash
+    }
+    
+    console.log('Selected payment method:', selectedPaymentMethod);
 
     // Get customer data from backend
     const customerName = window.customerName || 'Customer';
     const customerPhone = window.customerPhone || urlParams.get('phone');
+
+    // Validate required fields before sending
+    if (!foodListingId) {
+        alert('Error: Food item ID is missing');
+        return;
+    }
+    if (!quantity || parseInt(quantity) < 1) {
+        alert('Error: Invalid quantity');
+        return;
+    }
+    if (!deliveryMethod || !['pickup', 'delivery'].includes(deliveryMethod)) {
+        alert('Error: Invalid delivery method');
+        return;
+    }
+    // Ensure customer name is valid (not empty and not just "Customer" placeholder)
+    const trimmedName = customerName.trim();
+    if (!trimmedName || trimmedName === '' || (trimmedName === 'Customer' && !window.customerName)) {
+        alert('Error: Customer name is required. Please ensure you are logged in with a valid account.');
+        console.error('Customer name validation failed:', { customerName, windowCustomerName: window.customerName });
+        return;
+    }
+    if (!customerPhone || customerPhone.trim() === '') {
+        alert('Error: Customer phone number is required');
+        return;
+    }
 
     // Prepare order data
     const orderData = {
@@ -63,14 +129,17 @@ function placeOrder() {
         quantity: parseInt(quantity),
         delivery_method: deliveryMethod,
         payment_method: selectedPaymentMethod,
-        customer_name: customerName,
-        customer_phone: customerPhone,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
         delivery_address: deliveryMethod === 'delivery' ? prompt('Please enter delivery address:') : null,
-        pickup_start_time: startTime,
-        pickup_end_time: endTime,
+        pickup_start_time: startTime ? decodeURIComponent(startTime) : null,
+        pickup_end_time: endTime ? decodeURIComponent(endTime) : null,
         _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
                 document.querySelector('input[name="_token"]')?.value
     };
+
+    // Log the data being sent for debugging
+    console.log('Order data being sent:', orderData);
 
     // Show loading state
     const placeOrderBtn = document.getElementById('placeOrderBtn');
@@ -83,11 +152,43 @@ function placeOrder() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': orderData._token
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': orderData._token,
+            'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify(orderData)
     })
-    .then(response => response.json())
+    .then(async response => {
+        // Always try to parse as JSON first
+        const contentType = response.headers.get('content-type');
+        let data;
+        
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            // If not JSON, try to parse anyway but log warning
+            const text = await response.text();
+            console.error('Server returned HTML instead of JSON:', text.substring(0, 200));
+            throw new Error(`Server error (${response.status}). Please check the console for details.`);
+        }
+        
+        // Check if response is ok
+        if (!response.ok) {
+            // If validation errors exist, format them nicely
+            if (data.errors) {
+                const errorList = Object.entries(data.errors)
+                    .map(([field, messages]) => {
+                        const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        return `${fieldName}: ${Array.isArray(messages) ? messages.join(', ') : messages}`;
+                    })
+                    .join('\n');
+                throw new Error('Validation failed:\n\n' + errorList);
+            }
+            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        }
+        
+        return data;
+    })
     .then(data => {
         if (data.success) {
             // Show success message
@@ -95,8 +196,9 @@ function placeOrder() {
             // Redirect to my orders page
             window.location.href = '/consumer/my-orders';
         } else {
-            // Show error message
+            // This should not happen as errors are thrown above, but just in case
             alert('Failed to place order: ' + (data.message || 'Unknown error'));
+            console.error('Order placement error:', data);
             // Reset button
             placeOrderBtn.textContent = originalText;
             placeOrderBtn.disabled = false;
@@ -104,7 +206,7 @@ function placeOrder() {
     })
     .catch(error => {
         console.error('Error placing order:', error);
-        alert('An error occurred while placing the order. Please try again.');
+        alert('An error occurred while placing the order: ' + error.message);
         // Reset button
         placeOrderBtn.textContent = originalText;
         placeOrderBtn.disabled = false;

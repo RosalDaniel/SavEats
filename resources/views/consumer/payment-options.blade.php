@@ -54,14 +54,14 @@
             <!-- Payment Methods -->
             <div class="payment-methods">
                 <!-- Cash On Hand -->
-                <div class="payment-method" id="cashMethod">
+                <div class="payment-method active" id="cashMethod" data-method="cash">
                     <div class="method-header" onclick="toggleMethod('cashMethod')">
                         <span class="method-title">Cash On Hand</span>
                         <span class="method-arrow">▲</span>
                     </div>
                     <div class="method-content">
                         <div class="checkbox-container">
-                            <input type="checkbox" id="cashCheckbox" class="payment-checkbox">
+                            <input type="checkbox" id="cashCheckbox" class="payment-checkbox" checked>
                             <label for="cashCheckbox" class="checkbox-label">I will pay in cash</label>
                         </div>
                         <p class="method-description">I acknowledge that I will give it to the delivery courier to complete my payment.</p>
@@ -69,7 +69,7 @@
                 </div>
 
                 <!-- Credit/Debit Card -->
-                <div class="payment-method" id="cardMethod">
+                <div class="payment-method" id="cardMethod" data-method="card">
                     <div class="method-header" onclick="toggleMethod('cardMethod')">
                         <span class="method-title">Credit/Debit Card</span>
                         <span class="method-arrow">▲</span>
@@ -139,7 +139,7 @@
                 </div>
 
                 <!-- E-Wallet -->
-                <div class="payment-method" id="ewalletMethod">
+                <div class="payment-method" id="ewalletMethod" data-method="ewallet">
                     <div class="method-header" onclick="toggleMethod('ewalletMethod')">
                         <span class="method-title">E-Wallet</span>
                         <span class="method-arrow">▼</span>
@@ -162,8 +162,15 @@
 
 <script>
     // Pass customer data to JavaScript
-    window.customerName = '{{ $userData->fname ?? "" }} {{ $userData->lname ?? "" }}'.trim() || 'Customer';
-    window.customerPhone = '{{ $phoneNumber }}';
+    var fname = '{{ trim($userData->fname ?? "") }}';
+    var lname = '{{ trim($userData->lname ?? "") }}';
+    var fullName = (fname + ' ' + lname).trim();
+    window.customerName = fullName || fname || 'Customer';
+    window.customerPhone = '{{ $phoneNumber ?? "" }}';
+    
+    // Debug: Log customer data
+    console.log('Customer Name:', window.customerName);
+    console.log('Customer Phone:', window.customerPhone);
 </script>
 <script src="{{ asset('js/payment-options.js') }}"></script>
 </body>

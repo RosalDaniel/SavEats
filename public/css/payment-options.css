@@ -19,14 +19,27 @@ body {
 }
 
 .payment-header {
+    background: white;
     padding: 15px 20px;
     display: flex;
     align-items: center;
     gap: 15px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.payment-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #e0e0e0;
 }
 
 .back-button {
-    background: #F0BE49;
+    background: #fbbf24;
     border: none;
     border-radius: 50%;
     width: 40px;
@@ -36,7 +49,13 @@ body {
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.back-button svg {
     color: white;
+    width: 20px;
+    height: 20px;
 }
 
 .back-button:hover {
@@ -45,8 +64,11 @@ body {
 }
 
 .payment-title {
+    color: #2d5016;
     font-size: 20px;
+    font-weight: 600;
     margin: 0;
+    font-family: 'Afacad', sans-serif;
 }
 
 .payment-container {

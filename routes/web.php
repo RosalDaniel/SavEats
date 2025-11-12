@@ -62,6 +62,9 @@ Route::middleware('custom.auth')->group(function () {
         Route::get('/order-confirmation', [FoodListingController::class, 'orderConfirmation'])->name('order-confirmation');
         Route::get('/payment-options', [FoodListingController::class, 'paymentOptions'])->name('payment-options');
         Route::get('/my-orders', [FoodListingController::class, 'myOrders'])->name('my-orders');
+        Route::get('/orders/{id}/details', [FoodListingController::class, 'getOrderDetails'])->name('orders.details');
+        Route::post('/reviews', [FoodListingController::class, 'submitReview'])->name('reviews.submit');
+        Route::get('/orders/{id}/review', [FoodListingController::class, 'getReview'])->name('orders.review');
         Route::get('/my-impact', [FoodListingController::class, 'myImpact'])->name('my-impact');
         Route::get('/announcements', [FoodListingController::class, 'announcements'])->name('announcements');
         Route::get('/help', [FoodListingController::class, 'help'])->name('help');
@@ -84,6 +87,12 @@ Route::middleware('custom.auth')->group(function () {
         Route::post('/food-listings', [EstablishmentController::class, 'storeFoodListing'])->name('food-listings.store');
         Route::put('/food-listings/{id}', [EstablishmentController::class, 'updateFoodListing'])->name('food-listings.update');
         Route::delete('/food-listings/{id}', [EstablishmentController::class, 'deleteFoodListing'])->name('food-listings.delete');
+        
+        // Order Management
+        Route::get('/orders/{id}/details', [EstablishmentController::class, 'getOrderDetails'])->name('orders.details');
+        Route::post('/orders/{id}/accept', [EstablishmentController::class, 'acceptOrder'])->name('orders.accept');
+        Route::post('/orders/{id}/cancel', [EstablishmentController::class, 'cancelOrder'])->name('orders.cancel');
+        Route::post('/orders/{id}/complete', [EstablishmentController::class, 'markOrderComplete'])->name('orders.complete');
     });
     
     // Foodbank Routes

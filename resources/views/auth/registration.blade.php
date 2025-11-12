@@ -5,6 +5,7 @@
 @section('styles')
     <link href="{{ asset('css/home.css') }}" rel="stylesheet">
     <link href="{{ asset('css/registration.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 @endsection
 
 @section('content')
@@ -140,17 +141,26 @@
                     </div>
 
                     <div class="form-group full-width">
-                        <label for="location" class="form-label required">Location</label>
-                        <input 
-                            type="text" 
-                            id="location" 
-                            name="location" 
-                            class="form-input" 
-                            placeholder="Enter your city or area"
-                            required
-                            autocomplete="address-level2"
-                            aria-describedby="location-error"
-                        >
+                        <label for="location" class="form-label required">Address</label>
+                        <div class="address-map-container">
+                            <div id="addressMap" class="address-map"></div>
+                            <div class="map-instructions">
+                                <p>Click on the map to select your location</p>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="location" 
+                                name="location" 
+                                class="form-input" 
+                                placeholder="Address will be filled from map selection"
+                                required
+                                readonly
+                                autocomplete="address-line1"
+                                aria-describedby="location-error"
+                            >
+                            <input type="hidden" id="latitude" name="latitude">
+                            <input type="hidden" id="longitude" name="longitude">
+                        </div>
                         <div class="error-message" id="location-error" role="alert"></div>
                     </div>
 
@@ -184,5 +194,6 @@
 
 @section('scripts')
     <script src="{{ asset('js/home.js') }}"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="{{ asset('js/registration.js') }}"></script>
 @endsection

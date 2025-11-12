@@ -42,17 +42,22 @@ class Order extends Model
     // Relationships
     public function consumer()
     {
-        return $this->belongsTo(Consumer::class);
+        return $this->belongsTo(Consumer::class, 'consumer_id', 'consumer_id');
     }
 
     public function establishment()
     {
-        return $this->belongsTo(Establishment::class);
+        return $this->belongsTo(Establishment::class, 'establishment_id', 'establishment_id');
     }
 
     public function foodListing()
     {
         return $this->belongsTo(FoodListing::class);
+    }
+
+    public function review()
+    {
+        return $this->hasOne(Review::class);
     }
 
     // Generate unique order number
@@ -63,5 +68,49 @@ class Order extends Model
         } while (self::where('order_number', $orderNumber)->exists());
 
         return $orderNumber;
+    }
+
+    /**
+     * Check if pickup time has passed (missed pickup)
+     */
+    public function isMissedPickup()
+    {
+        // Only check for pickup orders that are accepted or pending
+        if ($this->delivery_method !== 'pickup') {
+            return false;
+        }
+
+        // Only check if order is not completed or cancelled
+        if (in_array($this->status, ['completed', 'cancelled'])) {
+            return false;
+        }
+
+        // Check if pickup_end_time exists and has passed
+        if (!$this->pickup_end_time) {
+            return false;
+        }
+
+        // Use the order's created_at date as the pickup date
+        // pickup_end_time is stored as TIME, handle both string and object formats
+        $pickupDate = $this->created_at ? $this->created_at->toDateString() : now()->toDateString();
+        $pickupEndTimeStr = is_string($this->pickup_end_time) 
+            ? $this->pickup_end_time 
+            : $this->pickup_end_time->format('H:i:s');
+        $pickupEndDateTime = $pickupDate . ' ' . $pickupEndTimeStr;
+        $pickupEnd = \Carbon\Carbon::parse($pickupEndDateTime);
+
+        // If pickup_end_time is in the past, it's missed
+        return now()->greaterThan($pickupEnd);
+    }
+
+    /**
+     * Get the effective status (including missed pickup)
+     */
+    public function getEffectiveStatusAttribute()
+    {
+        if ($this->isMissedPickup()) {
+            return 'missed_pickup';
+        }
+        return $this->status;
     }
 }

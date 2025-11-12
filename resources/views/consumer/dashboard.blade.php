@@ -32,37 +32,38 @@
         <div class="deals-section">
             <h3 class="section-title">BEST DEALS</h3>
 
-            <div class="deal-item">
-                <div class="deal-image"></div>
-                <div class="deal-info">
-                    <div class="deal-name">Joy Bread</div>
-                    <div class="deal-quantity">10 pcs.</div>
-                    <div class="deal-price-row">
-                        <div class="deal-price">₱ 25.00</div>
-                        <div class="discount-badge">30% off</div>
+            @if(isset($bestDeals) && $bestDeals->count() > 0)
+                @foreach($bestDeals as $deal)
+                <div class="deal-item">
+                    <div class="deal-main">
+                        <div class="deal-image">
+                            @if($deal['image_url'])
+                                <img src="{{ $deal['image_url'] }}" alt="{{ $deal['name'] }}">
+                            @endif
+                        </div>
+                        <div class="deal-content">
+                            <div class="deal-left">
+                                <div class="deal-name">{{ $deal['name'] }}</div>
+                                <div class="deal-quantity">{{ $deal['quantity'] }} pcs.</div>
+                                <div class="discount-badge">{{ $deal['discount_percentage'] }}% off</div>
+                            </div>
+                            <div class="deal-right">
+                                <div class="deal-price">₱ {{ number_format($deal['discounted_price'], 2) }}</div>
+                                <div class="deal-original-price">₱ {{ number_format($deal['original_price'], 2) }}</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="deal-actions">
-                        <button class="btn btn-primary">Buy Now</button>
-                        <button class="btn btn-secondary">View Details</button>
+                        <a href="{{ route('order.confirmation') }}?id={{ $deal['id'] }}&quantity=1" class="btn btn-primary">Buy Now</a>
+                        <a href="{{ route('food.detail', $deal['id']) }}" class="btn btn-secondary">View Details</a>
                     </div>
                 </div>
-            </div>
-
-            <div class="deal-item">
-                <div class="deal-image"></div>
-                <div class="deal-info">
-                    <div class="deal-name">Joy Bread</div>
-                    <div class="deal-quantity">10 pcs.</div>
-                    <div class="deal-price-row">
-                        <div class="deal-price">₱ 25.00</div>
-                        <div class="discount-badge">30% off</div>
-                    </div>
-                    <div class="deal-actions">
-                        <button class="btn btn-primary">Buy Now</button>
-                        <button class="btn btn-secondary">View Details</button>
-                    </div>
+                @endforeach
+            @else
+                <div class="no-deals">
+                    <p>No deals available at the moment. Check back later!</p>
                 </div>
-            </div>
+            @endif
 
             <a href="{{ route('food.listing') }}" class="view-all-btn">→ Go to Food Listings</a>
         </div>

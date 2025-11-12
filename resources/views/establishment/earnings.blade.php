@@ -13,7 +13,7 @@
 <!-- Total Earnings Card -->
 <div class="total-earnings-card">
     <div class="total-earnings-label">Total Earnings</div>
-    <div class="total-earnings-amount">₱500</div>
+    <div class="total-earnings-amount">₱{{ number_format($totalEarnings ?? 0, 2) }}</div>
 </div>
 
 <!-- Main Content Grid -->
@@ -52,45 +52,27 @@
                     <th>Item Sold</th>
                     <th>Amount</th>
                     <th>Date</th>
-                    <th>Mode of</th>
+                    <th>Mode of Payment</th>
                 </tr>
             </thead>
             <tbody>
-                <tr class="table-row">
-                    <td class="order-id">ID#123</td>
-                    <td class="item-name">Joy Bread<br><small>12 pcs.</small></td>
-                    <td class="amount">₱25.00</td>
-                    <td>May 1, 2025</td>
-                    <td class="payment-mode">Credit Card</td>
-                </tr>
-                <tr class="table-row">
-                    <td class="order-id">ID#123</td>
-                    <td class="item-name">Joy Bread<br><small>12 pcs.</small></td>
-                    <td class="amount">₱25.00</td>
-                    <td>May 1, 2025</td>
-                    <td class="payment-mode">E-Wallet</td>
-                </tr>
-                <tr class="table-row">
-                    <td class="order-id">ID#123</td>
-                    <td class="item-name">Joy Bread<br><small>12 pcs.</small></td>
-                    <td class="amount">₱25.00</td>
-                    <td>May 1, 2025</td>
-                    <td class="payment-mode">Cash on Hand</td>
-                </tr>
-                <tr class="table-row">
-                    <td class="order-id">ID#123</td>
-                    <td class="item-name">Joy Bread<br><small>12 pcs.</small></td>
-                    <td class="amount">₱25.00</td>
-                    <td>May 1, 2025</td>
-                    <td class="payment-mode">E-Wallet</td>
-                </tr>
-                <tr class="table-row">
-                    <td class="order-id">ID#123</td>
-                    <td class="item-name">Joy Bread<br><small>12 pcs.</small></td>
-                    <td class="amount">₱25.00</td>
-                    <td>May 1, 2025</td>
-                    <td class="payment-mode">Credit Card</td>
-                </tr>
+                @if(isset($completedOrders) && count($completedOrders) > 0)
+                    @foreach($completedOrders as $order)
+                    <tr class="table-row">
+                        <td class="order-id">{{ $order['order_number'] ?? 'ID#' . $order['id'] }}</td>
+                        <td class="item-name">{{ $order['product_name'] }}<br><small>{{ $order['quantity'] }} pcs.</small></td>
+                        <td class="amount">₱{{ number_format($order['total_price'], 2) }}</td>
+                        <td>{{ $order['completed_at'] ?? $order['created_at'] }}</td>
+                        <td class="payment-mode">{{ $order['payment_method'] ?? 'N/A' }}</td>
+                    </tr>
+                    @endforeach
+                @else
+                    <tr class="table-row">
+                        <td colspan="5" style="text-align: center; padding: 20px; color: #6c757d;">
+                            No completed orders yet.
+                        </td>
+                    </tr>
+                @endif
             </tbody>
         </table>
         
@@ -128,38 +110,7 @@
         <h3 class="chart-title">DAILY EARNING TRENDS</h3>
         
         <div class="chart-container">
-            <div class="y-axis">
-                <div class="y-label">100</div>
-                <div class="y-label">80</div>
-                <div class="y-label">60</div>
-                <div class="y-label">40</div>
-                <div class="y-label">20</div>
-                <div class="y-label">0</div>
-            </div>
-            
-            <div class="chart-bars">
-                <div class="chart-bar" style="height: 95%;">
-                    <div class="bar-label">M</div>
-                </div>
-                <div class="chart-bar" style="height: 65%;">
-                    <div class="bar-label">T</div>
-                </div>
-                <div class="chart-bar" style="height: 45%;">
-                    <div class="bar-label">W</div>
-                </div>
-                <div class="chart-bar" style="height: 28%;">
-                    <div class="bar-label">TH</div>
-                </div>
-                <div class="chart-bar" style="height: 18%;">
-                    <div class="bar-label">FRI</div>
-                </div>
-                <div class="chart-bar" style="height: 43%;">
-                    <div class="bar-label">SAT</div>
-                </div>
-                <div class="chart-bar" style="height: 98%;">
-                    <div class="bar-label">SUN</div>
-                </div>
-            </div>
+            <canvas id="earningsChart"></canvas>
         </div>
         
         <div class="chart-legend">
@@ -171,5 +122,14 @@
 @endsection
 
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Pass earnings data to JavaScript
+    window.earningsData = {
+        daily: @json($dailyEarnings ?? []),
+        monthly: @json($monthlyEarnings ?? []),
+        yearly: @json($yearlyEarnings ?? [])
+    };
+</script>
 <script src="{{ asset('js/earnings.js') }}"></script>
 @endsection

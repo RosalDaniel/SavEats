@@ -143,25 +143,25 @@
                          <td>{{ $item['quantity'] }}</td>
                          <td>₱{{ number_format($item['price'], 2) }}</td>
                          <td>{{ \Carbon\Carbon::parse($item['expiry'])->format('M d, Y') }}</td>
-                         <td>
-                             <span class="status-badge {{ $item['status'] }}">{{ strtoupper($item['status']) }}</span>
-                         </td>
-                         <td>
-                             <div class="action-dropdown">
-                                 <button class="action-btn menu-btn" onclick="toggleDropdown(this)" title="More Actions">
-                                     <svg viewBox="0 0 24 24" width="20" height="20">
-                                         <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-                                     </svg>
-                                 </button>
-                                 <div class="dropdown-menu">
-                                     <button class="dropdown-item" type="button" onclick="editItem({{ $item['id'] }})">Edit</button>
-                                     <button class="dropdown-item" type="button" onclick="viewItem({{ $item['id'] }})">View Details</button>
-                                     <button class="dropdown-item" type="button" onclick="duplicateItem({{ $item['id'] }})">Duplicate</button>
-                                     <button class="dropdown-item" type="button" onclick="donateItem({{ $item['id'] }})">Mark for Donation</button>
-                                     <button class="dropdown-item danger" type="button" onclick="deleteItem({{ $item['id'] }})">Delete</button>
-                                 </div>
-                             </div>
-                         </td>
+                        <td>
+                            <span class="status-badge {{ $item['status'] }}">{{ ucfirst($item['status']) }}</span>
+                        </td>
+                        <td>
+                            <div style="position: relative;">
+                                <button class="actions-btn" data-id="{{ $item['id'] }}" aria-label="Actions menu">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                                    </svg>
+                                </button>
+                                <div class="actions-menu" id="menu-{{ $item['id'] }}">
+                                    <button type="button" onclick="viewItem({{ $item['id'] }})">View Details</button>
+                                    <button type="button" onclick="editItem({{ $item['id'] }})">Edit</button>
+                                    <button type="button" onclick="duplicateItem({{ $item['id'] }})">Duplicate</button>
+                                    <button type="button" onclick="donateItem({{ $item['id'] }})">Mark for Donation</button>
+                                    <button type="button" class="delete" onclick="deleteItem({{ $item['id'] }})">Delete</button>
+                                </div>
+                            </div>
+                        </td>
                      </tr>
                      @endforeach
                 </tbody>
@@ -521,5 +521,9 @@
 @endsection
 
 @section('scripts')
+<script>
+    // Pass establishment address to JavaScript
+    window.establishmentAddress = @json($establishmentAddress ?? '');
+</script>
 <script src="{{ asset('js/listing-management.js') }}"></script>
 @endsection

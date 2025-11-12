@@ -6,13 +6,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if elements exist before adding event listeners
     if (mobileToggle && navMenu) {
         mobileToggle.addEventListener('click', function() {
+            const isActive = navMenu.classList.contains('active');
             navMenu.classList.toggle('active');
             
             const icon = mobileToggle.querySelector('span');
-            if (navMenu.classList.contains('active')) {
+            if (!isActive) {
                 icon.innerHTML = '✕';
+                // Disable scrolling when menu is open
+                document.body.style.overflow = 'hidden';
             } else {
                 icon.innerHTML = '☰';
+                // Enable scrolling when menu is closed
+                document.body.style.overflow = '';
             }
         });
     }
@@ -22,7 +27,12 @@ document.addEventListener('DOMContentLoaded', function() {
     navLinks.forEach(link => {
         link.addEventListener('click', function() {
             navMenu.classList.remove('active');
-            mobileToggle.querySelector('span').innerHTML = '☰';
+            const toggleSpan = mobileToggle.querySelector('span');
+            if (toggleSpan) {
+                toggleSpan.innerHTML = '☰';
+            }
+            // Enable scrolling when menu is closed
+            document.body.style.overflow = '';
         });
     });
 
@@ -38,6 +48,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (toggleSpan) {
                     toggleSpan.innerHTML = '☰';
                 }
+                // Enable scrolling when menu is closed
+                document.body.style.overflow = '';
             }
         });
     }
@@ -94,48 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
         observer.observe(el);
     });
 
-    // Counter animation for stats
-    const animateCounter = (element, target) => {
-        let current = 0;
-        const increment = target / 100;
-        const timer = setInterval(() => {
-            current += increment;
-            if (current >= target) {
-                element.textContent = target + (element.textContent.includes('%') ? '%' : '+');
-                clearInterval(timer);
-            } else {
-                element.textContent = Math.floor(current) + (element.textContent.includes('%') ? '%' : '+');
-            }
-        }, 20);
-    };
 
-    // Animate stats when they come into view
-    const statsObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const statNumber = entry.target.querySelector('.stat-number');
-                const text = statNumber.textContent;
-                const number = parseInt(text.replace(/\D/g, ''));
-                animateCounter(statNumber, number);
-                statsObserver.unobserve(entry.target);
-            }
-        });
-    });
-
-    document.querySelectorAll('.stat-card').forEach(card => {
-        statsObserver.observe(card);
-    });
-
-    // Parallax effect for hero section
-    window.addEventListener('scroll', function() {
-        const scrolled = window.pageYOffset;
-        const parallax = document.querySelector('.hero');
-        const speed = scrolled * 0.5;
-        
-        if (parallax) {
-            parallax.style.transform = `translateY(${speed}px)`;
-        }
-    });
 
     // Add floating animation to CTA buttons
     const ctaButtons = document.querySelectorAll('.cta-button, .btn-primary, .btn-secondary');

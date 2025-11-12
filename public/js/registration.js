@@ -480,14 +480,27 @@ document.addEventListener('DOMContentLoaded', function() {
         const password = document.getElementById('password');
         const confirmPassword = document.getElementById('confirmPassword');
         const location = document.getElementById('location');
+        const latitude = document.getElementById('latitude');
+        const longitude = document.getElementById('longitude');
         const terms = document.getElementById('terms');
 
         const validations = [
             validateField(username, 'username-error', val => val.length >= 3, 'Username must be at least 3 characters'),
             validateField(password, 'password-error', validatePassword, 'Password must be at least 8 characters'),
-            validateField(confirmPassword, 'confirmPassword-error', val => val === password.value, 'Passwords do not match'),
-            validateField(location, 'location-error', val => val.length >= 2, 'Please enter your location')
+            validateField(confirmPassword, 'confirmPassword-error', val => val === password.value, 'Passwords do not match')
         ];
+
+        // Validate location - must be selected from map
+        const locationError = document.getElementById('location-error');
+        if (!latitude?.value || !longitude?.value || !location?.value || location.value === 'Address will be filled from map selection' || location.value === 'Loading address...') {
+            locationError.textContent = 'Please select your location on the map';
+            location.closest('.form-group')?.classList.add('has-error');
+            validations.push(false);
+        } else {
+            locationError.textContent = '';
+            location.closest('.form-group')?.classList.remove('has-error');
+            validations.push(true);
+        }
 
         if (!terms.checked) {
             alert('Please accept the Terms of Service to continue.');
@@ -510,6 +523,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('nextStep2').addEventListener('click', function() {
         if (validateStep2()) {
             showStep(3);
+            // Initialize map when step 3 is shown
+            setTimeout(() => {
+                initializeAddressMap();
+            }, 100);
         }
     });
 
@@ -583,6 +600,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 formData.append('email', finalFormData.email);
                 formData.append('phone_no', finalFormData.phone);
                 formData.append('address', finalFormData.location);
+                // Add coordinates if available
+                const latitude = document.getElementById('latitude')?.value;
+                const longitude = document.getElementById('longitude')?.value;
+                if (latitude && longitude) {
+                    formData.append('latitude', latitude);
+                    formData.append('longitude', longitude);
+                }
                 formData.append('fname', finalFormData.firstName);
                 formData.append('lname', finalFormData.lastName);
                 formData.append('mname', finalFormData.middleName);
@@ -617,6 +641,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     email: finalFormData.email,
                     phone_no: finalFormData.phone,
                     address: finalFormData.location,
+                    // Add coordinates if available
+                    latitude: document.getElementById('latitude')?.value || null,
+                    longitude: document.getElementById('longitude')?.value || null,
                     fname: finalFormData.firstName,
                     lname: finalFormData.lastName,
                     mname: finalFormData.middleName,
@@ -712,6 +739,135 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
+
+    // Address Map Functionality
+    let addressMap = null;
+    let addressMarker = null;
+
+    function initializeAddressMap() {
+        const mapElement = document.getElementById('addressMap');
+        if (!mapElement || addressMap) return; // Already initialized
+
+        // Initialize map centered on Philippines
+        addressMap = L.map('addressMap').setView([12.8797, 121.7740], 6);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(addressMap);
+
+        // Add click event to map
+        addressMap.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+
+            // Update hidden inputs
+            document.getElementById('latitude').value = lat;
+            document.getElementById('longitude').value = lng;
+
+            // Remove existing marker
+            if (addressMarker) {
+                addressMap.removeLayer(addressMarker);
+            }
+
+            // Add new marker
+            addressMarker = L.marker([lat, lng])
+                .addTo(addressMap)
+                .bindPopup('Selected Location')
+                .openPopup();
+
+            // Reverse geocode to get address
+            reverseGeocode(lat, lng);
+        });
+
+        // Try to get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    addressMap.setView([lat, lng], 13);
+                },
+                function(error) {
+                    console.log('Geolocation error:', error);
+                    // Keep default view
+                }
+            );
+        }
+    }
+
+    function reverseGeocode(lat, lng) {
+        const locationInput = document.getElementById('location');
+        const locationError = document.getElementById('location-error');
+        
+        // Show loading state
+        locationInput.value = 'Loading address...';
+        locationInput.disabled = true;
+
+        // Use Nominatim reverse geocoding API
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+
+        fetch(url, {
+            headers: {
+                'User-Agent': 'SavEats Application'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.address) {
+                // Build formatted address
+                const address = data.address;
+                let formattedAddress = '';
+
+                // Build address from components
+                if (address.road || address.street) {
+                    formattedAddress += (address.road || address.street) + ', ';
+                }
+                if (address.suburb || address.neighbourhood) {
+                    formattedAddress += (address.suburb || address.neighbourhood) + ', ';
+                }
+                if (address.city || address.town || address.village) {
+                    formattedAddress += (address.city || address.town || address.village) + ', ';
+                }
+                if (address.state) {
+                    formattedAddress += address.state + ', ';
+                }
+                if (address.postcode) {
+                    formattedAddress += address.postcode + ' ';
+                }
+                if (address.country) {
+                    formattedAddress += address.country;
+                }
+
+                // Clean up trailing commas and spaces
+                formattedAddress = formattedAddress.replace(/,\s*$/, '').trim();
+
+                // If no formatted address, use display_name
+                if (!formattedAddress && data.display_name) {
+                    formattedAddress = data.display_name;
+                }
+
+                // Update input field
+                locationInput.value = formattedAddress;
+                locationInput.disabled = false;
+
+                // Clear any errors
+                locationError.textContent = '';
+                locationInput.closest('.form-group')?.classList.remove('has-error');
+            } else {
+                // Fallback if reverse geocoding fails
+                locationInput.value = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+                locationInput.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Reverse geocoding error:', error);
+            // Fallback to coordinates
+            locationInput.value = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+            locationInput.disabled = false;
+        });
+    }
 
     // Initialize form
     showStep(1);

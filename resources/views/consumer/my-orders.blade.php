@@ -6,15 +6,13 @@
 
 @section('styles')
 <link href="https://fonts.googleapis.com/css2?family=Afacad&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="{{ asset('css/food-listing.css') }}">
+<link rel="stylesheet" href="{{ asset('css/order-details-modal.css') }}">
+<link rel="stylesheet" href="{{ asset('css/rate-modal.css') }}">
 <style>
 /* My Orders Specific Styles */
 .orders-container {
-    background: white;
-    border-radius: 15px;
     padding: 25px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
     margin-bottom: 30px;
 }
 
@@ -24,14 +22,14 @@
     justify-content: center;
     border-bottom: 2px solid #e9ecef;
     margin-bottom: 25px;
-    gap: 0;
+    gap: 5%;
 }
 
 .tab-button {
     background: none;
     border: none;
-    padding: 12px 24px;
-    font-size: 16px;
+    padding: 8px 16px;
+    font-size: 14px;
     font-weight: 600;
     color: #6c757d;
     cursor: pointer;
@@ -63,6 +61,8 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     border: 1px solid #e9ecef;
     transition: all 0.3s ease;
+    max-width: 500px;
+    margin: 0 auto;
 }
 
 .order-card:hover {
@@ -225,23 +225,153 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+    .orders-container {
+        padding: 15px;
+    }
+    
+    /* Tab Navigation Mobile */
+    .order-tabs {
+        gap: 3%;
+        margin-bottom: 20px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    
+    .order-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .tab-button {
+        padding: 8px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .order-card {
+        max-width: 100%;
+        padding: 16px;
+    }
+    
     .order-header {
-        flex-direction: column;
-        gap: 10px;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .product-info h3 {
+        font-size: 18px;
+        font-weight: 700;
+        color: #ff8c00;
+        margin: 0 0 5px 0;
+    }
+    
+    .product-info .quantity {
+        font-size: 14px;
+        color: #6c757d;
+        margin: 0;
     }
     
     .order-price {
         font-size: 20px;
+        font-weight: 700;
+        color: #2d5016;
+        text-align: right;
+    }
+    
+    .order-details {
+        margin: 15px 0;
     }
     
     .detail-row {
-        flex-direction: column;
-        gap: 2px;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        font-size: 14px;
+        flex-direction: row;
+        gap: 0;
     }
     
     .detail-label {
+        font-weight: 600;
+        color: #495057;
+        flex: 1;
         min-width: auto;
         margin-right: 0;
+    }
+    
+    .detail-value {
+        color: #6c757d;
+        flex: 1;
+        text-align: right;
+        font-weight: 500;
+    }
+    
+    .order-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #e9ecef;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        flex: 1;
+        min-width: 120px;
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
+    .view-receipt-btn,
+    .buy-again-btn {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+}
+
+/* Small Mobile Devices */
+@media (max-width: 480px) {
+    .orders-container {
+        padding: 12px;
+    }
+    
+    .order-tabs {
+        gap: 2%;
+        margin-bottom: 15px;
+    }
+    
+    .tab-button {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    
+    .order-card {
+        padding: 12px;
+    }
+    
+    .product-info h3 {
+        font-size: 16px;
+    }
+    
+    .product-info .quantity {
+        font-size: 13px;
+    }
+    
+    .order-price {
+        font-size: 18px;
+    }
+    
+    .detail-row {
+        font-size: 13px;
+        margin-bottom: 10px;
     }
     
     .order-actions {
@@ -251,6 +381,15 @@
     
     .btn {
         width: 100%;
+        min-width: auto;
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+    
+    .view-receipt-btn,
+    .buy-again-btn {
+        padding: 10px 16px;
+        font-size: 13px;
     }
 }
 </style>
@@ -352,9 +491,15 @@
                         <button class="btn btn-outline" onclick="viewReceipt('{{ $order['order_id'] }}')">
                             View Receipt
                         </button>
-                        <button class="btn btn-primary" onclick="rateOrder('{{ $order['order_id'] }}')">
-                            Rate Now
-                        </button>
+                        @if(isset($order['has_rating']) && $order['has_rating'])
+                            <button class="btn btn-outline" onclick="viewRating({{ $order['order_id_raw'] }})">
+                                View Rating
+                            </button>
+                        @else
+                            <button class="btn btn-primary" onclick="rateOrder('{{ $order['order_id'] }}')">
+                                Rate Now
+                            </button>
+                        @endif
                     </div>
                 </div>
                 @endforeach
@@ -390,11 +535,11 @@
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Cancelled:</span>
-                            <span class="detail-value">{{ $order['cancelled_date'] }}</span>
+                            <span class="detail-value">{{ $order['cancelled_date'] ?? 'N/A' }}</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Reason:</span>
-                            <span class="detail-value">{{ $order['cancellation_reason'] }}</span>
+                            <span class="detail-value">{{ $order['cancellation_reason'] ?? 'N/A' }}</span>
                         </div>
                     </div>
                     
@@ -412,9 +557,16 @@
         </div>
     </div>
 </div>
+
+@include('components.order-details-modal')
+@include('components.rate-modal')
+@include('components.view-rating-modal')
 @endsection
 
 @section('scripts')
+<script src="{{ asset('js/order-details-modal.js') }}"></script>
+<script src="{{ asset('js/rate-modal.js') }}"></script>
+<script src="{{ asset('js/view-rating-modal.js') }}"></script>
 <script>
 // Tab functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -446,14 +598,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // View receipt function
 function viewReceipt(orderId) {
-    // In a real app, this would open a receipt modal or navigate to receipt page
-    alert('Receipt for Order ID: ' + orderId + '\n\nThis feature will be implemented in the next version.');
+    // Extract numeric ID from orderId (e.g., "ID#123" -> "123")
+    const numericId = orderId.toString().replace(/[^0-9]/g, '');
+    if (numericId) {
+        openOrderDetailsModal(numericId, true);
+    } else {
+        alert('Invalid order ID');
+    }
 }
 
 // Rate order function
 function rateOrder(orderId) {
-    // In a real app, this would open a rating modal or navigate to rating page
-    alert('Rate Order ID: ' + orderId + '\n\nThis feature will be implemented in the next version.');
+    // Extract numeric ID
+    const numericId = orderId.toString().replace(/[^0-9]/g, '');
+    openRateModal(numericId);
+}
+
+// View rating function
+function viewRating(orderId) {
+    const numericId = orderId.toString().replace(/[^0-9]/g, '');
+    openViewRatingModal(numericId);
 }
 
 // Buy again function

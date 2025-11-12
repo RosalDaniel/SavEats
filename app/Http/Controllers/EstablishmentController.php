@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class EstablishmentController extends Controller
 {
@@ -20,7 +21,144 @@ class EstablishmentController extends Controller
         }
 
         $user = $this->getUserData();
-        return view('establishment.dashboard', compact('user'));
+        $establishmentId = Session::get('user_id');
+        
+        // Get all food listings for inventory health calculation
+        $allListings = FoodListing::where('establishment_id', $establishmentId)->get();
+        
+        // Calculate inventory health statistics
+        $totalItems = $allListings->count();
+        
+        if ($totalItems > 0) {
+            // Fresh Stock: Active items that are not expiring soon (expiry > 3 days away)
+            $freshStock = $allListings->filter(function ($item) {
+                return $item->status === 'active' && 
+                       $item->expiry_date > now()->addDays(3)->toDateString();
+            })->count();
+            
+            // Expiring Stock: Active items expiring within next 3 days
+            $expiringStock = $allListings->filter(function ($item) {
+                return $item->status === 'active' && 
+                       $item->expiry_date >= now()->toDateString() &&
+                       $item->expiry_date <= now()->addDays(3)->toDateString();
+            })->count();
+            
+            // Expired Stock: Items that have passed expiry date or status is expired
+            $expiredStock = $allListings->filter(function ($item) {
+                return $item->status === 'expired' || 
+                       $item->expiry_date < now()->toDateString();
+            })->count();
+            
+            // Calculate percentages
+            $freshStockPercent = round(($freshStock / $totalItems) * 100);
+            $expiringStockPercent = round(($expiringStock / $totalItems) * 100);
+            $expiredStockPercent = round(($expiredStock / $totalItems) * 100);
+        } else {
+            $freshStockPercent = 0;
+            $expiringStockPercent = 0;
+            $expiredStockPercent = 0;
+        }
+        
+        // Get expiring food listings (expiring within next 3 days, not expired, and active)
+        $expiringItems = FoodListing::where('establishment_id', $establishmentId)
+            ->where('status', 'active')
+            ->where('expiry_date', '>=', now()->toDateString())
+            ->where('expiry_date', '<=', now()->addDays(3)->toDateString())
+            ->orderBy('expiry_date', 'asc')
+            ->limit(5)
+            ->get()
+            ->map(function ($item) {
+                $expiryDate = \Carbon\Carbon::parse($item->expiry_date);
+                
+                // Format expiry date
+                if ($expiryDate->isToday()) {
+                    $expiryTime = 'Today, 6pm'; // Default time since expiry_date is date only
+                } elseif ($expiryDate->isTomorrow()) {
+                    $expiryTime = 'Tomorrow, 6pm';
+                } else {
+                    $expiryTime = $expiryDate->format('M j, Y');
+                }
+                
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'quantity' => $item->quantity,
+                    'expiry_date' => $item->expiry_date->format('Y-m-d'),
+                    'expiry_time' => $expiryTime,
+                    'expiry_datetime' => $expiryDate,
+                ];
+            })
+            ->toArray();
+        
+        $inventoryHealth = [
+            'fresh_stock_percent' => $freshStockPercent,
+            'expiring_stock_percent' => $expiringStockPercent,
+            'expired_stock_percent' => $expiredStockPercent,
+        ];
+        
+        // Calculate dashboard stats
+        // Active Listings: Count of active food listings
+        $activeListings = FoodListing::where('establishment_id', $establishmentId)
+            ->where('status', 'active')
+            ->count();
+        
+        // Today's Earnings: Sum of completed orders for today
+        $todayEarnings = Order::where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->whereDate('completed_at', now()->toDateString())
+            ->sum('total_price');
+        
+        // Food Donated: Count of items with status 'donated' or sum of donated quantities
+        // For now, we'll use a placeholder or calculate from a field if it exists
+        // If there's no donation tracking yet, we can use 0 or calculate from something else
+        $foodDonated = 0; // Placeholder - can be updated when donation system is implemented
+        
+        // Food Saved: Sum of sold_stock from food listings (items that were sold/completed)
+        $foodSaved = FoodListing::where('establishment_id', $establishmentId)
+            ->sum('sold_stock');
+        
+        $dashboardStats = [
+            'active_listings' => $activeListings,
+            'today_earnings' => (float) $todayEarnings,
+            'food_donated' => $foodDonated,
+            'food_saved' => (int) $foodSaved,
+        ];
+        
+        // Get the most recent pending order
+        $pendingOrder = Order::with(['foodListing'])
+            ->where('establishment_id', $establishmentId)
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->first();
+        
+        $pendingOrderData = null;
+        if ($pendingOrder && $pendingOrder->foodListing) {
+            $pendingOrderData = [
+                'id' => $pendingOrder->id,
+                'order_number' => $pendingOrder->order_number ?? 'ID#' . $pendingOrder->id,
+                'product_name' => $pendingOrder->foodListing->name,
+                'quantity' => $pendingOrder->quantity,
+                'total_price' => (float) $pendingOrder->total_price,
+                'customer_name' => $pendingOrder->customer_name,
+                'delivery_method' => ucfirst($pendingOrder->delivery_method),
+            ];
+        }
+        
+        return view('establishment.dashboard', compact('user', 'expiringItems', 'inventoryHealth', 'dashboardStats', 'pendingOrderData'));
+    }
+
+    /**
+     * Format payment method for display
+     */
+    private function formatPaymentMethod($method)
+    {
+        $methods = [
+            'cash' => 'Cash on Hand',
+            'card' => 'Credit Card',
+            'ewallet' => 'E-Wallet'
+        ];
+        
+        return $methods[$method] ?? ucfirst($method);
     }
 
     /**
@@ -46,6 +184,10 @@ class EstablishmentController extends Controller
 
         $user = $this->getUserData();
         $establishmentId = Session::get('user_id');
+        
+        // Get establishment data to access address
+        $establishment = Establishment::find($establishmentId);
+        $establishmentAddress = $establishment->address ?? '';
         
         // Get real food listings from database
         $foodItems = FoodListing::where('establishment_id', $establishmentId)
@@ -79,7 +221,7 @@ class EstablishmentController extends Controller
             'unsold_items' => count(array_filter($foodItems, fn($item) => $item['status'] === 'active' || $item['status'] === 'expiring'))
         ];
 
-        return view('establishment.listing-management', compact('user', 'foodItems', 'stats'));
+        return view('establishment.listing-management', compact('user', 'foodItems', 'stats', 'establishmentAddress'));
     }
 
     public function orderManagement()
@@ -101,15 +243,45 @@ class EstablishmentController extends Controller
             ->where('establishment_id', $establishmentId)
             ->orderBy('created_at', 'desc')
             ->get()
+            ->filter(function ($order) {
+                // Filter out orders with missing relationships
+                return $order->foodListing !== null;
+            })
             ->map(function ($order) {
+                // Format pickup times
+                $pickupStartTime = null;
+                $pickupEndTime = null;
+                if ($order->pickup_start_time) {
+                    $pickupStartTime = is_string($order->pickup_start_time) 
+                        ? substr($order->pickup_start_time, 0, 5) 
+                        : $order->pickup_start_time->format('H:i');
+                }
+                if ($order->pickup_end_time) {
+                    $pickupEndTime = is_string($order->pickup_end_time) 
+                        ? substr($order->pickup_end_time, 0, 5) 
+                        : $order->pickup_end_time->format('H:i');
+                }
+                
+                // Format pickup date (use created_at date for pickup date)
+                $pickupDate = $order->created_at ? $order->created_at->format('F d, Y') : null;
+                
                 return [
                     'id' => $order->id,
-                    'product_name' => $order->foodListing->name,
+                    'product_name' => $order->foodListing->name ?? 'Unknown Product',
                     'quantity' => $order->quantity . ' pcs.',
-                    'price' => number_format($order->total_price, 2),
+                    'price' => (float) $order->total_price,
                     'customer_name' => $order->customer_name,
+                    'customer_phone' => $order->customer_phone ?? '',
                     'delivery_method' => ucfirst($order->delivery_method),
                     'status' => $order->status,
+                    'effective_status' => $order->effective_status, // Includes missed_pickup
+                    'is_missed_pickup' => $order->isMissedPickup(),
+                    'pickup_start_time' => $pickupStartTime,
+                    'pickup_end_time' => $pickupEndTime,
+                    'pickup_time_range' => $pickupStartTime && $pickupEndTime 
+                        ? $pickupStartTime . ' - ' . $pickupEndTime 
+                        : ($pickupEndTime ? $pickupEndTime : null),
+                    'pickup_date' => $pickupDate,
                     'created_at' => $order->created_at
                 ];
             })
@@ -117,8 +289,9 @@ class EstablishmentController extends Controller
 
         // Calculate order counts by status
         $orderCounts = [
-            'pending' => count(array_filter($orders, fn($order) => $order['status'] === 'pending')),
-            'accepted' => count(array_filter($orders, fn($order) => $order['status'] === 'accepted')),
+            'pending' => count(array_filter($orders, fn($order) => $order['status'] === 'pending' && !$order['is_missed_pickup'])),
+            'accepted' => count(array_filter($orders, fn($order) => $order['status'] === 'accepted' && !$order['is_missed_pickup'])),
+            'missed_pickup' => count(array_filter($orders, fn($order) => $order['is_missed_pickup'])),
             'completed' => count(array_filter($orders, fn($order) => $order['status'] === 'completed')),
             'cancelled' => count(array_filter($orders, fn($order) => $order['status'] === 'cancelled'))
         ];
@@ -135,13 +308,309 @@ class EstablishmentController extends Controller
         return view('establishment.announcements');
     }
 
+    /**
+     * Accept an order
+     */
+    public function acceptOrder(Request $request, $id)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $establishmentId = Session::get('user_id');
+        $order = Order::where('id', $id)
+            ->where('establishment_id', $establishmentId)
+            ->where('status', 'pending')
+            ->first();
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found or cannot be accepted'], 404);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Move stock from reserved to sold
+            // reserved_stock -= qty, sold_stock += qty
+            if ($order->foodListing) {
+                $foodListing = $order->foodListing;
+                $foodListing->reserved_stock = max(0, ($foodListing->reserved_stock ?? 0) - $order->quantity);
+                $foodListing->sold_stock = ($foodListing->sold_stock ?? 0) + $order->quantity;
+                $foodListing->save();
+            }
+
+            $order->status = 'accepted';
+            $order->accepted_at = now();
+            $order->save();
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'error' => 'Failed to accept order: ' . $e->getMessage()
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order accepted successfully'
+        ]);
+    }
+
+    /**
+     * Cancel an order and restore quantity
+     */
+    public function cancelOrder(Request $request, $id)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $establishmentId = Session::get('user_id');
+        $order = Order::with('foodListing')
+            ->where('id', $id)
+            ->where('establishment_id', $establishmentId)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->first();
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found or cannot be cancelled'], 404);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Release stock: move from reserved back to available
+            // reserved_stock -= qty, available_stock += qty
+            if ($order->foodListing) {
+                $foodListing = $order->foodListing;
+                
+                // If order was accepted, move from sold back to available
+                if ($order->status === 'accepted') {
+                    $foodListing->sold_stock = max(0, ($foodListing->sold_stock ?? 0) - $order->quantity);
+                    $foodListing->quantity += $order->quantity;
+                } else {
+                    // If order was pending, move from reserved back to available
+                    $foodListing->reserved_stock = max(0, ($foodListing->reserved_stock ?? 0) - $order->quantity);
+                }
+                $foodListing->save();
+            }
+
+            // Update order status
+            $order->status = 'cancelled';
+            $order->cancelled_at = now();
+            $order->cancellation_reason = $request->input('reason', 'Cancelled by establishment');
+            $order->save();
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'error' => 'Failed to cancel order: ' . $e->getMessage()
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order cancelled and quantity restored successfully'
+        ]);
+    }
+
+    /**
+     * Mark order as complete
+     */
+    public function markOrderComplete(Request $request, $id)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $establishmentId = Session::get('user_id');
+        $order = Order::with('foodListing')
+            ->where('id', $id)
+            ->where('establishment_id', $establishmentId)
+            ->where('status', 'accepted')
+            ->first();
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found or cannot be completed'], 404);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Deduct quantity from food listing when order is completed
+            // The stock was already moved to sold_stock when accepted
+            // Now we actually reduce the physical quantity
+            if ($order->foodListing) {
+                $foodListing = $order->foodListing;
+                $foodListing->quantity = max(0, $foodListing->quantity - $order->quantity);
+                $foodListing->save();
+            }
+
+            $order->status = 'completed';
+            $order->completed_at = now();
+            $order->save();
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'error' => 'Failed to complete order: ' . $e->getMessage()
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order marked as complete successfully'
+        ]);
+    }
+
+    /**
+     * Get order details for modal
+     */
+    public function getOrderDetails($id)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $establishmentId = Session::get('user_id');
+        $order = Order::with(['foodListing', 'consumer', 'establishment'])
+            ->where('id', $id)
+            ->where('establishment_id', $establishmentId)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'order' => [
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'status' => $order->status,
+                'effective_status' => $order->effective_status,
+                'created_at' => $order->created_at->format('F d, Y | g:i A'),
+                'payment_method' => ucfirst($order->payment_method),
+                'delivery_method' => ucfirst($order->delivery_method),
+                'customer_name' => $order->customer_name,
+                'customer_phone' => $order->customer_phone,
+                'customer_email' => $order->consumer->email ?? 'N/A',
+                'delivery_address' => $order->delivery_address,
+                'pickup_start_time' => $order->pickup_start_time ? (is_string($order->pickup_start_time) ? substr($order->pickup_start_time, 0, 5) : $order->pickup_start_time->format('H:i')) : null,
+                'pickup_end_time' => $order->pickup_end_time ? (is_string($order->pickup_end_time) ? substr($order->pickup_end_time, 0, 5) : $order->pickup_end_time->format('H:i')) : null,
+                'items' => [
+                    [
+                        'name' => $order->foodListing->name,
+                        'quantity' => $order->quantity,
+                        'unit_price' => (float) $order->unit_price,
+                        'total_price' => (float) $order->total_price,
+                    ]
+                ],
+                'subtotal' => (float) $order->total_price,
+                'delivery_fee' => $order->delivery_method === 'delivery' ? 57.00 : 0.00,
+                'total' => (float) $order->total_price + ($order->delivery_method === 'delivery' ? 57.00 : 0.00),
+                'store_name' => $order->establishment->business_name ?? ($order->establishment->owner_fname . ' ' . $order->establishment->owner_lname),
+                'store_address' => $order->establishment->address ?? $order->foodListing->address ?? 'N/A',
+            ]
+        ]);
+    }
+
     public function earnings()
     {
         if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
             return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
         }
 
-        return view('establishment.earnings');
+        $user = $this->getUserData();
+        $establishmentId = Session::get('user_id');
+        
+        // Calculate total earnings from completed orders
+        $totalEarnings = Order::where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->sum('total_price');
+        
+        // Get completed orders for display
+        $completedOrders = Order::with(['foodListing', 'consumer'])
+            ->where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->orderBy('completed_at', 'desc')
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'product_name' => $order->foodListing->name ?? 'Unknown Product',
+                    'quantity' => $order->quantity,
+                    'unit_price' => (float) $order->unit_price,
+                    'total_price' => (float) $order->total_price,
+                    'customer_name' => $order->customer_name,
+                    'payment_method' => $this->formatPaymentMethod($order->payment_method),
+                    'completed_at' => $order->completed_at ? $order->completed_at->format('M d, Y') : null,
+                    'created_at' => $order->created_at->format('M d, Y'),
+                ];
+            })
+            ->toArray();
+
+        // Calculate daily earnings (last 7 days)
+        $dailyEarnings = [];
+        // Map day of week (0=Sunday, 1=Monday, etc.) to labels
+        $dayLabels = ['SUN', 'M', 'T', 'W', 'TH', 'FRI', 'SAT'];
+        
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dayOfWeek = $date->dayOfWeek; // 0=Sunday, 1=Monday, etc.
+            $dayEarnings = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->whereDate('completed_at', $date->toDateString())
+                ->sum('total_price');
+            
+            $dailyEarnings[] = [
+                'label' => $dayLabels[$dayOfWeek],
+                'value' => (float) $dayEarnings
+            ];
+        }
+
+        // Calculate monthly earnings (last 12 months)
+        $monthlyEarnings = [];
+        $monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        
+        for ($i = 11; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            $monthEarnings = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->whereYear('completed_at', $date->year)
+                ->whereMonth('completed_at', $date->month)
+                ->sum('total_price');
+            
+            $monthlyEarnings[] = [
+                'label' => $monthLabels[$date->month - 1],
+                'value' => (float) $monthEarnings
+            ];
+        }
+
+        // Calculate yearly earnings (last 5 years)
+        $yearlyEarnings = [];
+        for ($i = 4; $i >= 0; $i--) {
+            $year = now()->subYears($i)->year;
+            $yearEarnings = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->whereYear('completed_at', $year)
+                ->sum('total_price');
+            
+            $yearlyEarnings[] = [
+                'label' => (string) $year,
+                'value' => (float) $yearEarnings
+            ];
+        }
+
+        return view('establishment.earnings', compact(
+            'user', 
+            'totalEarnings', 
+            'completedOrders',
+            'dailyEarnings',
+            'monthlyEarnings',
+            'yearlyEarnings'
+        ));
     }
 
     public function donationHub()

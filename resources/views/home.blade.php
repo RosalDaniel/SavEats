@@ -9,17 +9,22 @@
 @section('content')
     <!-- Hero Section -->
     <section class="hero">
-        <div class="hero-content">
-            <h1 class="hero-title">Fighting Food Waste, One Meal at a Time.</h1>
-            <p class="hero-subtitle">SaveEats connects surplus food from businesses to people and food banks because no good food should go to waste.</p>
-            <a href="#" class="cta-button">
-                Get Started →
-            </a>
-        </div>
-        <div class="hero-image">
-            <div class="hero-image-placeholder">
-                <img src="{{ asset('images/heroSection_img.png') }}" alt="Hero" class="hero-image">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">Fighting Food Waste, One Meal at a Time.</h1>
+                <p class="hero-subtitle">SaveEats connects surplus food from businesses to people and food banks because no good food should go to waste.</p>
+                <a href="#" class="cta-button">
+                    Get Started →
+                </a>
             </div>
+            <div class="hero-illustrations">
+                <img src="{{ asset('images/heroSection_img.png') }}" alt="Food illustrations" class="hero-image">
+            </div>
+        </div>
+        <div class="hero-wave">
+            <svg class="wave-svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" fill="white"/>
+            </svg>
         </div>
     </section>
 
@@ -43,28 +48,6 @@
                     <h3 class="step-title">Pick Up & Enjoy</h3>
                     <p class="step-description">Meals are picked up before they go to waste. Everyone wins.</p>
                 </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Stats Section -->
-    <section class="stats-section">
-        <div class="stats-grid">
-            <div class="stat-card">
-                <span class="stat-number">40%</span>
-                <span class="stat-label">Food Waste Reduced</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-number">500+</span>
-                <span class="stat-label">Families Fed</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-number">50+</span>
-                <span class="stat-label">Partner Businesses</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-number">1000+</span>
-                <span class="stat-label">Meals Saved</span>
             </div>
         </div>
     </section>
@@ -111,14 +94,17 @@
     <!-- Call to Action Section -->
     <section class="cta-section">
         <div class="cta-content">
-            <h2 class="cta-title">JOIN THE MOVEMENT TO MAKE FOOD GO FURTHER</h2>
-            <p class="cta-description">Connect with a community that's saving good food, supporting local businesses, and feeding more people—one meal at a time.</p>
-            <div class="cta-buttons">
-                <a href="#" class="btn-primary">Join Us Now</a>
-                <a href="#" class="btn-secondary">Learn More</a>
+            <div class="cta-text">
+                <h2 class="cta-title">JOIN THE MOVEMENT TO MAKE FOOD GO FURTHER</h2>
+                <p class="cta-description">Connect with a community that's saving good food, supporting local businesses, and feeding more people—one meal at a time.</p>
+            </div>
+            <div class="cta-button-wrapper">
+                <a href="#" class="btn-cta">Join Us Now <span class="arrow-icon">→</span></a>
             </div>
         </div>
     </section>
+    
+    <div class="cta-divider"></div>
 @endsection
 
 @section('scripts')

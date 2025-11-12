@@ -13,19 +13,19 @@
 <div class="stats-grid">
     <div class="stat-card active-listings">
         <div class="stat-label">Active Listings</div>
-        <div class="stat-value">500</div>
+        <div class="stat-value">{{ $dashboardStats['active_listings'] ?? 0 }}</div>
     </div>
     <div class="stat-card earnings">
         <div class="stat-label">Today's Earnings</div>
-        <div class="stat-value">₱ 500.00</div>
+        <div class="stat-value">₱ {{ number_format($dashboardStats['today_earnings'] ?? 0, 2) }}</div>
     </div>
     <div class="stat-card food-donated">
         <div class="stat-label">Food Donated</div>
-        <div class="stat-value">500</div>
+        <div class="stat-value">{{ $dashboardStats['food_donated'] ?? 0 }}</div>
     </div>
     <div class="stat-card food-saved">
         <div class="stat-label">Food Saved</div>
-        <div class="stat-value">500 pcs.</div>
+        <div class="stat-value">{{ $dashboardStats['food_saved'] ?? 0 }} pcs.</div>
     </div>
 </div>
 
@@ -38,32 +38,30 @@
 <div class="section-card expiring-soon-section mobile-top-section">
     <div class="section-header">
         <h3 class="section-title">Expiring Soon</h3>
-        <a href="#" class="see-all-btn">See All</a>
+        <a href="{{ route('establishment.listing-management') }}" class="see-all-btn">See All</a>
     </div>
     
-    <div class="expiring-item">
-        <div class="expiring-info">
-            <h4>Banana Bread</h4>
-            <p>10 pcs.</p>
-            <div class="expiring-time">Today, 6pm</div>
+    @if(isset($expiringItems) && count($expiringItems) > 0)
+        @foreach($expiringItems as $item)
+        <div class="expiring-item">
+            <div class="expiring-info">
+                <h4>{{ $item['name'] }}</h4>
+                <p>{{ $item['quantity'] }} pcs.</p>
+                <div class="expiring-time">{{ $item['expiry_time'] }}</div>
+            </div>
+            <div class="expiring-actions">
+                <button class="btn btn-donate" onclick="donateItem({{ $item['id'] }})">Donate</button>
+                <button class="btn btn-view" onclick="viewListing({{ $item['id'] }})">View Listing</button>
+            </div>
         </div>
-        <div class="expiring-actions">
-            <button class="btn btn-donate">Donate</button>
-            <button class="btn btn-view">View Listing</button>
+        @endforeach
+    @else
+        <div class="expiring-item">
+            <div class="expiring-info">
+                <p>No items expiring soon.</p>
+            </div>
         </div>
-    </div>
-
-    <div class="expiring-item">
-        <div class="expiring-info">
-            <h4>Banana Bread</h4>
-            <p>10 pcs.</p>
-            <div class="expiring-time">Today, 6pm</div>
-        </div>
-        <div class="expiring-actions">
-            <button class="btn btn-donate">Donate</button>
-            <button class="btn btn-view">View Listing</button>
-        </div>
-    </div>
+    @endif
 </div>
 
 <!-- Main Grid -->
@@ -74,32 +72,30 @@
         <div class="section-card expiring-soon-section desktop-only">
             <div class="section-header">
                 <h3 class="section-title">Expiring Soon</h3>
-                <a href="#" class="see-all-btn">See All</a>
+                <a href="{{ route('establishment.listing-management') }}" class="see-all-btn">See All</a>
             </div>
             
-            <div class="expiring-item">
-                <div class="expiring-info">
-                    <h4>Banana Bread</h4>
-                    <p>10 pcs.</p>
-                    <div class="expiring-time">Today, 6pm</div>
+            @if(isset($expiringItems) && count($expiringItems) > 0)
+                @foreach($expiringItems as $item)
+                <div class="expiring-item">
+                    <div class="expiring-info">
+                        <h4>{{ $item['name'] }}</h4>
+                        <p>{{ $item['quantity'] }} pcs.</p>
+                        <div class="expiring-time">{{ $item['expiry_time'] }}</div>
+                    </div>
+                    <div class="expiring-actions">
+                        <button class="btn btn-donate" onclick="donateItem({{ $item['id'] }})">Donate</button>
+                        <button class="btn btn-view" onclick="viewListing({{ $item['id'] }})">View Listing</button>
+                    </div>
                 </div>
-                <div class="expiring-actions">
-                    <button class="btn btn-donate">Donate</button>
-                    <button class="btn btn-view">View Listing</button>
+                @endforeach
+            @else
+                <div class="expiring-item">
+                    <div class="expiring-info">
+                        <p>No items expiring soon.</p>
+                    </div>
                 </div>
-            </div>
-
-            <div class="expiring-item">
-                <div class="expiring-info">
-                    <h4>Banana Bread</h4>
-                    <p>10 pcs.</p>
-                    <div class="expiring-time">Today, 6pm</div>
-                </div>
-                <div class="expiring-actions">
-                    <button class="btn btn-donate">Donate</button>
-                    <button class="btn btn-view">View Listing</button>
-                </div>
-            </div>
+            @endif
         </div>
 
         <!-- Inventory Health Section -->
@@ -110,25 +106,25 @@
                 <div class="chart-bar">
                     <div class="bar-label">Fresh Stock</div>
                     <div class="bar-container">
-                        <div class="bar-fill fresh" style="width: 85%"></div>
+                        <div class="bar-fill fresh" style="width: {{ $inventoryHealth['fresh_stock_percent'] ?? 0 }}%"></div>
                     </div>
-                    <div class="bar-percentage">85%</div>
+                    <div class="bar-percentage">{{ $inventoryHealth['fresh_stock_percent'] ?? 0 }}%</div>
                 </div>
                 
                 <div class="chart-bar">
                     <div class="bar-label">Expiring Stock</div>
                     <div class="bar-container">
-                        <div class="bar-fill expiring" style="width: 25%"></div>
+                        <div class="bar-fill expiring" style="width: {{ $inventoryHealth['expiring_stock_percent'] ?? 0 }}%"></div>
                     </div>
-                    <div class="bar-percentage">25%</div>
+                    <div class="bar-percentage">{{ $inventoryHealth['expiring_stock_percent'] ?? 0 }}%</div>
                 </div>
                 
                 <div class="chart-bar">
                     <div class="bar-label">Expired Stock</div>
                     <div class="bar-container">
-                        <div class="bar-fill expired" style="width: 5%"></div>
+                        <div class="bar-fill expired" style="width: {{ $inventoryHealth['expired_stock_percent'] ?? 0 }}%"></div>
                     </div>
-                    <div class="bar-percentage">5%</div>
+                    <div class="bar-percentage">{{ $inventoryHealth['expired_stock_percent'] ?? 0 }}%</div>
                 </div>
             </div>
         </div>
@@ -139,19 +135,39 @@
         <!-- Pending Order -->
         <div class="sidebar-card">
             <h3 class="section-title">Pending Order</h3>
+            @if(isset($pendingOrderData) && $pendingOrderData)
             <div class="pending-order">
                 <div class="order-header">
-                    <div class="order-name">Banana Bread</div>
-                    <div class="order-price">₱ 187.00</div>
+                    <div class="order-item-info">
+                        <div class="order-item-name">{{ $pendingOrderData['product_name'] }}</div>
+                        <div class="order-item-quantity">{{ $pendingOrderData['quantity'] }} pcs.</div>
+                    </div>
+                    <div class="order-item-price">₱ {{ number_format($pendingOrderData['total_price'], 2) }}</div>
                 </div>
-                <div class="order-quantity">10 pcs.</div>
                 <div class="order-details">
-                    <strong>Order ID:</strong> ID#12323<br>
-                    <strong>Customer Name:</strong> Marianne Joy Napisa<br>
-                    <strong>Delivery Method:</strong> Pick-Up
+                    <div class="order-detail-row">
+                        <span class="order-detail-label">Order ID:</span>
+                        <span class="order-detail-value">{{ $pendingOrderData['order_number'] }}</span>
+                    </div>
+                    <div class="order-detail-row">
+                        <span class="order-detail-label">Customer Name:</span>
+                        <span class="order-detail-value">{{ $pendingOrderData['customer_name'] }}</span>
+                    </div>
+                    <div class="order-detail-row">
+                        <span class="order-detail-label">Delivery Method:</span>
+                        <span class="order-detail-value">{{ $pendingOrderData['delivery_method'] }}</span>
+                    </div>
                 </div>
             </div>
-            <button class="order-action-btn">→ Go to Order Management</button>
+            <a href="{{ route('establishment.order-management') }}" class="order-action-btn">→ Go to Order Management</a>
+            @else
+            <div class="pending-order">
+                <div class="order-details" style="text-align: center; padding: 20px; color: #6c757d;">
+                    <p>No pending orders at the moment.</p>
+                </div>
+            </div>
+            <a href="{{ route('establishment.order-management') }}" class="order-action-btn">→ Go to Order Management</a>
+            @endif
         </div>
 
         <!-- Reviews and Ratings -->
@@ -191,4 +207,18 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+function donateItem(itemId) {
+    // Redirect to listing management with the item selected for donation
+    window.location.href = '{{ route("establishment.listing-management") }}?donate=' + itemId;
+}
+
+function viewListing(itemId) {
+    // Redirect to listing management and scroll to the item
+    window.location.href = '{{ route("establishment.listing-management") }}?view=' + itemId;
+}
+</script>
 @endsection

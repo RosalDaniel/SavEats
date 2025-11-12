@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Order Confirmation | SavEats</title>
     <link href="https://fonts.googleapis.com/css2?family=Afacad&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link rel="stylesheet" href="{{ asset('css/order-confirmation.css') }}">
 </head>
 <body>
@@ -126,17 +127,7 @@
                 
                 <!-- Map Section -->
                 <div class="map-section">
-                    <div class="map-placeholder">
-                        <div class="map-icon">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                            </svg>
-                        </div>
-                        <div class="map-text">
-                            <h3>Interactive Map</h3>
-                            <p>Map will be displayed here</p>
-                        </div>
-                    </div>
+                    <div id="map" data-address="{{ $establishmentAddress }}" data-name="{{ $establishmentName }}"></div>
                 </div>
                 
                 <!-- Bakery Contact Details -->
@@ -231,6 +222,7 @@
 </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="{{ asset('js/order-confirmation.js') }}"></script>
 </body>
 </html>

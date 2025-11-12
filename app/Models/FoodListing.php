@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class FoodListing extends Model
 {
@@ -13,6 +14,8 @@ class FoodListing extends Model
         'description',
         'category',
         'quantity',
+        'reserved_stock',
+        'sold_stock',
         'original_price',
         'discount_percentage',
         'discounted_price',
@@ -36,6 +39,11 @@ class FoodListing extends Model
     public function establishment(): BelongsTo
     {
         return $this->belongsTo(Establishment::class, 'establishment_id', 'establishment_id');
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class, 'food_listing_id');
     }
 
     public function scopeActive($query)
@@ -93,5 +101,13 @@ class FoodListing extends Model
         }
 
         return $orphaned->count();
+    }
+
+    /**
+     * Get available stock (quantity - reserved_stock)
+     */
+    public function getAvailableStockAttribute()
+    {
+        return max(0, $this->quantity - ($this->reserved_stock ?? 0));
     }
 }

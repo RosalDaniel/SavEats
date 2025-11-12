@@ -50,7 +50,7 @@
                     <svg class="detail-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                     </svg>
-                    <span>{{ $foodItem['pickup_available'] ? 'Pick-Up Available' : 'Delivery Only' }}</span>
+                    <span>{{ $foodItem['pickup_available'] ? 'Pick-Up Only' : 'Delivery Only' }}</span>
                 </div>
                 <div class="operating-hours">{{ $foodItem['operating_hours'] }}</div>
             </div>
@@ -60,13 +60,6 @@
                     <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm.5 15h-1v-6h1v6zm0-8h-1V7h1v2z"/>
                 </svg>
                 <span>Expiry Date: {{ $foodItem['expiry_formatted'] }}</span>
-            </div>
-            
-            <div class="detail-item">
-                <svg class="detail-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-                <span>Stock: {{ $foodItem['quantity'] }}</span>
             </div>
         </div>
 
@@ -94,28 +87,45 @@
         </div>
     </div>
 
+    <!-- Separator Line -->
+    <hr class="section-divider">
+
     <!-- Customer Reviews Section -->
     <div class="reviews-section">
         <div class="reviews-header">
             <div class="rating-summary">
                 <div class="stars">
-                    @for($i = 1; $i <= 5; $i++)
-                        @if($i <= floor($foodItem['rating']))
-                            <svg class="star filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                            </svg>
-                        @elseif($i - 0.5 <= $foodItem['rating'])
-                            <svg class="star half" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                            </svg>
-                        @else
+                    @if($foodItem['rating'] > 0)
+                        @for($i = 1; $i <= 5; $i++)
+                            @if($i <= floor($foodItem['rating']))
+                                <svg class="star filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                            @elseif($i - 0.5 <= $foodItem['rating'])
+                                <svg class="star half" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                            @else
+                                <svg class="star empty" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                            @endif
+                        @endfor
+                    @else
+                        @for($i = 1; $i <= 5; $i++)
                             <svg class="star empty" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                             </svg>
-                        @endif
-                    @endfor
+                        @endfor
+                    @endif
                 </div>
-                <span class="rating-text">{{ $foodItem['rating'] }} out of 5</span>
+                <span class="rating-text">
+                    @if($foodItem['rating'] > 0)
+                        {{ $foodItem['rating'] }} out 5
+                    @else
+                        No ratings yet
+                    @endif
+                </span>
             </div>
             
             <div class="rating-filters">
@@ -129,41 +139,61 @@
         </div>
 
         <div class="reviews-list">
-            @foreach($reviews as $review)
-            <div class="review-item" data-rating="{{ $review['rating'] }}">
-                <div class="review-header">
-                    @if($review['avatar'])
-                        <img src="{{ $review['avatar'] }}" alt="{{ $review['user_name'] }}" class="review-avatar">
-                    @else
-                        <div class="review-avatar-initials">
-                            {{ strtoupper(substr($review['user_name'], 0, 1)) }}{{ strtoupper(substr(explode(' ', $review['user_name'])[1] ?? '', 0, 1)) }}
+            @if(count($reviews) > 0)
+                @foreach($reviews as $review)
+                <div class="review-item" data-rating="{{ $review['rating'] }}">
+                    <div class="review-header">
+                        @if($review['avatar'])
+                            <img src="{{ $review['avatar'] }}" alt="{{ $review['user_name'] }}" class="review-avatar">
+                        @else
+                            <div class="review-avatar-initials">
+                                {{ strtoupper(substr($review['user_name'], 0, 1)) }}{{ strtoupper(substr(explode(' ', $review['user_name'])[1] ?? '', 0, 1)) }}
+                            </div>
+                        @endif
+                        <span class="reviewer-name">{{ $review['user_name'] }}</span>
+                        <div class="review-rating">
+                            @for($i = 1; $i <= 5; $i++)
+                                @if($i <= $review['rating'])
+                                    <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                    </svg>
+                                @else
+                                    <svg class="star empty" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                    </svg>
+                                @endif
+                            @endfor
+                        </div>
+                    </div>
+                    @if(!empty($review['comment']))
+                        <p class="review-comment">{{ $review['comment'] }}</p>
+                    @endif
+                    @if(!empty($review['image_path']))
+                        <div class="review-media">
+                            <img src="{{ $review['image_path'] }}" alt="Review image" class="review-image">
                         </div>
                     @endif
-                    <span class="reviewer-name">{{ $review['user_name'] }}</span>
-                    <div class="review-rating">
-                        @for($i = 1; $i <= 5; $i++)
-                            @if($i <= $review['rating'])
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                            @else
-                                <svg class="star empty" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                            @endif
-                        @endfor
-                    </div>
+                    @if(!empty($review['video_path']))
+                        <div class="review-media">
+                            <video src="{{ $review['video_path'] }}" controls class="review-video"></video>
+                        </div>
+                    @endif
                 </div>
-                <p class="review-comment">{{ $review['comment'] }}</p>
-            </div>
-            @endforeach
+                @endforeach
+            @else
+                <div class="no-reviews">
+                    <p>No reviews yet. Be the first to review this product!</p>
+                </div>
+            @endif
         </div>
 
-        <div class="show-more-section">
-            <button class="show-more-btn" onclick="showMoreReviews()">
-                Show more ({{ $foodItem['total_reviews'] - count($reviews) }})
-            </button>
-        </div>
+        @if(count($reviews) > 0 && $foodItem['total_reviews'] > count($reviews))
+            <div class="show-more-section">
+                <button class="show-more-btn" onclick="showMoreReviews()">
+                    Show more ({{ $foodItem['total_reviews'] - count($reviews) }})
+                </button>
+            </div>
+        @endif
     </div>
 </div>
 @endsection

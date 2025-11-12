@@ -16,13 +16,13 @@
         <div class="summary-card food-saved">
             <div class="card-content">
                 <div class="card-label">Food Saved</div>
-                <div class="card-value">12</div>
+                <div class="card-value">{{ $foodSaved ?? 0 }}</div>
             </div>
         </div>
         <div class="summary-card money-saved">
             <div class="card-content">
                 <div class="card-label">Money Saved</div>
-                <div class="card-value">₱ 105.00</div>
+                <div class="card-value">₱ {{ number_format($moneySaved ?? 0, 2) }}</div>
             </div>
         </div>
     </div>
@@ -125,5 +125,13 @@
 
 @section('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Pass chart data to JavaScript
+    window.chartData = {
+        daily: @json($dailyData ?? []),
+        monthly: @json($monthlyData ?? []),
+        yearly: @json($yearlyData ?? [])
+    };
+</script>
 <script src="{{ asset('js/my-impact.js') }}"></script>
 @endsection

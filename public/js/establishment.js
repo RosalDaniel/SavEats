@@ -9,13 +9,29 @@ document.addEventListener('DOMContentLoaded', function() {
     function toggleMobileMenu() {
         sidebar.classList.toggle('mobile-visible');
         overlay.classList.toggle('active');
-        document.body.style.overflow = sidebar.classList.contains('mobile-visible') ? 'hidden' : '';
+        const isOpen = sidebar.classList.contains('mobile-visible');
+        
+        // Disable scrolling on body and main content when menu is open
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+            if (mainContent) {
+                mainContent.style.overflow = 'hidden';
+            }
+        } else {
+            document.body.style.overflow = '';
+            if (mainContent) {
+                mainContent.style.overflow = '';
+            }
+        }
     }
 
     function closeMobileMenu() {
         sidebar.classList.remove('mobile-visible');
         overlay.classList.remove('active');
         document.body.style.overflow = '';
+        if (mainContent) {
+            mainContent.style.overflow = '';
+        }
     }
 
     menuToggle?.addEventListener('click', toggleMobileMenu);
@@ -135,10 +151,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Go to Order Management button
-        if (e.target.classList.contains('order-action-btn')) {
-            e.preventDefault();
-            const orderManagementNav = document.querySelector('[data-page="order-management"]');
-            orderManagementNav.click();
+        if (e.target.classList.contains('order-action-btn') || e.target.closest('.order-action-btn')) {
+            // Let the link work normally - no need to prevent default or find navigation element
+            // The link already points to the order management route
+            return;
         }
 
         // See All buttons

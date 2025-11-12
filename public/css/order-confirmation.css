@@ -19,12 +19,23 @@ body {
 }
 
 .order-header {
-    background: #4a7c59;
+    background: white;
     padding: 15px 20px;
     display: flex;
     align-items: center;
     gap: 15px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.order-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #e0e0e0;
 }
 
 .back-button {
@@ -38,7 +49,13 @@ body {
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.back-button svg {
     color: white;
+    width: 20px;
+    height: 20px;
 }
 
 .back-button:hover {
@@ -47,10 +64,11 @@ body {
 }
 
 .order-title {
-    color: white;
+    color: #2d5016;
     font-size: 20px;
     font-weight: 600;
     margin: 0;
+    font-family: 'Afacad', sans-serif;
 }
 
 .order-confirmation-container {
@@ -347,42 +365,23 @@ body {
 }
 
 /* Map Section */
-.map-placeholder {
-    background: #f8f9fa;
-    border: 2px dashed #d1d5db;
-    border-radius: 12px;
-    padding: 40px;
-    text-align: center;
-    min-height: 200px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+.map-section {
     margin: 20px 0 0 0;
-    gap: 16px;
 }
 
-.map-icon {
-    color: #9ca3af;
-    opacity: 0.7;
+#map {
+    width: 100%;
+    height: 300px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #e5e7eb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.map-icon svg {
-    width: 48px;
-    height: 48px;
-}
-
-.map-text h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #374151;
-}
-
-.map-text p {
-    margin: 4px 0 0 0;
-    font-size: 14px;
-    color: #6b7280;
+#map .leaflet-container {
+    height: 100%;
+    width: 100%;
+    border-radius: 12px;
 }
 
 /* Contact Details */
@@ -551,14 +550,8 @@ body {
         grid-template-columns: 1fr;
     }
     
-    .map-streets {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .map-establishments {
-        flex-direction: column;
-        gap: 10px;
+    #map {
+        height: 250px;
     }
     
     .table-header,

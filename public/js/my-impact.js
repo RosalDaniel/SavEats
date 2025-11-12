@@ -10,11 +10,16 @@ function initializeChart() {
     const ctx = document.getElementById('monthlyChart');
     if (!ctx) return;
 
+    // Use real data from server, fallback to empty array if not available
+    const monthlyDataFromServer = window.chartData?.monthly || [];
+    const labels = monthlyDataFromServer.map(d => d.label);
+    const data = monthlyDataFromServer.map(d => d.value);
+
     const monthlyData = {
-        labels: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JULY', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
+        labels: labels.length > 0 ? labels : ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
         datasets: [{
             label: 'Number of items saved',
-            data: [1000, 800, 100, 300, 400, 900, 850, 500, 50, 200, 400, 900],
+            data: data.length > 0 ? data : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             backgroundColor: '#ffd700',
             borderColor: '#ffd700',
             borderWidth: 0,
@@ -103,14 +108,18 @@ function switchTab(tabType) {
     if (!ctx) return;
 
     let chartData;
+    const serverData = window.chartData || {};
     
     switch(tabType) {
         case 'daily':
+            const dailyDataFromServer = serverData.daily || [];
+            const dailyLabels = dailyDataFromServer.map(d => d.label);
+            const dailyValues = dailyDataFromServer.map(d => d.value);
             chartData = {
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                labels: dailyLabels.length > 0 ? dailyLabels : ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'],
                 datasets: [{
                     label: 'Number of items saved',
-                    data: [15, 25, 10, 30, 20, 35, 18],
+                    data: dailyValues.length > 0 ? dailyValues : [0, 0, 0, 0, 0, 0, 0],
                     backgroundColor: '#ffd700',
                     borderColor: '#ffd700',
                     borderWidth: 0,
@@ -120,11 +129,14 @@ function switchTab(tabType) {
             };
             break;
         case 'monthly':
+            const monthlyDataFromServer = serverData.monthly || [];
+            const monthlyLabels = monthlyDataFromServer.map(d => d.label);
+            const monthlyValues = monthlyDataFromServer.map(d => d.value);
             chartData = {
-                labels: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JULY', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
+                labels: monthlyLabels.length > 0 ? monthlyLabels : ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
                 datasets: [{
                     label: 'Number of items saved',
-                    data: [1000, 800, 100, 300, 400, 900, 850, 500, 50, 200, 400, 900],
+                    data: monthlyValues.length > 0 ? monthlyValues : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     backgroundColor: '#ffd700',
                     borderColor: '#ffd700',
                     borderWidth: 0,
@@ -134,11 +146,14 @@ function switchTab(tabType) {
             };
             break;
         case 'yearly':
+            const yearlyDataFromServer = serverData.yearly || [];
+            const yearlyLabels = yearlyDataFromServer.map(d => d.label);
+            const yearlyValues = yearlyDataFromServer.map(d => d.value);
             chartData = {
-                labels: ['2021', '2022', '2023', '2024'],
+                labels: yearlyLabels.length > 0 ? yearlyLabels : [],
                 datasets: [{
                     label: 'Number of items saved',
-                    data: [2500, 3200, 4100, 4800],
+                    data: yearlyValues.length > 0 ? yearlyValues : [],
                     backgroundColor: '#ffd700',
                     borderColor: '#ffd700',
                     borderWidth: 0,
@@ -184,7 +199,9 @@ function switchTab(tabType) {
                 },
                 y: {
                     beginAtZero: true,
+                    max: 1000,
                     ticks: {
+                        stepSize: 200,
                         color: '#6b7280',
                         font: {
                             size: 12,

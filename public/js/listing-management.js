@@ -4,54 +4,60 @@
 let selectedItems = new Set();
 let currentEditingId = null;
 
-// Mobile menu functionality
-const menuToggle = document.getElementById('menuToggle');
-const sidebar = document.getElementById('sidebar');
-const overlay = document.getElementById('overlay');
-
-function toggleMobileMenu() {
-    sidebar.classList.toggle('mobile-visible');
-    overlay.classList.toggle('active');
-    document.body.style.overflow = sidebar.classList.contains('mobile-visible') ? 'hidden' : '';
-}
-
-function closeMobileMenu() {
-    sidebar.classList.remove('mobile-visible');
-    overlay.classList.remove('active');
-    document.body.style.overflow = '';
-}
-
-menuToggle?.addEventListener('click', toggleMobileMenu);
-overlay?.addEventListener('click', closeMobileMenu);
-
-// Navigation functionality
-const navLinks = document.querySelectorAll('.nav-link');
-navLinks.forEach(link => {
-    link.addEventListener('click', (e) => {
-        // Allow logout and external links to work normally
-        const href = link.getAttribute('href');
-        if (href === '/logout' || 
-            href.includes('logout') ||
-            href.startsWith('http') ||
-            link.textContent.toLowerCase().includes('logout')) {
-            // Don't prevent default for logout or external links
-            return;
+// Mobile menu functionality - ensure it works on listing-management page
+(function() {
+    function initMobileMenu() {
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        
+        if (!menuToggle || !sidebar || !overlay) {
+            return false;
         }
         
-        e.preventDefault();
-        navLinks.forEach(l => l.classList.remove('active'));
-        link.classList.add('active');
+        // Remove any existing click listeners by cloning
+        const newToggle = menuToggle.cloneNode(true);
+        menuToggle.parentNode.replaceChild(newToggle, menuToggle);
         
-        if (window.innerWidth <= 768) {
-            closeMobileMenu();
-        }
+        // Add click handler
+        newToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const isOpen = sidebar.classList.contains('mobile-visible');
+            sidebar.classList.toggle('mobile-visible');
+            overlay.classList.toggle('active');
+            
+            const mainContent = document.getElementById('mainContent');
+            if (isOpen) {
+                document.body.style.overflow = '';
+                if (mainContent) mainContent.style.overflow = '';
+            } else {
+                document.body.style.overflow = 'hidden';
+                if (mainContent) mainContent.style.overflow = 'hidden';
+            }
+        });
         
-        const page = link.getAttribute('data-page');
-        if (page && page !== 'listing-management') {
-            showNotification(`Navigating to ${page.replace('-', ' ')}...`, 'info');
-        }
-    });
-});
+        // Overlay click handler
+        overlay.addEventListener('click', function() {
+            sidebar.classList.remove('mobile-visible');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+            const mainContent = document.getElementById('mainContent');
+            if (mainContent) mainContent.style.overflow = '';
+        });
+        
+        return true;
+    }
+    
+    // Try to initialize immediately if DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileMenu);
+    } else {
+        // DOM is already ready
+        setTimeout(initMobileMenu, 100);
+    }
+})();
 
 // Checkbox functionality
 const selectAllCheckbox = document.getElementById('selectAll');
@@ -118,25 +124,39 @@ function filterTable(searchTerm) {
     }
 }
 
-// Dropdown functionality
-function toggleDropdown(button) {
-    // Close all other dropdowns
-    document.querySelectorAll('.dropdown-menu').forEach(menu => {
-        if (menu !== button.nextElementSibling) {
-            menu.classList.remove('show');
-        }
-    });
-    
-    // Toggle current dropdown
-    const dropdown = button.nextElementSibling;
-    dropdown?.classList.toggle('show');
-}
-
-// Close dropdowns when clicking outside
+// Actions menu toggle
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.action-dropdown')) {
-        document.querySelectorAll('.dropdown-menu').forEach(menu => {
-            menu.classList.remove('show');
+    if (e.target.closest('.actions-btn')) {
+        const btn = e.target.closest('.actions-btn');
+        const id = btn.getAttribute('data-id');
+        const menu = document.getElementById(`menu-${id}`);
+        const row = btn.closest('tr');
+        
+        // Remove menu-open class from all rows
+        document.querySelectorAll('.table tbody tr').forEach(r => {
+            r.classList.remove('menu-open');
+        });
+        
+        // Close all other menus
+        document.querySelectorAll('.actions-menu').forEach(m => {
+            if (m !== menu) m.classList.remove('show');
+        });
+        
+        // Toggle current menu
+        const isOpen = menu.classList.contains('show');
+        menu.classList.toggle('show');
+        
+        // Add/remove menu-open class to row
+        if (!isOpen) {
+            row.classList.add('menu-open');
+        } else {
+            row.classList.remove('menu-open');
+        }
+    } else if (!e.target.closest('.actions-menu')) {
+        // Close all menus and remove menu-open classes
+        document.querySelectorAll('.actions-menu').forEach(m => m.classList.remove('show'));
+        document.querySelectorAll('.table tbody tr').forEach(r => {
+            r.classList.remove('menu-open');
         });
     }
 });
@@ -410,6 +430,14 @@ function showModal(modalId) {
     if (modal) {
         modal.classList.add('show');
         document.body.style.overflow = 'hidden';
+        
+        // If opening add form (not editing), populate address with establishment address
+        if (modalId === 'itemModal' && currentEditingId === null) {
+            const addressField = document.getElementById('itemAddress');
+            if (addressField && window.establishmentAddress) {
+                addressField.value = window.establishmentAddress;
+            }
+        }
     }
 }
 
@@ -675,21 +703,21 @@ function addItemToTable(itemData) {
             year: 'numeric', month: 'short', day: 'numeric' 
         })}</td>
         <td>
-            <span class="status-badge active">Active</span>
+            <span class="status-badge active">active</span>
         </td>
         <td>
-            <div class="action-dropdown">
-                <button class="action-btn menu-btn" onclick="toggleDropdown(this)" title="More Actions">
-                    <svg viewBox="0 0 24 24" width="20" height="20">
+            <div style="position: relative;">
+                <button class="actions-btn" data-id="${newId}" aria-label="Actions menu">
+                    <svg viewBox="0 0 24 24">
                         <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
                     </svg>
                 </button>
-                <div class="dropdown-menu">
-                    <button class="dropdown-item" onclick="editItem(${newId})">Edit</button>
-                    <button class="dropdown-item" onclick="viewItem(${newId})">View Details</button>
-                    <button class="dropdown-item" onclick="duplicateItem(${newId})">Duplicate</button>
-                    <button class="dropdown-item" onclick="donateItem(${newId})">Mark for Donation</button>
-                    <button class="dropdown-item danger" onclick="deleteItem(${newId})">Delete</button>
+                <div class="actions-menu" id="menu-${newId}">
+                    <button type="button" onclick="viewItem(${newId})">View Details</button>
+                    <button type="button" onclick="editItem(${newId})">Edit</button>
+                    <button type="button" onclick="duplicateItem(${newId})">Duplicate</button>
+                    <button type="button" onclick="donateItem(${newId})">Mark for Donation</button>
+                    <button type="button" class="delete" onclick="deleteItem(${newId})">Delete</button>
                 </div>
             </div>
         </td>
@@ -724,6 +752,12 @@ document.getElementById('bulkDeleteBtn')?.addEventListener('click', () => {
 
 // Add food button
 document.getElementById('addFoodBtn')?.addEventListener('click', () => {
+    // Reset editing state to ensure address is populated
+    currentEditingId = null;
+    const modalTitle = document.getElementById('modalTitle');
+    if (modalTitle) {
+        modalTitle.textContent = 'Add List Form';
+    }
     showModal('itemModal');
 });
 
@@ -854,7 +888,7 @@ document.addEventListener('keydown', (e) => {
             const modalId = modal.id;
             closeModal(modalId);
         });
-        document.querySelectorAll('.dropdown-menu.show').forEach(dropdown => {
+        document.querySelectorAll('.actions-menu.show').forEach(dropdown => {
             dropdown.classList.remove('show');
         });
     }
@@ -893,7 +927,7 @@ function handleResize() {
     }
     
     // Close any open dropdowns on resize
-    document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+    document.querySelectorAll('.actions-menu.show').forEach(menu => {
         menu.classList.remove('show');
     });
 }
