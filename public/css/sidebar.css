@@ -28,11 +28,13 @@ body {
     color: white;
     padding: 20px 0;
     position: fixed;
+    top: 0;
+    left: 0;
     height: 100vh;
     overflow-y: auto;
     overflow-x: hidden;
     transition: transform 0.3s ease;
-    z-index: 1000;
+    z-index: 1001;
 }
 
 .sidebar.mobile-hidden {

@@ -1,12 +1,20 @@
-// My Impact Page JavaScript
+// Impact Reports Page JavaScript
+let monthlyChart = null;
+let donationChart = null;
+
 document.addEventListener('DOMContentLoaded', function() {
-    initializeChart();
+    initializeCharts();
     initializeTabs();
-    initializeBadges();
 });
 
+// Initialize the charts
+function initializeCharts() {
+    initializeMonthlyChart();
+    initializeDonationChart();
+}
+
 // Initialize the monthly chart
-function initializeChart() {
+function initializeMonthlyChart() {
     const ctx = document.getElementById('monthlyChart');
     if (!ctx) return;
 
@@ -20,8 +28,8 @@ function initializeChart() {
         datasets: [{
             label: 'Number of items saved',
             data: data.length > 0 ? data : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            backgroundColor: '#ffd700',
-            borderColor: '#ffd700',
+            backgroundColor: '#ff6b35',
+            borderColor: '#ff6b35',
             borderWidth: 0,
             borderRadius: 4,
             borderSkipped: false,
@@ -54,9 +62,9 @@ function initializeChart() {
                 },
                 y: {
                     beginAtZero: true,
-                    max: 400, // Monthly: 0-400 items
+                    max: 1000,
                     ticks: {
-                        stepSize: 80,
+                        stepSize: 200,
                         color: '#6b7280',
                         font: {
                             size: 12,
@@ -80,7 +88,61 @@ function initializeChart() {
         }
     };
 
-    new Chart(ctx, config);
+    monthlyChart = new Chart(ctx, config);
+}
+
+// Initialize the donation pie chart
+function initializeDonationChart() {
+    const ctx = document.getElementById('donationChart');
+    if (!ctx) return;
+
+    const donationDataFromServer = window.donationData || [];
+    
+    if (donationDataFromServer.length === 0) {
+        // Show empty state
+        return;
+    }
+
+    const colors = ['#ffd700', '#ff6b35', '#84cc16', '#374151', '#ef4444'];
+    const labels = donationDataFromServer.map(d => d.category.toUpperCase());
+    const data = donationDataFromServer.map(d => d.quantity);
+    const backgroundColors = donationDataFromServer.map((d, index) => colors[index % colors.length]);
+
+    const pieData = {
+        labels: labels,
+        datasets: [{
+            data: data,
+            backgroundColor: backgroundColors,
+            borderWidth: 0,
+        }]
+    };
+
+    const config = {
+        type: 'pie',
+        data: pieData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : 0;
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    donationChart = new Chart(ctx, config);
 }
 
 // Initialize tab functionality
@@ -120,8 +182,8 @@ function switchTab(tabType) {
                 datasets: [{
                     label: 'Number of items saved',
                     data: dailyValues.length > 0 ? dailyValues : [0, 0, 0, 0, 0, 0, 0],
-                    backgroundColor: '#ffd700',
-                    borderColor: '#ffd700',
+                    backgroundColor: '#ff6b35',
+                    borderColor: '#ff6b35',
                     borderWidth: 0,
                     borderRadius: 4,
                     borderSkipped: false,
@@ -137,8 +199,8 @@ function switchTab(tabType) {
                 datasets: [{
                     label: 'Number of items saved',
                     data: monthlyValues.length > 0 ? monthlyValues : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    backgroundColor: '#ffd700',
-                    borderColor: '#ffd700',
+                    backgroundColor: '#ff6b35',
+                    borderColor: '#ff6b35',
                     borderWidth: 0,
                     borderRadius: 4,
                     borderSkipped: false,
@@ -154,8 +216,8 @@ function switchTab(tabType) {
                 datasets: [{
                     label: 'Number of items saved',
                     data: yearlyValues.length > 0 ? yearlyValues : [],
-                    backgroundColor: '#ffd700',
-                    borderColor: '#ffd700',
+                    backgroundColor: '#ff6b35',
+                    borderColor: '#ff6b35',
                     borderWidth: 0,
                     borderRadius: 4,
                     borderSkipped: false,
@@ -167,30 +229,37 @@ function switchTab(tabType) {
     // Update chart title
     const chartTitle = document.querySelector('.chart-title');
     if (chartTitle) {
-        chartTitle.textContent = `${tabType.toUpperCase()} FOOD SAVED`;
+        const titleMap = {
+            'daily': 'DAILY EARNING TRENDS',
+            'monthly': 'MONTHLY EARNING TRENDS',
+            'yearly': 'YEARLY EARNING TRENDS'
+        };
+        chartTitle.textContent = titleMap[tabType] || 'MONTHLY EARNING TRENDS';
     }
 
     // Destroy existing chart and create new one
-    Chart.getChart(ctx)?.destroy();
+    if (monthlyChart) {
+        monthlyChart.destroy();
+    }
     
     // Set scale based on tab type
     let yAxisMax, yAxisStepSize;
     switch(tabType) {
         case 'daily':
-            yAxisMax = 20;
-            yAxisStepSize = 4;
+            yAxisMax = 500;
+            yAxisStepSize = 100;
             break;
         case 'monthly':
-            yAxisMax = 400;
-            yAxisStepSize = 80;
+            yAxisMax = 1000;
+            yAxisStepSize = 200;
             break;
         case 'yearly':
-            yAxisMax = 5000;
-            yAxisStepSize = 1000;
+            yAxisMax = 10000;
+            yAxisStepSize = 2000;
             break;
         default:
-            yAxisMax = 400;
-            yAxisStepSize = 80;
+            yAxisMax = 1000;
+            yAxisStepSize = 200;
     }
     
     const config = {
@@ -245,75 +314,6 @@ function switchTab(tabType) {
         }
     };
 
-    new Chart(ctx, config);
+    monthlyChart = new Chart(ctx, config);
 }
 
-// Initialize badge interactions
-function initializeBadges() {
-    const badges = document.querySelectorAll('.badge');
-    
-    badges.forEach(badge => {
-        badge.addEventListener('click', function() {
-            // Add click animation
-            this.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                this.style.transform = '';
-            }, 150);
-            
-            // Handle badge click logic
-            const badgeName = this.querySelector('.badge-name')?.textContent;
-            if (badgeName) {
-                console.log(`Clicked badge: ${badgeName}`);
-                // Add any badge-specific functionality here
-            }
-        });
-    });
-}
-
-// Utility function to update impact data
-function updateImpactData(foodSaved, moneySaved) {
-    const foodValue = document.querySelector('.summary-card.food-saved .card-value');
-    const moneyValue = document.querySelector('.summary-card.money-saved .card-value');
-    
-    if (foodValue) {
-        foodValue.textContent = foodSaved;
-    }
-    
-    if (moneyValue) {
-        moneyValue.textContent = `₱ ${moneySaved.toFixed(2)}`;
-    }
-}
-
-// Utility function to update badge progress
-function updateBadgeProgress(badgeName, percentage) {
-    const badge = Array.from(document.querySelectorAll('.badge')).find(b => 
-        b.querySelector('.badge-name')?.textContent === badgeName
-    );
-    
-    if (badge) {
-        const percentageElement = badge.querySelector('.badge-percentage');
-        if (percentageElement) {
-            percentageElement.textContent = `${percentage}%`;
-        }
-        
-        // Update badge status based on percentage
-        if (percentage >= 100) {
-            badge.classList.remove('in-progress', 'locked');
-            badge.classList.add('completed');
-            
-            // Add completed status if not exists
-            if (!badge.querySelector('.badge-status.completed')) {
-                const statusElement = document.createElement('div');
-                statusElement.className = 'badge-status completed';
-                statusElement.textContent = 'Completed';
-                badge.querySelector('.badge-content').appendChild(statusElement);
-            }
-        } else if (percentage > 0) {
-            badge.classList.remove('completed', 'locked');
-            badge.classList.add('in-progress');
-        } else {
-            badge.classList.remove('completed', 'in-progress');
-            badge.classList.add('locked');
-        }
-    }
-}

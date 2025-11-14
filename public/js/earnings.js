@@ -63,9 +63,25 @@ function initializeChart(period = 'daily') {
     // Get data for selected period
     const data = getChartData(period);
     
-    // Calculate max value for y-axis (round up to nearest 100)
-    const maxValue = Math.max(...data.values, 0);
-    const yAxisMax = maxValue > 0 ? Math.ceil(maxValue / 100) * 100 : 100;
+    // Set scale based on period
+    let yAxisMax, yAxisStepSize;
+    switch(period) {
+        case 'daily':
+            yAxisMax = 500;
+            yAxisStepSize = 100;
+            break;
+        case 'monthly':
+            yAxisMax = 10000;
+            yAxisStepSize = 2000;
+            break;
+        case 'yearly':
+            yAxisMax = 100000;
+            yAxisStepSize = 20000;
+            break;
+        default:
+            yAxisMax = 500;
+            yAxisStepSize = 100;
+    }
     
     const config = {
         type: 'bar',
@@ -113,14 +129,14 @@ function initializeChart(period = 'daily') {
                     beginAtZero: true,
                     max: yAxisMax,
                     ticks: {
-                        stepSize: yAxisMax / 5,
+                        stepSize: yAxisStepSize,
                         color: '#6b7280',
                         font: {
                             size: 12,
                             weight: '500'
                         },
                         callback: function(value) {
-                            return value;
+                            return '₱' + value.toLocaleString();
                         }
                     },
                     grid: {

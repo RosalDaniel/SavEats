@@ -762,12 +762,13 @@
 .input-with-icon input,
 .input-with-icon select {
     width: 100%;
-    padding: 12px 45px 12px 15px;
+    padding: 12px 12px 12px 15px;
     border: 1px solid #ddd;
     border-radius: 8px;
     font-size: 14px;
     transition: all 0.3s;
     background: white;
+    font-family: 'Afacad', sans-serif;
 }
 
 .input-with-icon input:focus,
@@ -1323,7 +1324,7 @@ textarea:focus {
     
     .btn {
         padding: 10px 14px;
-        font-size: 13px;
+        font-size: 12px;
         min-width: 90px;
     }
     

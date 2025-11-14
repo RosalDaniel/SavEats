@@ -1,0 +1,593 @@
+/* Donation Hub Page Styles */
+.donation-hub-container {
+    padding: 0;
+    width: 100%;
+    font-family: 'Afacad', sans-serif;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Stats Cards */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+    margin-bottom: 40px;
+}
+
+.stats-card {
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.stats-card.orange {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    color: white;
+}
+
+.stats-card.yellow {
+    background: linear-gradient(135deg, #f7b731 0%, #fed330 100%);
+    color: white;
+}
+
+.stats-card h3 {
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+}
+
+.stats-card .value {
+    font-size: 52px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Section Header */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.section-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #333;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.icon-btn {
+    background: #2d5016;
+    border: none;
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-btn:hover {
+    background: #1e3a0f;
+    transform: translateY(-2px);
+}
+
+.icon-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+/* Donation History Section */
+.history-section {
+    background: white;
+    border-radius: 15px;
+    padding: 35px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin-bottom: 40px;
+}
+
+.history-filters {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.search-container {
+    position: relative;
+    flex: 1;
+    min-width: 250px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 45px 12px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: 'Afacad', sans-serif;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #2d5016;
+    box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    fill: #999;
+    pointer-events: none;
+}
+
+.date-select {
+    padding: 12px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: 'Afacad', sans-serif;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 180px;
+}
+
+.date-select:focus {
+    outline: none;
+    border-color: #2d5016;
+    box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
+}
+
+/* Table Styles */
+.history-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.history-table thead {
+    background: #2d5016;
+    color: white;
+}
+
+.history-table th {
+    padding: 18px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.history-table th:first-child {
+    border-radius: 10px 0 0 0;
+}
+
+.history-table th:last-child {
+    border-radius: 0 10px 0 0;
+}
+
+.history-table tbody tr {
+    background: white;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.2s ease;
+}
+
+.history-table tbody tr:hover {
+    background: #fafafa;
+}
+
+.history-table td {
+    padding: 20px 18px;
+    font-size: 15px;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-block;
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: capitalize;
+}
+
+.status-badge.completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.cancelled {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Actions Menu */
+.actions-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.actions-btn:hover {
+    background: #f0f0f0;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 30px;
+    padding-top: 25px;
+    border-top: 2px solid #f0f0f0;
+}
+
+.pagination button {
+    padding: 10px 16px;
+    border: 1px solid #e0e0e0;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 600;
+    font-size: 14px;
+    color: #666;
+    font-family: 'Afacad', sans-serif;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: #2d5016;
+    color: white;
+    border-color: #2d5016;
+}
+
+.pagination button.active {
+    background: #2d5016;
+    color: white;
+    border-color: #2d5016;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Donation Requests Section */
+.requests-section {
+    margin-bottom: 40px;
+}
+
+.requests-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.see-all-link {
+    color: #2d5016;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 16px;
+    transition: color 0.2s ease;
+}
+
+.see-all-link:hover {
+    color: #1e3a0f;
+    text-decoration: underline;
+}
+
+.requests-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+.request-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.request-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.request-logo {
+    width: 100%;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.request-logo svg {
+    width: 100%;
+    height: 100%;
+    max-width: 200px;
+}
+
+.request-info h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.request-info p {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.request-details {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding: 15px 0;
+    border-top: 1px solid #f0f0f0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-item {
+    text-align: center;
+}
+
+.detail-label {
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 5px;
+}
+
+.detail-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f7b731;
+}
+
+.request-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn {
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 15px;
+    font-family: 'Afacad', sans-serif;
+    text-align: center;
+}
+
+.btn-primary {
+    background: #2d5016;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #1e3a0f;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(45, 80, 22, 0.3);
+}
+
+.btn-secondary {
+    background: white;
+    color: #2d5016;
+    border: 2px solid #2d5016;
+}
+
+.btn-secondary:hover {
+    background: #f0f0f0;
+}
+
+/* Mobile Cards View */
+.mobile-history-cards {
+    display: none;
+}
+
+.history-card {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    transition: all 0.2s ease;
+}
+
+.history-card:hover {
+    border-color: #2d5016;
+    box-shadow: 0 2px 8px rgba(45, 80, 22, 0.1);
+}
+
+.history-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.history-card-title {
+    font-weight: 600;
+    font-size: 18px;
+    color: #2d5016;
+    margin-bottom: 5px;
+}
+
+.history-card-detail {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 14px;
+}
+
+.history-card-detail:last-child {
+    border-bottom: none;
+}
+
+.history-card-detail strong {
+    color: #666;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 16px 24px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    z-index: 10000;
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 350px;
+    font-family: 'Afacad', sans-serif;
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast.success { background: #4caf50; }
+.toast.error { background: #f44336; }
+.toast.info { background: #2196f3; }
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+    
+    .requests-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .stats-card .value {
+        font-size: 42px;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .history-section {
+        padding: 20px;
+    }
+
+    .history-filters {
+        flex-direction: column;
+    }
+
+    .search-container {
+        min-width: 100%;
+    }
+
+    .date-select {
+        width: 100%;
+    }
+
+    .history-table {
+        display: none;
+    }
+
+    .mobile-history-cards {
+        display: block;
+    }
+
+    .requests-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-card {
+        padding: 20px;
+    }
+    
+    .stats-card h3 {
+        font-size: 12px;
+    }
+    
+    .stats-card .value {
+        font-size: 36px;
+    }
+    
+    .section-title {
+        font-size: 22px;
+    }
+    
+    .history-section {
+        padding: 15px;
+        border-radius: 12px;
+    }
+    
+    .history-card {
+        padding: 15px;
+    }
+    
+    .request-card {
+        padding: 20px;
+    }
+}
+

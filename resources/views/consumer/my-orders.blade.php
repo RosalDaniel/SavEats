@@ -205,6 +205,31 @@
     transform: translateY(-1px);
 }
 
+.btn-danger {
+    background: #DD5D36;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+    min-width: 120px;
+}
+
+.btn-danger:hover {
+    background: #C02121;
+    transform: translateY(-1px);
+}
+
+.btn-danger:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+}
+
 /* Empty State */
 .empty-state {
     text-align: center;
@@ -329,6 +354,11 @@
         font-size: 14px;
     }
     
+    .btn-danger {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
     .view-receipt-btn,
     .buy-again-btn {
         width: 100%;
@@ -436,11 +466,22 @@
                             <span class="detail-label">Delivery Method:</span>
                             <span class="detail-value">{{ $order['delivery_method'] }}</span>
                         </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value status-{{ $order['status'] }}">
+                                {{ ucfirst($order['status']) }}
+                            </span>
+                        </div>
                     </div>
                     
-                    <button class="view-receipt-btn" onclick="viewReceipt('{{ $order['order_id'] }}')">
-                        View Receipt
-                    </button>
+                    <div class="order-actions">
+                        <button class="btn btn-outline" onclick="viewReceipt('{{ $order['order_id'] }}')">
+                            View Receipt
+                        </button>
+                        <button class="btn btn-danger" onclick="cancelOrder({{ $order['order_id_raw'] }})">
+                            Cancel Order
+                        </button>
+                    </div>
                 </div>
                 @endforeach
             @else
@@ -492,11 +533,11 @@
                             View Receipt
                         </button>
                         @if(isset($order['has_rating']) && $order['has_rating'])
-                            <button class="btn btn-outline" onclick="viewRating({{ $order['order_id_raw'] }})">
-                                View Rating
+                            <button class="btn btn-primary" onclick="rateOrder('{{ $order['order_id'] }}', true)">
+                                Edit Rating
                             </button>
                         @else
-                            <button class="btn btn-primary" onclick="rateOrder('{{ $order['order_id'] }}')">
+                            <button class="btn btn-primary" onclick="rateOrder('{{ $order['order_id'] }}', false)">
                                 Rate Now
                             </button>
                         @endif
@@ -608,10 +649,10 @@ function viewReceipt(orderId) {
 }
 
 // Rate order function
-function rateOrder(orderId) {
+function rateOrder(orderId, isEdit = false) {
     // Extract numeric ID
     const numericId = orderId.toString().replace(/[^0-9]/g, '');
-    openRateModal(numericId);
+    openRateModal(numericId, isEdit);
 }
 
 // View rating function
@@ -626,14 +667,69 @@ function buyAgain(orderId) {
     alert('Buy Again for Order ID: ' + orderId + '\n\nThis feature will be implemented in the next version.');
 }
 
-// Order actions
+// Cancel order function
 function cancelOrder(orderId) {
-    if (confirm('Are you sure you want to cancel this order?')) {
-        // In a real app, this would make an API call to cancel the order
-        alert('Order ' + orderId + ' has been cancelled.');
-        // Refresh the page or update the UI
-        location.reload();
+    if (!confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
+        return;
     }
+    
+    // Show loading state - find the button that was clicked
+    const cancelBtn = document.querySelector(`button[onclick*="cancelOrder(${orderId})"]`);
+    if (!cancelBtn) {
+        alert('Error: Could not find cancel button');
+        return;
+    }
+    
+    const originalText = cancelBtn.textContent;
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = 'Cancelling...';
+    
+    fetch(`/consumer/orders/${orderId}/cancel`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({
+            reason: 'Cancelled by customer'
+        })
+    })
+    .then(async response => {
+        const contentType = response.headers.get('content-type');
+        let data;
+
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            const text = await response.text();
+            console.error('Server returned non-JSON:', text.substring(0, 200));
+            throw new Error(`Server error (${response.status})`);
+        }
+
+        if (!response.ok) {
+            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        }
+        return data;
+    })
+    .then(data => {
+        if (data.success) {
+            alert('Order cancelled successfully!');
+            // Refresh the page to show updated order list
+            window.location.reload();
+        } else {
+            alert('Failed to cancel order: ' + (data.message || 'Unknown error'));
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error cancelling order:', error);
+        alert('An error occurred while cancelling the order: ' + error.message);
+        cancelBtn.disabled = false;
+        cancelBtn.textContent = originalText;
+    });
 }
 
 function reorder(orderId) {

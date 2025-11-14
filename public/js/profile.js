@@ -893,3 +893,73 @@ function updateBirFileDisplay(fileName) {
 document.addEventListener('DOMContentLoaded', function() {
     initializeBirFileUpload();
 });
+
+// Request account deletion
+function requestAccountDeletion() {
+    if (!confirm('Are you sure you want to request account deletion? This action will be reviewed by an admin and cannot be undone once approved.')) {
+        return;
+    }
+    
+    // Optional: Ask for reason
+    const reason = prompt('Please provide a reason for account deletion (optional):');
+    
+    // Show loading state
+    const deleteBtn = document.querySelector('.btn-danger');
+    if (deleteBtn) {
+        const originalText = deleteBtn.textContent;
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = 'Submitting Request...';
+        
+        fetch('/profile/request-deletion', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({
+                reason: reason || null
+            })
+        })
+        .then(async response => {
+            const contentType = response.headers.get('content-type');
+            let data;
+
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                const text = await response.text();
+                console.error('Server returned non-JSON:', text.substring(0, 200));
+                throw new Error(`Server error (${response.status})`);
+            }
+
+            if (!response.ok) {
+                throw new Error(data.message || `HTTP error! status: ${response.status}`);
+            }
+            return data;
+        })
+        .then(data => {
+            if (data.success) {
+                alert(data.message || 'Account deletion request submitted successfully!');
+                // Optionally disable the button or show status
+                if (deleteBtn) {
+                    deleteBtn.textContent = 'Request Submitted';
+                    deleteBtn.style.opacity = '0.6';
+                }
+            } else {
+                alert('Failed to submit request: ' + (data.message || 'Unknown error'));
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = originalText;
+            }
+        })
+        .catch(error => {
+            console.error('Error requesting account deletion:', error);
+            alert('An error occurred while submitting the request: ' + error.message);
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = originalText;
+            }
+        });
+    }
+}

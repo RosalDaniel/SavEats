@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Foodbank Dashboard')</title>
     <link href="https://fonts.googleapis.com/css2?family=Afacad&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
     <link rel="stylesheet" href="{{ asset('css/sidebar.css') }}">
     <link rel="stylesheet" href="{{ asset('css/foodbank.css') }}">
     <link rel="stylesheet" href="{{ asset('css/foodbank-dashboard.css') }}">

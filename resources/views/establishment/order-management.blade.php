@@ -149,7 +149,7 @@
                         <div class="product-info">
                             <h3 class="product-name">{{ $order['product_name'] }}</h3>
                             <p class="product-quantity">{{ $order['quantity'] }}</p>
-                            <p style="color: #dc3545; font-weight: bold; margin-top: 5px;">
+                            <p style="color: #DD5D36; font-weight: bold; margin-top: 5px;">
                                 ⚠️ Missed Pickup - End Time: {{ $order['pickup_end_time'] ?? 'N/A' }}
                             </p>
                         </div>
@@ -171,14 +171,14 @@
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Pickup End Time:</span>
-                            <span class="detail-value" style="color: #dc3545; font-weight: bold;">
+                            <span class="detail-value" style="color: #DD5D36; font-weight: bold;">
                                 {{ $order['pickup_end_time'] ?? 'N/A' }}
                             </span>
                         </div>
                     </div>
                     
                     <div class="order-actions">
-                        <button class="btn-cancel" onclick="handleMissedPickup('{{ $order['id'] }}')" style="background-color: #dc3545;">
+                        <button class="btn-cancel" onclick="handleMissedPickup('{{ $order['id'] }}')" style="background-color: #DD5D36;">
                             Cancel & Refund
                         </button>
                         <button class="btn-view" onclick="viewOrderDetails('{{ $order['id'] }}')">

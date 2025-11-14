@@ -14,10 +14,10 @@
 
     @include('components.stat-grid', [
         'stats' => [
-            ['value' => '₱1,250', 'label' => 'Total Savings', 'type' => 'money'],
-            ['value' => '25', 'label' => 'Orders', 'type' => 'orders'],
-            ['value' => '15kg', 'label' => 'Food Rescued', 'type' => 'food'],
-            ['value' => '4.8⭐', 'label' => 'Rating', 'type' => 'reviews'],
+            ['value' => '₱' . number_format($totalSavings ?? 0, 2), 'label' => 'Total Savings', 'type' => 'money'],
+            ['value' => $ordersCount ?? 0, 'label' => 'Orders', 'type' => 'orders'],
+            ['value' => ($foodRescued ?? 0) . ' pcs.', 'label' => 'Food Rescued', 'type' => 'food'],
+            ['value' => $ratedOrdersCount ?? 0, 'label' => 'Rated Orders', 'type' => 'reviews'],
         ]
     ])
 

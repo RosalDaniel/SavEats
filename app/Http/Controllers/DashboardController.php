@@ -8,6 +8,8 @@ use App\Models\Establishment;
 use App\Models\Foodbank;
 use App\Models\User;
 use App\Models\FoodListing;
+use App\Models\Order;
+use App\Models\Review;
 use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
@@ -43,7 +45,53 @@ class DashboardController extends Controller
      */
     public function consumer()
     {
+        // Verify user is a consumer
+        if (session('user_type') !== 'consumer') {
+            return redirect()->route('login')->with('error', 'Access denied. Please login as a consumer.');
+        }
+        
         $user = $this->getUserData();
+        $consumerId = session('user_id');
+        
+        // Initialize statistics with default values
+        $totalSavings = 0;
+        $ordersCount = 0;
+        $foodRescued = 0;
+        $ratedOrdersCount = 0;
+        
+        if ($consumerId) {
+            // Get all completed orders for this consumer
+            $completedOrders = Order::with('foodListing')
+                ->where('consumer_id', $consumerId)
+                ->where('status', 'completed')
+                ->get();
+            
+            // Calculate Total Savings (money saved from discounts)
+            foreach ($completedOrders as $order) {
+                if ($order->foodListing) {
+                    $foodListing = $order->foodListing;
+                    $originalPrice = (float) $foodListing->original_price;
+                    $discountPercentage = (float) ($foodListing->discount_percentage ?? 0);
+                    $quantity = (int) $order->quantity;
+                    
+                    if ($discountPercentage > 0) {
+                        $discountAmountPerUnit = $originalPrice * ($discountPercentage / 100);
+                        $totalSavings += $discountAmountPerUnit * $quantity;
+                    }
+                    
+                    // Calculate food rescued (total quantity)
+                    $foodRescued += $quantity;
+                }
+            }
+            
+            $totalSavings = round($totalSavings, 2);
+            $ordersCount = $completedOrders->count();
+            
+            // Calculate number of rated orders (orders that have reviews)
+            $ratedOrdersCount = Review::where('consumer_id', $consumerId)
+                ->distinct('order_id')
+                ->count('order_id');
+        }
         
         // Get random food listings with discounts (best deals)
         // Prioritize items with higher discount percentages
@@ -78,7 +126,14 @@ class DashboardController extends Controller
                 ];
             });
         
-        return view('consumer.dashboard', compact('user', 'bestDeals'));
+        return view('consumer.dashboard', compact(
+            'user', 
+            'bestDeals',
+            'totalSavings',
+            'ordersCount',
+            'foodRescued',
+            'ratedOrdersCount'
+        ));
     }
 
     /**
@@ -86,6 +141,11 @@ class DashboardController extends Controller
      */
     public function establishment()
     {
+        // Verify user is an establishment
+        if (session('user_type') !== 'establishment') {
+            return redirect()->route('login')->with('error', 'Access denied. Please login as an establishment.');
+        }
+        
         $user = $this->getUserData();
         return view('establishment.dashboard', compact('user'));
     }
@@ -95,6 +155,11 @@ class DashboardController extends Controller
      */
     public function foodbank()
     {
+        // Verify user is a foodbank
+        if (session('user_type') !== 'foodbank') {
+            return redirect()->route('login')->with('error', 'Access denied. Please login as a foodbank.');
+        }
+        
         $user = $this->getUserData();
         return view('foodbank.dashboard', compact('user'));
     }
@@ -117,10 +182,72 @@ class DashboardController extends Controller
     }
 
     /**
+     * Show donation request page for foodbank
+     */
+    public function donationRequest()
+    {
+        // Verify user is a foodbank
+        if (session('user_type') !== 'foodbank') {
+            return redirect()->route('login')->with('error', 'Access denied. Please login as a foodbank.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Sample data - replace with actual database queries when ready
+        $donationRequests = [
+            ['id' => 1, 'foodType' => 'Joy Bread', 'quantity' => 12, 'matches' => 2, 'status' => 'pending'],
+            ['id' => 2, 'foodType' => 'Joy Bread', 'quantity' => 12, 'matches' => 1, 'status' => 'active'],
+            ['id' => 3, 'foodType' => 'Joy Bread', 'quantity' => 12, 'matches' => 6, 'status' => 'completed'],
+            ['id' => 4, 'foodType' => 'Joy Bread', 'quantity' => 12, 'matches' => 10, 'status' => 'expired'],
+            ['id' => 5, 'foodType' => 'Vegetables', 'quantity' => 25, 'matches' => 3, 'status' => 'active'],
+            ['id' => 6, 'foodType' => 'Canned Goods', 'quantity' => 50, 'matches' => 8, 'status' => 'pending'],
+            ['id' => 7, 'foodType' => 'Fresh Fruits', 'quantity' => 30, 'matches' => 5, 'status' => 'active'],
+        ];
+        
+        return view('foodbank.donation-request', compact('user', 'donationRequests'));
+    }
+
+    /**
+     * Show partner network page for foodbank
+     */
+    public function partnerNetwork()
+    {
+        // Verify user is a foodbank
+        if (session('user_type') !== 'foodbank') {
+            return redirect()->route('login')->with('error', 'Access denied. Please login as a foodbank.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Sample partner data - replace with actual database queries when ready
+        $partners = [
+            ['id' => 1, 'name' => 'Joy Grocery Store', 'type' => 'grocery', 'location' => '31 Luna Street, Cebu City', 'rating' => 4.8, 'donations' => 45, 'impact' => 120],
+            ['id' => 2, 'name' => 'Sunrise Bakery', 'type' => 'bakery', 'location' => '12 Osmeña Blvd, Cebu City', 'rating' => 4.6, 'donations' => 38, 'impact' => 95],
+            ['id' => 3, 'name' => 'Green Valley Farm', 'type' => 'farm', 'location' => 'Talamban, Cebu City', 'rating' => 4.9, 'donations' => 52, 'impact' => 156],
+            ['id' => 4, 'name' => 'Metro Supermarket', 'type' => 'grocery', 'location' => 'Ayala Center, Cebu City', 'rating' => 4.7, 'donations' => 61, 'impact' => 183],
+            ['id' => 5, 'name' => 'Golden Bread House', 'type' => 'bakery', 'location' => 'Colon Street, Cebu City', 'rating' => 4.5, 'donations' => 29, 'impact' => 87],
+            ['id' => 6, 'name' => 'Fresh Harvest Cafe', 'type' => 'restaurant', 'location' => 'IT Park, Cebu City', 'rating' => 4.8, 'donations' => 33, 'impact' => 99],
+            ['id' => 7, 'name' => 'City Market', 'type' => 'grocery', 'location' => 'Carbon Market, Cebu City', 'rating' => 4.4, 'donations' => 41, 'impact' => 123],
+            ['id' => 8, 'name' => 'Artisan Bakeshop', 'type' => 'bakery', 'location' => 'Banilad, Cebu City', 'rating' => 4.7, 'donations' => 35, 'impact' => 105],
+            ['id' => 9, 'name' => 'Organic Roots Farm', 'type' => 'farm', 'location' => 'Busay, Cebu City', 'rating' => 4.9, 'donations' => 48, 'impact' => 144],
+            ['id' => 10, 'name' => 'Daily Groceries', 'type' => 'grocery', 'location' => 'Mabolo, Cebu City', 'rating' => 4.6, 'donations' => 37, 'impact' => 111],
+            ['id' => 11, 'name' => 'The Bread Corner', 'type' => 'bakery', 'location' => 'Mandaue City', 'rating' => 4.8, 'donations' => 42, 'impact' => 126],
+            ['id' => 12, 'name' => 'Seaside Restaurant', 'type' => 'restaurant', 'location' => 'SRP, Cebu City', 'rating' => 4.5, 'donations' => 28, 'impact' => 84],
+        ];
+        
+        return view('foodbank.partner-network', compact('user', 'partners'));
+    }
+
+    /**
      * Show admin dashboard
      */
     public function admin()
     {
+        // Verify user is an admin
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied. Please login as an admin.');
+        }
+        
         $user = $this->getUserData();
         return view('admin.dashboard', compact('user'));
     }

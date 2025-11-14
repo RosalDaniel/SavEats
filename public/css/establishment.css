@@ -287,9 +287,6 @@
 
 /* Pending Order */
 .pending-order {
-    background: white;
-    border: 2px solid #347928;
-    border-radius: 12px;
     padding: 16px;
     margin-bottom: 15px;
 }
@@ -482,6 +479,16 @@
     }
     
     .main-content {
+        margin-left: 0;
+        position: relative;
+        width: 100%;
+        transition: none;
+    }
+    
+    /* Prevent main content from shifting when sidebar opens */
+    body:has(.sidebar.mobile-visible) .main-content,
+    .main-content {
+        transform: none;
         margin-left: 0;
     }
     

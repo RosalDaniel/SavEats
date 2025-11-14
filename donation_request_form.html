@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Donation Request</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background-color: #fff;
+            padding: 16px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .back-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #f0b429;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .back-button:hover {
+            background-color: #e0a419;
+        }
+
+        .back-button::before {
+            content: '←';
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .header-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #2d6a3d;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .form-card {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .page-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 40px;
+            color: #1a1a1a;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #1a1a1a;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr auto auto auto;
+            gap: 0;
+            margin-bottom: 16px;
+            align-items: start;
+        }
+        
+        .form-row .form-group:first-child {
+            margin-right: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            background-color: #fff;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="tel"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #2d6a3d;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        .icon-input {
+            padding-right: 40px;
+        }
+
+        .input-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #2d6a3d;
+            font-size: 18px;
+        }
+
+        .quantity-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .quantity-btn {
+            width: 42px;
+            height: 42px;
+            border: none;
+            border-radius: 6px;
+            background-color: #2d6a3d;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .quantity-btn:hover {
+            background-color: #245530;
+        }
+
+        .quantity-btn:active {
+            transform: scale(0.95);
+        }
+
+        .radio-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .radio-group label {
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .time-inputs {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .time-inputs select {
+            flex: 1;
+        }
+
+        .time-separator {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .delivery-options {
+            display: flex;
+            gap: 40px;
+        }
+
+        .phone-input-wrapper {
+            display: flex;
+            gap: 8px;
+        }
+
+        .phone-prefix {
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background-color: #f9f9f9;
+            font-size: 14px;
+            color: #333;
+            min-width: 70px;
+        }
+
+        .phone-input-wrapper input {
+            flex: 1;
+        }
+
+        .submit-btn {
+            width: 100%;
+            max-width: 350px;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 6px;
+            background-color: #2d6a3d;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: block;
+            margin: 40px auto 0;
+        }
+
+        .submit-btn:hover {
+            background-color: #245530;
+        }
+
+        .submit-btn:active {
+            transform: scale(0.98);
+        }
+
+        @media (max-width: 768px) {
+            .form-card {
+                padding: 24px;
+            }
+
+            .page-title {
+                font-size: 24px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .quantity-controls {
+                justify-content: center;
+            }
+
+            .delivery-options {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .container {
+                margin: 20px auto;
+            }
+        }
+
+        ::placeholder {
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="back-button" onclick="history.back()"></button>
+        <span class="header-title">Donation Request</span>
+    </div>
+
+    <div class="container">
+        <div class="form-card">
+            <h1 class="page-title">Create Donation Request</h1>
+
+            <form id="donationForm" onsubmit="handleSubmit(event)">
+                <!-- Food Basic Information -->
+                <div class="section">
+                    <h2 class="section-title">Food Basic Information</h2>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <input type="text" id="itemName" placeholder="Enter Item Name" required>
+                        </div>
+                        
+                        <div class="quantity-controls">
+                            <button type="button" class="quantity-btn" onclick="decrementQuantity()">−</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <input type="text" id="quantity" placeholder="Quantity" value="1" readonly>
+                        </div>
+                        
+                        <div class="quantity-controls">
+                            <button type="button" class="quantity-btn" onclick="incrementQuantity()">+</button>
+                        </div>
+                    </div>
+
+                    <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+                        <div class="form-group">
+                            <select id="category" required>
+                                <option value="">Select Item Category</option>
+                                <option value="fresh-produce">Fresh Produce</option>
+                                <option value="canned-goods">Canned Goods</option>
+                                <option value="dairy">Dairy Products</option>
+                                <option value="grains">Grains & Cereals</option>
+                                <option value="protein">Protein (Meat/Fish)</option>
+                                <option value="prepared">Prepared Meals</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="input-wrapper">
+                                <select id="distributionZone" class="icon-input" required>
+                                    <option value="">Select Distribution Zones</option>
+                                    <option value="zone-a">Zone A - North District</option>
+                                    <option value="zone-b">Zone B - South District</option>
+                                    <option value="zone-c">Zone C - East District</option>
+                                    <option value="zone-d">Zone D - West District</option>
+                                    <option value="zone-e">Zone E - Central District</option>
+                                </select>
+                                <span class="input-icon">📍</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <textarea id="description" placeholder="Write description" rows="4"></textarea>
+                    </div>
+                </div>
+
+                <!-- Drop-Off Window -->
+                <div class="section">
+                    <h2 class="section-title">Drop-Off Window</h2>
+                    
+                    <div class="form-group">
+                        <div class="input-wrapper">
+                            <input type="text" id="dropoffDate" class="icon-input" placeholder="Select a Day" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'" required>
+                            <span class="input-icon">📅</span>
+                        </div>
+                    </div>
+
+                    <div class="radio-group">
+                        <input type="radio" id="allDay" name="timeOption" value="allDay" checked onchange="toggleTimeInputs()">
+                        <label for="allDay">All Day</label>
+                    </div>
+
+                    <div class="time-inputs" id="timeInputs">
+                        <select id="startTime">
+                            <option value="">Start Time</option>
+                            <option value="00:00">12:00 AM</option>
+                            <option value="01:00">1:00 AM</option>
+                            <option value="02:00">2:00 AM</option>
+                            <option value="03:00">3:00 AM</option>
+                            <option value="04:00">4:00 AM</option>
+                            <option value="05:00">5:00 AM</option>
+                            <option value="06:00">6:00 AM</option>
+                            <option value="07:00">7:00 AM</option>
+                            <option value="08:00">8:00 AM</option>
+                            <option value="09:00">9:00 AM</option>
+                            <option value="10:00">10:00 AM</option>
+                            <option value="11:00">11:00 AM</option>
+                            <option value="12:00">12:00 PM</option>
+                            <option value="13:00">1:00 PM</option>
+                            <option value="14:00">2:00 PM</option>
+                            <option value="15:00">3:00 PM</option>
+                            <option value="16:00">4:00 PM</option>
+                            <option value="17:00">5:00 PM</option>
+                            <option value="18:00">6:00 PM</option>
+                            <option value="19:00">7:00 PM</option>
+                            <option value="20:00">8:00 PM</option>
+                            <option value="21:00">9:00 PM</option>
+                            <option value="22:00">10:00 PM</option>
+                            <option value="23:00">11:00 PM</option>
+                        </select>
+                        <span class="time-separator">to</span>
+                        <select id="endTime">
+                            <option value="">End Time</option>
+                            <option value="00:00">12:00 AM</option>
+                            <option value="01:00">1:00 AM</option>
+                            <option value="02:00">2:00 AM</option>
+                            <option value="03:00">3:00 AM</option>
+                            <option value="04:00">4:00 AM</option>
+                            <option value="05:00">5:00 AM</option>
+                            <option value="06:00">6:00 AM</option>
+                            <option value="07:00">7:00 AM</option>
+                            <option value="08:00">8:00 AM</option>
+                            <option value="09:00">9:00 AM</option>
+                            <option value="10:00">10:00 AM</option>
+                            <option value="11:00">11:00 AM</option>
+                            <option value="12:00">12:00 PM</option>
+                            <option value="13:00">1:00 PM</option>
+                            <option value="14:00">2:00 PM</option>
+                            <option value="15:00">3:00 PM</option>
+                            <option value="16:00">4:00 PM</option>
+                            <option value="17:00">5:00 PM</option>
+                            <option value="18:00">6:00 PM</option>
+                            <option value="19:00">7:00 PM</option>
+                            <option value="20:00">8:00 PM</option>
+                            <option value="21:00">9:00 PM</option>
+                            <option value="22:00">10:00 PM</option>
+                            <option value="23:00">11:00 PM</option>
+                        </select>
+                    </div>
+
+                    <div class="radio-group">
+                        <input type="radio" id="anytime" name="timeOption" value="anytime" onchange="toggleTimeInputs()">
+                        <label for="anytime">Anytime</label>
+                    </div>
+                </div>
+
+                <!-- Location & Logistics -->
+                <div class="section">
+                    <h2 class="section-title">Location & Logistics</h2>
+                    
+                    <div class="form-group">
+                        <div class="input-wrapper">
+                            <input type="text" id="address" class="icon-input" placeholder="Enter Address" required>
+                            <span class="input-icon">📍</span>
+                        </div>
+                    </div>
+
+                    <div class="delivery-options">
+                        <div class="radio-group">
+                            <input type="radio" id="pickupOnly" name="deliveryOption" value="pickup" checked>
+                            <label for="pickupOnly">Pickup Only</label>
+                        </div>
+
+                        <div class="radio-group">
+                            <input type="radio" id="delivery" name="deliveryOption" value="delivery">
+                            <label for="delivery">Delivery</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Details -->
+                <div class="section">
+                    <h2 class="section-title">Contact Details</h2>
+                    
+                    <div class="form-group">
+                        <div class="input-wrapper">
+                            <input type="text" id="contactName" class="icon-input" placeholder="Enter Name of Contact Person" required>
+                            <span class="input-icon">📍</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="phone-input-wrapper">
+                            <div class="phone-prefix">+63</div>
+                            <div class="input-wrapper" style="flex: 1;">
+                                <input type="tel" id="phoneNumber" class="icon-input" placeholder="Enter your Phone No." pattern="[0-9]{10}" required>
+                                <span class="input-icon">📞</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="input-wrapper">
+                            <input type="email" id="email" class="icon-input" placeholder="Enter Email Address" required>
+                            <span class="input-icon">✉️</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">Publish Now</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let quantity = 1;
+
+        function incrementQuantity() {
+            quantity++;
+            document.getElementById('quantity').value = quantity;
+        }
+
+        function decrementQuantity() {
+            if (quantity > 1) {
+                quantity--;
+                document.getElementById('quantity').value = quantity;
+            }
+        }
+
+        function toggleTimeInputs() {
+            const allDayChecked = document.getElementById('allDay').checked;
+            const timeInputs = document.getElementById('timeInputs');
+            timeInputs.style.display = allDayChecked ? 'none' : 'flex';
+        }
+
+        function handleSubmit(event) {
+            event.preventDefault();
+            
+            const formData = {
+                itemName: document.getElementById('itemName').value,
+                quantity: document.getElementById('quantity').value,
+                category: document.getElementById('category').value,
+                distributionZone: document.getElementById('distributionZone').value,
+                description: document.getElementById('description').value,
+                dropoffDate: document.getElementById('dropoffDate').value,
+                timeOption: document.querySelector('input[name="timeOption"]:checked').value,
+                startTime: document.getElementById('startTime').value,
+                endTime: document.getElementById('endTime').value,
+                address: document.getElementById('address').value,
+                deliveryOption: document.querySelector('input[name="deliveryOption"]:checked').value,
+                contactName: document.getElementById('contactName').value,
+                phoneNumber: '+63' + document.getElementById('phoneNumber').value,
+                email: document.getElementById('email').value
+            };
+
+            console.log('Form submitted:', formData);
+            alert('Donation request submitted successfully!\n\nCheck the console for form data.');
+            
+            // Here you would typically send the data to your backend
+            // fetch('/api/donation-requests', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify(formData)
+            // });
+        }
+
+        // Set minimum date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('dropoffDate').setAttribute('min', today);
+    </script>
+</body>
+</html>

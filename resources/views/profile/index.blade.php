@@ -129,6 +129,19 @@
             </div>
         </div>
     </div>
+    
+    <!-- Delete Account Section -->
+    <div class="profile-section delete-account-section">
+        <div class="section-header">
+            <h3 class="section-title">Delete Account</h3>
+        </div>
+        <div class="delete-account-content">
+            <p class="delete-warning">Once you request account deletion, an admin will review and approve your request. This action cannot be undone.</p>
+            <button class="btn-danger" onclick="requestAccountDeletion()">
+                Request Account Deletion
+            </button>
+        </div>
+    </div>
 </div>
 
 <!-- Hidden file input for profile picture -->

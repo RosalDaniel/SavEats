@@ -4,17 +4,31 @@ let selectedImage = null;
 let selectedVideo = null;
 
 // Open rate modal
-function openRateModal(orderId) {
+function openRateModal(orderId, isEdit = false) {
     const modal = document.getElementById('rateModal');
     const orderIdInput = document.getElementById('rateOrderId');
+    const modalTitle = document.querySelector('.rate-modal-title');
+    const publishBtn = document.querySelector('.publish-btn');
     
     if (!modal || !orderIdInput) return;
     
     // Set order ID
     orderIdInput.value = orderId;
     
-    // Reset form
-    resetRateForm();
+    // Update modal title and button text
+    if (isEdit) {
+        if (modalTitle) modalTitle.textContent = 'Edit Rating';
+        if (publishBtn) publishBtn.textContent = 'Update Review';
+        
+        // Load existing review data
+        loadExistingReview(orderId);
+    } else {
+        if (modalTitle) modalTitle.textContent = 'Rate the Product';
+        if (publishBtn) publishBtn.textContent = 'Publish Review';
+        
+        // Reset form
+        resetRateForm();
+    }
     
     // Show modal
     modal.classList.add('show');
@@ -28,6 +42,98 @@ function openRateModal(orderId) {
     
     // Initialize star rating
     initializeStarRating();
+}
+
+// Load existing review data for editing
+function loadExistingReview(orderId) {
+    // Extract numeric ID from order ID string
+    const numericId = orderId.toString().replace(/[^0-9]/g, '');
+    
+    fetch(`/consumer/orders/${numericId}/review`, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+    })
+    .then(async response => {
+        const contentType = response.headers.get('content-type');
+        let data;
+
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            const text = await response.text();
+            console.error('Server returned non-JSON:', text.substring(0, 200));
+            throw new Error(`Server error (${response.status})`);
+        }
+
+        if (!response.ok) {
+            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        }
+        return data;
+    })
+    .then(data => {
+        if (data.success && data.review) {
+            const review = data.review;
+            
+            // Set rating
+            if (review.rating) {
+                currentRating = parseInt(review.rating);
+                setRating(currentRating);
+            }
+            
+            // Set description
+            const descriptionTextarea = document.getElementById('reviewDescription');
+            if (descriptionTextarea && review.description) {
+                descriptionTextarea.value = review.description;
+            }
+            
+            // Set image preview if exists
+            if (review.image_path) {
+                const imagePreview = document.getElementById('imagePreview');
+                if (imagePreview) {
+                    imagePreview.innerHTML = `
+                        <div class="preview-image-container">
+                            <img src="${review.image_path}" alt="Review image" style="max-width: 100px; max-height: 100px; border-radius: 4px;">
+                            <button type="button" class="remove-preview-btn" onclick="removeImagePreview()">×</button>
+                        </div>
+                    `;
+                    const uploadPreview = document.getElementById('uploadPreview');
+                    if (uploadPreview) {
+                        uploadPreview.style.display = 'block';
+                    }
+                    // Store existing image path for reference
+                    selectedImage = review.image_path;
+                }
+            }
+            
+            // Set video preview if exists
+            if (review.video_path) {
+                const videoPreview = document.getElementById('videoPreview');
+                if (videoPreview) {
+                    videoPreview.innerHTML = `
+                        <div class="preview-video-container">
+                            <video src="${review.video_path}" controls style="max-width: 200px; max-height: 150px; border-radius: 4px;"></video>
+                            <button type="button" class="remove-preview-btn" onclick="removeVideoPreview()">×</button>
+                        </div>
+                    `;
+                    const uploadPreview = document.getElementById('uploadPreview');
+                    if (uploadPreview) {
+                        uploadPreview.style.display = 'block';
+                    }
+                    // Store existing video path for reference
+                    selectedVideo = review.video_path;
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error loading review:', error);
+        // If error loading, just reset form
+        resetRateForm();
+    });
 }
 
 // Close rate modal
@@ -213,7 +319,7 @@ function handleVideoUpload(event) {
 
 // Remove image preview
 function removeImagePreview() {
-    selectedImage = null;
+    selectedImage = null; // Clear both File objects and string URLs
     const imageInput = document.getElementById('imageUpload');
     const imagePreview = document.getElementById('imagePreview');
     const uploadPreview = document.getElementById('uploadPreview');
@@ -232,7 +338,7 @@ function removeImagePreview() {
 
 // Remove video preview
 function removeVideoPreview() {
-    selectedVideo = null;
+    selectedVideo = null; // Clear both File objects and string URLs
     const videoInput = document.getElementById('videoUpload');
     const videoPreview = document.getElementById('videoPreview');
     const uploadPreview = document.getElementById('uploadPreview');
@@ -279,10 +385,12 @@ function submitReview(event) {
     formData.append('description', description.value.trim());
     formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
     
-    if (selectedImage) {
+    // Only append image/video if they are File objects (new uploads)
+    // If they are strings (existing URLs), they will be preserved on the server
+    if (selectedImage && selectedImage instanceof File) {
         formData.append('image', selectedImage);
     }
-    if (selectedVideo) {
+    if (selectedVideo && selectedVideo instanceof File) {
         formData.append('video', selectedVideo);
     }
     
@@ -324,18 +432,20 @@ function submitReview(event) {
     })
     .then(data => {
         if (data.success) {
-            // Update the button text to "View Rating"
-            updateRateButtonToViewRating(orderIdInput.value);
+            // Update the button text to "Edit Rating"
+            updateRateButtonToEditRating(orderIdInput.value);
             
-            alert('Review published successfully!');
+            alert(data.message || 'Review saved successfully!');
             closeRateModal();
+            // Reload page to reflect changes
+            window.location.reload();
         } else {
-            alert('Failed to publish review: ' + (data.message || 'Unknown error'));
+            alert('Failed to save review: ' + (data.message || 'Unknown error'));
         }
         
         if (publishBtn) {
             publishBtn.disabled = false;
-            publishBtn.textContent = 'Publish Review';
+            publishBtn.textContent = publishBtn.textContent.includes('Update') ? 'Update Review' : 'Publish Review';
         }
     })
     .catch(error => {
@@ -367,7 +477,54 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Update rate button to "View Rating" after submission
+// Update rate button to "Edit Rating" after submission
+function updateRateButtonToEditRating(orderId) {
+    // Find all rate buttons for this order - try multiple formats
+    const numericId = orderId.toString().replace(/[^0-9]/g, '');
+    const orderIdFormats = [
+        `ID#${numericId}`,
+        `ID#${orderId}`,
+        numericId,
+        orderId.toString()
+    ];
+    
+    // Try to find button by various onclick patterns
+    let rateButton = null;
+    for (const format of orderIdFormats) {
+        rateButton = document.querySelector(`button[onclick*="rateOrder('${format}')"], button[onclick*="rateOrder('ID#${format}')"]`);
+        if (rateButton) break;
+    }
+    
+    // If not found by onclick, try finding by text content
+    if (!rateButton) {
+        const allButtons = document.querySelectorAll('.btn-primary, .btn');
+        allButtons.forEach(btn => {
+            if (btn.textContent.trim() === 'Rate Now') {
+                // Check if it's in the same order card
+                const orderCard = btn.closest('.order-card');
+                if (orderCard) {
+                    const orderIdElement = orderCard.querySelector('[class*="order-id"], [class*="detail-value"]');
+                    if (orderIdElement && orderIdElement.textContent.includes(numericId)) {
+                        rateButton = btn;
+                    }
+                }
+            }
+        });
+    }
+    
+    if (rateButton) {
+        rateButton.textContent = 'Edit Rating';
+        rateButton.classList.remove('btn-outline');
+        rateButton.classList.add('btn-primary');
+        // Update onclick to include edit flag
+        const currentOnclick = rateButton.getAttribute('onclick');
+        if (currentOnclick && !currentOnclick.includes('true')) {
+            rateButton.setAttribute('onclick', currentOnclick.replace('false', 'true').replace(/rateOrder\([^)]+\)/, `rateOrder('${orderId}', true)`));
+        }
+    }
+}
+
+// Update rate button to "View Rating" after submission (legacy function, kept for compatibility)
 function updateRateButtonToViewRating(orderId) {
     // Find all rate buttons for this order - try multiple formats
     const numericId = orderId.toString().replace(/[^0-9]/g, '');

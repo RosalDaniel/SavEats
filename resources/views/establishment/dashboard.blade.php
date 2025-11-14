@@ -10,22 +10,31 @@
 </div>
 
 <!-- Stats Grid -->
+@php
+    // Safely get dashboardStats with fallback
+    $stats = isset($dashboardStats) && is_array($dashboardStats) ? $dashboardStats : [
+        'active_listings' => 0,
+        'today_earnings' => 0,
+        'food_donated' => 0,
+        'food_saved' => 0,
+    ];
+@endphp
 <div class="stats-grid">
     <div class="stat-card active-listings">
         <div class="stat-label">Active Listings</div>
-        <div class="stat-value">{{ $dashboardStats['active_listings'] ?? 0 }}</div>
+        <div class="stat-value">{{ $stats['active_listings'] ?? 0 }}</div>
     </div>
     <div class="stat-card earnings">
         <div class="stat-label">Today's Earnings</div>
-        <div class="stat-value">₱ {{ number_format($dashboardStats['today_earnings'] ?? 0, 2) }}</div>
+        <div class="stat-value">₱ {{ number_format($stats['today_earnings'] ?? 0, 2) }}</div>
     </div>
     <div class="stat-card food-donated">
         <div class="stat-label">Food Donated</div>
-        <div class="stat-value">{{ $dashboardStats['food_donated'] ?? 0 }}</div>
+        <div class="stat-value">{{ $stats['food_donated'] ?? 0 }}</div>
     </div>
     <div class="stat-card food-saved">
         <div class="stat-label">Food Saved</div>
-        <div class="stat-value">{{ $dashboardStats['food_saved'] ?? 0 }} pcs.</div>
+        <div class="stat-value">{{ $stats['food_saved'] ?? 0 }} pcs.</div>
     </div>
 </div>
 

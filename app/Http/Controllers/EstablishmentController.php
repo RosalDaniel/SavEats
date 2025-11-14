@@ -23,30 +23,45 @@ class EstablishmentController extends Controller
         $user = $this->getUserData();
         $establishmentId = Session::get('user_id');
         
-        // Get all food listings for inventory health calculation
+        // Validate establishment ID exists
+        if (!$establishmentId) {
+            return redirect()->route('login')->with('error', 'Session expired. Please login again.');
+        }
+        
+        // Ensure establishment_id is a string (UUID)
+        $establishmentId = (string) $establishmentId;
+        
+        // Verify establishment exists
+        $establishment = Establishment::find($establishmentId);
+        if (!$establishment) {
+            return redirect()->route('login')->with('error', 'Establishment not found. Please login again.');
+        }
+        
+        // Get all food listings for this establishment (single query, reused for multiple calculations)
         $allListings = FoodListing::where('establishment_id', $establishmentId)->get();
         
         // Calculate inventory health statistics
         $totalItems = $allListings->count();
         
         if ($totalItems > 0) {
-            // Fresh Stock: Active items that are not expiring soon (expiry > 3 days away)
+            // Fresh Stock: Items that are not expired and not expiring soon (expiry > 3 days away)
             $freshStock = $allListings->filter(function ($item) {
-                return $item->status === 'active' && 
-                       $item->expiry_date > now()->addDays(3)->toDateString();
+                $isExpired = $item->expiry_date < now()->toDateString();
+                $isExpiringSoon = $item->expiry_date <= now()->addDays(3)->toDateString();
+                return !$isExpired && !$isExpiringSoon;
             })->count();
             
-            // Expiring Stock: Active items expiring within next 3 days
+            // Expiring Stock: Items expiring within next 3 days (but not expired)
             $expiringStock = $allListings->filter(function ($item) {
-                return $item->status === 'active' && 
-                       $item->expiry_date >= now()->toDateString() &&
-                       $item->expiry_date <= now()->addDays(3)->toDateString();
+                $isExpired = $item->expiry_date < now()->toDateString();
+                $isExpiringSoon = $item->expiry_date >= now()->toDateString() &&
+                                  $item->expiry_date <= now()->addDays(3)->toDateString();
+                return !$isExpired && $isExpiringSoon;
             })->count();
             
-            // Expired Stock: Items that have passed expiry date or status is expired
+            // Expired Stock: Items that have passed expiry date
             $expiredStock = $allListings->filter(function ($item) {
-                return $item->status === 'expired' || 
-                       $item->expiry_date < now()->toDateString();
+                return $item->expiry_date < now()->toDateString();
             })->count();
             
             // Calculate percentages
@@ -59,20 +74,20 @@ class EstablishmentController extends Controller
             $expiredStockPercent = 0;
         }
         
-        // Get expiring food listings (expiring within next 3 days, not expired, and active)
-        $expiringItems = FoodListing::where('establishment_id', $establishmentId)
-            ->where('status', 'active')
-            ->where('expiry_date', '>=', now()->toDateString())
-            ->where('expiry_date', '<=', now()->addDays(3)->toDateString())
-            ->orderBy('expiry_date', 'asc')
-            ->limit(5)
-            ->get()
+        // Get expiring food listings (expiring within next 3 days, not expired)
+        $expiringItems = $allListings
+            ->filter(function ($item) {
+                return $item->expiry_date >= now()->toDateString() &&
+                       $item->expiry_date <= now()->addDays(3)->toDateString();
+            })
+            ->sortBy('expiry_date')
+            ->take(5)
             ->map(function ($item) {
                 $expiryDate = \Carbon\Carbon::parse($item->expiry_date);
                 
                 // Format expiry date
                 if ($expiryDate->isToday()) {
-                    $expiryTime = 'Today, 6pm'; // Default time since expiry_date is date only
+                    $expiryTime = 'Today, 6pm';
                 } elseif ($expiryDate->isTomorrow()) {
                     $expiryTime = 'Tomorrow, 6pm';
                 } else {
@@ -88,6 +103,7 @@ class EstablishmentController extends Controller
                     'expiry_datetime' => $expiryDate,
                 ];
             })
+            ->values()
             ->toArray();
         
         $inventoryHealth = [
@@ -96,32 +112,31 @@ class EstablishmentController extends Controller
             'expired_stock_percent' => $expiredStockPercent,
         ];
         
-        // Calculate dashboard stats
-        // Active Listings: Count of active food listings
-        $activeListings = FoodListing::where('establishment_id', $establishmentId)
-            ->where('status', 'active')
-            ->count();
+        // Active Listings: Count items that are not expired and not expiring soon
+        $activeListings = $allListings->filter(function ($item) {
+            $isExpired = $item->expiry_date < now()->toDateString();
+            $isExpiringSoon = $item->expiry_date <= now()->addDays(3)->toDateString();
+            return !$isExpired && !$isExpiringSoon;
+        })->count();
         
         // Today's Earnings: Sum of completed orders for today
         $todayEarnings = Order::where('establishment_id', $establishmentId)
             ->where('status', 'completed')
             ->whereDate('completed_at', now()->toDateString())
-            ->sum('total_price');
+            ->sum('total_price') ?? 0.0;
         
-        // Food Donated: Count of items with status 'donated' or sum of donated quantities
-        // For now, we'll use a placeholder or calculate from a field if it exists
-        // If there's no donation tracking yet, we can use 0 or calculate from something else
-        $foodDonated = 0; // Placeholder - can be updated when donation system is implemented
+        // Food Donated: Placeholder for future donation system
+        $foodDonated = 0;
         
-        // Food Saved: Sum of sold_stock from food listings (items that were sold/completed)
-        $foodSaved = FoodListing::where('establishment_id', $establishmentId)
-            ->sum('sold_stock');
+        // Food Saved: Sum of sold_stock from food listings
+        $foodSaved = $allListings->sum('sold_stock') ?? 0;
         
+        // Ensure all values are properly initialized (handle null values from database)
         $dashboardStats = [
-            'active_listings' => $activeListings,
-            'today_earnings' => (float) $todayEarnings,
-            'food_donated' => $foodDonated,
-            'food_saved' => (int) $foodSaved,
+            'active_listings' => (int) $activeListings,
+            'today_earnings' => $todayEarnings,
+            'food_donated' => (int) $foodDonated,
+            'food_saved' => $foodSaved,
         ];
         
         // Get the most recent pending order
@@ -619,7 +634,32 @@ class EstablishmentController extends Controller
             return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
         }
 
-        return view('establishment.donation-hub');
+        $user = $this->getUserData();
+        $establishmentId = Session::get('user_id');
+        
+        // Calculate total donations (completed donations)
+        $totalDonations = 0; // Placeholder - implement when donation system is ready
+        
+        // Calculate partner charities count
+        $partnerCharities = 0; // Placeholder - implement when donation system is ready
+        
+        // Sample donation history data (replace with actual database queries)
+        $donationHistory = [
+            // Add actual donation history from database here
+        ];
+        
+        // Sample donation requests data (replace with actual database queries)
+        $donationRequests = [
+            // Add actual donation requests from database here
+        ];
+        
+        return view('establishment.donation-hub', compact(
+            'user',
+            'totalDonations',
+            'partnerCharities',
+            'donationHistory',
+            'donationRequests'
+        ));
     }
 
     public function impactReports()
@@ -628,7 +668,125 @@ class EstablishmentController extends Controller
             return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
         }
 
-        return view('establishment.impact-reports');
+        $user = $this->getUserData();
+        $establishmentId = Session::get('user_id');
+        
+        // Get all completed orders for this establishment
+        $completedOrders = Order::with('foodListing')
+            ->where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->get();
+        
+        // Calculate Food Saved: total quantity from completed orders
+        $foodSaved = $completedOrders->sum('quantity');
+        
+        // Calculate Cost Savings: total earnings from completed orders
+        $costSavings = Order::where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->sum('total_price');
+        $costSavings = round($costSavings, 2);
+        
+        // Calculate Food Donated: expired items that weren't sold
+        $foodDonated = FoodListing::where('establishment_id', $establishmentId)
+            ->where('expiry_date', '<', now()->toDateString())
+            ->where(function($query) {
+                $query->whereNull('sold_stock')
+                      ->orWhere('sold_stock', 0);
+            })
+            ->sum('quantity');
+        
+        // Calculate chart data: Daily, Monthly, and Yearly food saved
+        $dailyData = [];
+        $monthlyData = [];
+        $yearlyData = [];
+        
+        // Daily data (last 7 days)
+        $dayLabels = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dayOfWeek = $date->dayOfWeek;
+            
+            $dayFoodSaved = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->whereDate('completed_at', $date->toDateString())
+                ->sum('quantity');
+            
+            $dailyData[] = [
+                'label' => $dayLabels[$dayOfWeek],
+                'value' => (int) $dayFoodSaved
+            ];
+        }
+        
+        // Monthly data (last 12 months)
+        $monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        for ($i = 11; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            
+            $monthFoodSaved = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->whereYear('completed_at', $date->year)
+                ->whereMonth('completed_at', $date->month)
+                ->sum('quantity');
+            
+            $monthlyData[] = [
+                'label' => $monthLabels[$date->month - 1],
+                'value' => (int) $monthFoodSaved
+            ];
+        }
+        
+        // Yearly data (last 5 years)
+        for ($i = 4; $i >= 0; $i--) {
+            $year = now()->subYears($i)->year;
+            
+            $yearFoodSaved = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->whereYear('completed_at', $year)
+                ->sum('quantity');
+            
+            $yearlyData[] = [
+                'label' => (string) $year,
+                'value' => (int) $yearFoodSaved
+            ];
+        }
+        
+        // Calculate top donated items by category
+        $topDonatedItems = FoodListing::where('establishment_id', $establishmentId)
+            ->where('expiry_date', '<', now()->toDateString())
+            ->where(function($query) {
+                $query->whereNull('sold_stock')
+                      ->orWhere('sold_stock', 0);
+            })
+            ->select('category', DB::raw('SUM(quantity) as total_quantity'))
+            ->groupBy('category')
+            ->orderBy('total_quantity', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'category' => $item->category,
+                    'quantity' => (int) $item->total_quantity
+                ];
+            })
+            ->toArray();
+        
+        // Calculate total for percentage calculation
+        $totalDonated = array_sum(array_column($topDonatedItems, 'quantity'));
+        
+        // Add percentages to top donated items
+        foreach ($topDonatedItems as &$item) {
+            $item['percentage'] = $totalDonated > 0 ? round(($item['quantity'] / $totalDonated) * 100, 2) : 0;
+        }
+        
+        return view('establishment.impact-reports', compact(
+            'user',
+            'foodSaved',
+            'costSavings',
+            'foodDonated',
+            'dailyData',
+            'monthlyData',
+            'yearlyData',
+            'topDonatedItems'
+        ));
     }
 
     public function settings()

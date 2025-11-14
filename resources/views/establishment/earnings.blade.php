@@ -59,11 +59,11 @@
                 @if(isset($completedOrders) && count($completedOrders) > 0)
                     @foreach($completedOrders as $order)
                     <tr class="table-row">
-                        <td class="order-id">{{ $order['order_number'] ?? 'ID#' . $order['id'] }}</td>
-                        <td class="item-name">{{ $order['product_name'] }}<br><small>{{ $order['quantity'] }} pcs.</small></td>
-                        <td class="amount">₱{{ number_format($order['total_price'], 2) }}</td>
-                        <td>{{ $order['completed_at'] ?? $order['created_at'] }}</td>
-                        <td class="payment-mode">{{ $order['payment_method'] ?? 'N/A' }}</td>
+                        <td class="order-id" data-label="Order ID">{{ $order['order_number'] ?? 'ID#' . $order['id'] }}</td>
+                        <td class="item-name" data-label="Item">{{ $order['product_name'] }}<br><small>{{ $order['quantity'] }} pcs.</small></td>
+                        <td class="amount" data-label="Amount">₱{{ number_format($order['total_price'], 2) }}</td>
+                        <td data-label="Date">{{ $order['completed_at'] ?? $order['created_at'] }}</td>
+                        <td class="payment-mode" data-label="Payment">{{ $order['payment_method'] ?? 'N/A' }}</td>
                     </tr>
                     @endforeach
                 @else

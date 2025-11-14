@@ -38,7 +38,7 @@
             <h2 class="chart-title">MONTHLY FOOD SAVED</h2>
         </div>
         <div class="chart-container">
-            <canvas id="monthlyChart" width="800" height="400"></canvas>
+            <canvas id="monthlyChart"></canvas>
         </div>
         <div class="chart-legend">
             <div class="legend-item">

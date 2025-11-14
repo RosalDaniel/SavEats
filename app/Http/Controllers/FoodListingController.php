@@ -225,6 +225,7 @@ class FoodListingController extends Controller
             'upcoming' => $orders->whereIn('status', ['pending', 'accepted'])->map(function ($order) {
                 return [
                     'order_id' => 'ID#' . $order->id,
+                    'order_id_raw' => $order->id, // For JavaScript
                     'product_name' => $order->foodListing->name,
                     'quantity' => $order->quantity,
                     'price' => $order->total_price,
@@ -771,53 +772,82 @@ class FoodListingController extends Controller
             ], 404);
         }
 
-        // Check if review already exists
-        if ($order->review) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Review already submitted for this order'
-            ], 400);
-        }
-
         DB::beginTransaction();
         try {
             $imagePath = null;
             $videoPath = null;
-
+            $existingReview = $order->review;
+            $isUpdate = $existingReview !== null;
+            
             // Handle image upload
             if ($request->hasFile('image')) {
+                // Delete old image if exists
+                if ($existingReview && $existingReview->image_path) {
+                    Storage::disk('public')->delete($existingReview->image_path);
+                }
                 $image = $request->file('image');
                 $imagePath = $image->store('reviews/images', 'public');
+            } elseif ($existingReview) {
+                // Keep existing image if not uploading new one
+                $imagePath = $existingReview->image_path;
+            } else {
+                // New review with no image
+                $imagePath = null;
             }
 
             // Handle video upload
             if ($request->hasFile('video')) {
+                // Delete old video if exists
+                if ($existingReview && $existingReview->video_path) {
+                    Storage::disk('public')->delete($existingReview->video_path);
+                }
                 $video = $request->file('video');
                 $videoPath = $video->store('reviews/videos', 'public');
+            } elseif ($existingReview) {
+                // Keep existing video if not uploading new one
+                $videoPath = $existingReview->video_path;
+            } else {
+                // New review with no video
+                $videoPath = null;
             }
 
-            // Create review
-            $review = Review::create([
-                'order_id' => $order->id,
-                'consumer_id' => $consumerId,
-                'food_listing_id' => $order->food_listing_id,
-                'establishment_id' => $order->establishment_id,
-                'rating' => $request->rating,
-                'description' => $request->description,
-                'image_path' => $imagePath,
-                'video_path' => $videoPath,
-            ]);
+            if ($isUpdate) {
+                // Update existing review - preserve created_at
+                $originalCreatedAt = $existingReview->created_at;
+                $existingReview->update([
+                    'rating' => $request->rating,
+                    'description' => $request->description,
+                    'image_path' => $imagePath,
+                    'video_path' => $videoPath,
+                ]);
+                // Restore original created_at timestamp
+                $existingReview->created_at = $originalCreatedAt;
+                $existingReview->save();
+                $review = $existingReview;
+            } else {
+                // Create new review
+                $review = Review::create([
+                    'order_id' => $order->id,
+                    'consumer_id' => $consumerId,
+                    'food_listing_id' => $order->food_listing_id,
+                    'establishment_id' => $order->establishment_id,
+                    'rating' => $request->rating,
+                    'description' => $request->description,
+                    'image_path' => $imagePath,
+                    'video_path' => $videoPath,
+                ]);
+            }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Review submitted successfully',
+                'message' => $isUpdate ? 'Review updated successfully' : 'Review submitted successfully',
                 'review' => [
                     'rating' => $review->rating,
                     'description' => $review->description,
-                    'image_path' => $review->image_path,
-                    'video_path' => $review->video_path,
+                    'image_path' => $review->image_path ? Storage::url($review->image_path) : null,
+                    'video_path' => $review->video_path ? Storage::url($review->video_path) : null,
                     'created_at' => $review->created_at->format('M d, Y'),
                 ]
             ]);
@@ -828,6 +858,67 @@ class FoodListingController extends Controller
                 'message' => 'Failed to submit review: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Cancel an order (consumer)
+     */
+    public function cancelOrder(Request $request, $id)
+    {
+        if (!session('user_id') || session('user_type') !== 'consumer') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $consumerId = session('user_id');
+        $order = Order::with('foodListing')
+            ->where('id', $id)
+            ->where('consumer_id', $consumerId)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found or cannot be cancelled'
+            ], 404);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Release stock: move from reserved/sold back to available
+            if ($order->foodListing) {
+                $foodListing = $order->foodListing;
+                
+                // If order was accepted, move from sold back to available
+                if ($order->status === 'accepted') {
+                    $foodListing->sold_stock = max(0, ($foodListing->sold_stock ?? 0) - $order->quantity);
+                    $foodListing->quantity += $order->quantity;
+                } else {
+                    // If order was pending, move from reserved back to available
+                    $foodListing->reserved_stock = max(0, ($foodListing->reserved_stock ?? 0) - $order->quantity);
+                }
+                $foodListing->save();
+            }
+
+            // Update order status
+            $order->status = 'cancelled';
+            $order->cancelled_at = now();
+            $order->cancellation_reason = $request->input('reason', 'Cancelled by customer');
+            $order->save();
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel order: ' . $e->getMessage()
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order cancelled successfully'
+        ]);
     }
 
     /**

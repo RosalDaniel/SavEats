@@ -922,17 +922,45 @@ searchInputElement?.addEventListener('input', (e) => {
 
 // Responsive handling
 function handleResize() {
-    if (window.innerWidth > 768) {
-        closeMobileMenu();
+    try {
+        if (window.innerWidth > 768) {
+            // Check if closeMobileMenu function exists
+            if (typeof closeMobileMenu === 'function') {
+                closeMobileMenu();
+            } else {
+                // Try to close menu manually if function doesn't exist
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('overlay');
+                if (sidebar) {
+                    sidebar.classList.remove('mobile-visible');
+                }
+                if (overlay) {
+                    overlay.classList.remove('active');
+                }
+                document.body.style.overflow = '';
+                const mainContent = document.getElementById('mainContent');
+                if (mainContent) {
+                    mainContent.style.overflow = '';
+                }
+            }
+        }
+        
+        // Close any open dropdowns on resize
+        document.querySelectorAll('.actions-menu.show').forEach(menu => {
+            menu.classList.remove('show');
+        });
+    } catch (error) {
+        console.error('Resize handler error:', error);
+        // Don't show error notification for resize errors
     }
-    
-    // Close any open dropdowns on resize
-    document.querySelectorAll('.actions-menu.show').forEach(menu => {
-        menu.classList.remove('show');
-    });
 }
 
-window.addEventListener('resize', handleResize);
+// Debounce resize handler to prevent too many calls
+let resizeTimeout;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(handleResize, 150);
+});
 
 // Initialize animations and functionality
 document.addEventListener('DOMContentLoaded', () => {
@@ -970,10 +998,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Error boundary for production
+// Error boundary for production - only catch unhandled errors
 window.addEventListener('error', (e) => {
     console.error('Application error:', e.error);
-    showNotification('An error occurred. Please refresh the page.', 'error');
+    
+    // Don't show error for resize-related issues or expected errors
+    const errorMessage = e.error?.message || e.message || '';
+    const isResizeError = errorMessage.includes('resize') || 
+                         errorMessage.includes('Resize') ||
+                         e.filename?.includes('resize');
+    
+    // Don't show error for null reference errors that might be expected
+    const isNullReference = errorMessage.includes('null') || 
+                           errorMessage.includes('undefined') ||
+                           errorMessage.includes('Cannot read');
+    
+    // Only show notification for unexpected errors
+    if (!isResizeError && !isNullReference && e.error) {
+        // Check if showNotification exists before calling
+        if (typeof showNotification === 'function') {
+            showNotification('An error occurred. Please refresh the page.', 'error');
+        }
+    }
 });
 
 // View Details Modal functionality

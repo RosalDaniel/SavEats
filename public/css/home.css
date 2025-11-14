@@ -64,6 +64,7 @@ body::before {
     display: flex;
     list-style: none;
     align-items: center;
+    gap: 20px;
 }
 
 .nav-link {

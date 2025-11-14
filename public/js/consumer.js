@@ -176,11 +176,37 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Handle window resize
+// Handle window resize with error handling
+let resizeTimeout;
 window.addEventListener('resize', () => {
-    if (window.innerWidth > 768) {
-        closeMobileMenu();
-    }
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        try {
+            if (window.innerWidth > 768) {
+                if (typeof closeMobileMenu === 'function') {
+                    closeMobileMenu();
+                } else {
+                    // Try to close menu manually if function doesn't exist
+                    const sidebar = document.getElementById('sidebar');
+                    const overlay = document.getElementById('overlay');
+                    if (sidebar) {
+                        sidebar.classList.remove('mobile-visible');
+                    }
+                    if (overlay) {
+                        overlay.classList.remove('active');
+                    }
+                    document.body.style.overflow = '';
+                    const mainContent = document.getElementById('mainContent');
+                    if (mainContent) {
+                        mainContent.style.overflow = '';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Resize handler error:', error);
+            // Don't show error notification for resize errors
+        }
+    }, 150);
 });
 
 // Add touch support for mobile

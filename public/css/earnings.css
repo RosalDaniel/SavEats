@@ -388,33 +388,329 @@
 }
 
 @media (max-width: 768px) {
+    .total-earnings-card {
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .total-earnings-label {
+        font-size: 13px;
+    }
+    
+    .total-earnings-amount {
+        font-size: 36px;
+    }
+    
+    .earnings-container {
+        gap: 16px;
+    }
+    
+    .items-sold-section {
+        padding: 20px;
+        overflow-x: hidden;
+    }
+    
     .items-sold-header {
-        flex-direction: column;
-        gap: 12px;
-        align-items: flex-start;
-    }
-    
-    .trends-header {
-        flex-direction: column;
-        gap: 12px;
-        align-items: flex-start;
-    }
-    
-    .time-tabs {
-        width: 100%;
+        flex-direction: row;
         justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
     }
     
-    .chart-container {
-        height: 250px;
+    .items-sold-title {
+        font-size: 20px;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .filter-controls {
+        flex-shrink: 0;
+        gap: 6px;
+    }
+    
+    .filter-btn {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .search-container,
+    .date-container {
+        margin-bottom: 12px;
+    }
+    
+    .search-input,
+    .date-input {
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+    
+    /* Table Responsive Styles */
+    .orders-table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .orders-table thead {
+        display: none;
+    }
+    
+    .orders-table tbody {
+        display: block;
+        width: 100%;
+    }
+    
+    .table-row {
+        display: block;
+        margin-bottom: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .table-row:hover {
+        background: white;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+    
+    .table-row td {
+        display: block;
+        padding: 8px 0;
+        text-align: left;
+        border: none;
+        font-size: 14px;
+    }
+    
+    .table-row td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #2d5016;
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .order-id {
+        font-size: 16px;
+        margin-bottom: 4px;
+    }
+    
+    .item-name {
+        font-size: 15px;
+    }
+    
+    .item-name small {
+        display: block;
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+    
+    .amount {
+        font-size: 18px;
+        font-weight: 700;
+    }
+    
+    .payment-mode {
+        font-size: 14px;
+    }
+    
+    /* Empty state row */
+    .table-row td[colspan] {
+        display: block;
+        text-align: center;
+        padding: 20px;
+        color: #6c757d;
+    }
+    
+    .table-row td[colspan]:before {
+        display: none;
     }
     
     .pagination {
         flex-direction: column;
         gap: 12px;
+        align-items: stretch;
+        margin-top: 16px;
     }
     
     .pagination-nav {
         order: -1;
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    .pagination-nav a {
+        padding: 10px 16px;
+        font-size: 14px;
+        border: 1px solid #2d5016;
+        border-radius: 6px;
+        background: white;
+        transition: all 0.2s ease;
+    }
+    
+    .pagination-nav a:hover {
+        background: #2d5016;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .pagination-links {
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    
+    .pagination-link {
+        padding: 8px 12px;
+        min-width: 40px;
+        text-align: center;
+    }
+    
+    .trends-section {
+        padding: 20px;
+    }
+    
+    .trends-header {
+        flex-direction: row;
+        justify-content: flex-end;
+        margin-bottom: 16px;
+    }
+    
+    .export-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    
+    .time-tabs {
+        width: 100%;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+    
+    .time-tab {
+        flex: 1;
+        padding: 10px 12px;
+        font-size: 13px;
+        text-align: center;
+    }
+    
+    .chart-title {
+        font-size: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .chart-container {
+        height: 250px;
+        padding: 16px;
+    }
+    
+    .chart-legend {
+        margin-top: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .total-earnings-card {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .total-earnings-label {
+        font-size: 12px;
+        margin-bottom: 6px;
+    }
+    
+    .total-earnings-amount {
+        font-size: 28px;
+    }
+    
+    .items-sold-section,
+    .trends-section {
+        padding: 16px;
+        border-radius: 10px;
+    }
+    
+    .items-sold-title {
+        font-size: 18px;
+    }
+    
+    .filter-btn {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .filter-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .search-input,
+    .date-input {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    
+    .table-row {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .table-row td {
+        padding: 6px 0;
+        font-size: 13px;
+    }
+    
+    .order-id {
+        font-size: 15px;
+    }
+    
+    .item-name {
+        font-size: 14px;
+    }
+    
+    .amount {
+        font-size: 16px;
+    }
+    
+    .pagination-nav a {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    .pagination-link {
+        padding: 6px 10px;
+        font-size: 13px;
+        min-width: 36px;
+    }
+    
+    .export-btn {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+    
+    .time-tab {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+    
+    .chart-title {
+        font-size: 14px;
+    }
+    
+    .chart-container {
+        height: 200px;
+        padding: 12px;
+    }
+    
+    .legend-text {
+        font-size: 13px;
     }
 }

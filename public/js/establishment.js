@@ -225,13 +225,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Responsive handling
     function handleResize() {
-        if (window.innerWidth > 768) {
-            closeMobileMenu();
-            sidebar.classList.remove('mobile-hidden');
+        try {
+            if (window.innerWidth > 768) {
+                if (typeof closeMobileMenu === 'function') {
+                    closeMobileMenu();
+                }
+                if (sidebar) {
+                    sidebar.classList.remove('mobile-hidden');
+                }
+            }
+        } catch (error) {
+            console.error('Resize handler error:', error);
+            // Don't show error notification for resize errors
         }
     }
 
-    window.addEventListener('resize', handleResize);
+    // Debounce resize handler to prevent too many calls
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(handleResize, 150);
+    });
 
     // Simulate loading states
     function simulateLoading(button, duration = 1000) {

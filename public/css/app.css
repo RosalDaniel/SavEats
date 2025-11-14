@@ -4,10 +4,13 @@
     margin-left: 250px;
     min-height: 100vh;
     transition: margin-left 0.3s ease;
+    position: relative;
+    width: calc(100% - 250px);
 }
 
 .main-content.expanded {
     margin-left: 0;
+    width: 100%;
 }
 
 /* Header */
@@ -101,6 +104,15 @@
     }
     .main-content {
         margin-left: 0;
+        width: 100%;
+        position: relative;
+        transition: none;
+    }
+    
+    /* Prevent main content from shifting when sidebar opens */
+    .main-content {
+        transform: none !important;
+        margin-left: 0 !important;
     }
     .menu-toggle {
         display: block;
@@ -155,9 +167,11 @@
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
 }
 
 .overlay.active {
     display: block;
+    opacity: 1;
 }

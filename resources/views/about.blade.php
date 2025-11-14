@@ -16,7 +16,7 @@
                 <div class="team-member">
                     <div class="member-avatar"></div>
                     <h3 class="member-name">Marson, Jomari C.</h3>
-                    <p class="member-role">Project Manager & Programmer</p>
+                    <p class="member-role">Project Manager</p>
                 </div>
 
                 <div class="team-member">

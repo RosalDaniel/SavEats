@@ -64,6 +64,7 @@
     color: #333;
     margin: 0;
     font-family: 'Afacad', sans-serif;
+    text-align: left;
 }
 
 /* Profile Picture Section */
@@ -122,12 +123,25 @@
 .edit-btn.secondary {
     background: #236816;
     color: white;
-    padding: 8px;
+    padding: 0;
     border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .edit-btn.secondary:hover {
     background: #3a6b4a;
+}
+
+.edit-btn.secondary svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
 }
 
 /* Form Groups */
@@ -449,11 +463,12 @@
     .profile-card {
         padding: 20px;
         margin-bottom: 15px;
+        border-radius: 10px;
     }
     
     .profile-layout {
         flex-direction: column;
-        gap: 30px;
+        gap: 25px;
         align-items: center;
     }
     
@@ -461,6 +476,13 @@
         flex: none;
         width: 100%;
         max-width: 200px;
+        align-items: center;
+    }
+    
+    .profile-picture-column h3 {
+        align-self: center;
+        text-align: center;
+        margin-bottom: 10px;
     }
     
     .profile-info-column {
@@ -473,8 +495,22 @@
         padding-bottom: 20px;
     }
     
+    .section-header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        gap: 10px;
+    }
+    
     .section-title {
         font-size: 16px;
+        flex: 1;
+    }
+    
+    .edit-btn.secondary {
+        padding: 6px 10px;
+        flex-shrink: 0;
     }
     
     .profile-picture {
@@ -489,10 +525,11 @@
     .edit-btn {
         padding: 8px 16px;
         font-size: 13px;
+        width: 100%;
     }
     
-    .edit-btn.secondary {
-        padding: 6px;
+    .form-group {
+        margin-bottom: 18px;
     }
     
     .form-group input {
@@ -500,14 +537,83 @@
         font-size: 13px;
     }
     
+    .file-upload-display {
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+    
+    .file-upload-text {
+        font-size: 13px;
+        word-break: break-word;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .file-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .modal-content {
+        width: 95%;
+        max-width: 95%;
+        margin: 10px;
+    }
+    
+    .modal-header {
+        padding: 20px 20px 15px 20px;
+    }
+    
+    .modal-title {
+        font-size: 16px;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
     .modal-footer {
         flex-direction: column;
         gap: 10px;
+        padding: 15px 20px 20px 20px;
+    }
+    
+    .modal-footer .btn {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 14px;
     }
     
     .btn {
         padding: 10px 25px;
         font-size: 13px;
+    }
+    
+    .delete-account-section {
+        margin-top: 30px;
+        padding-top: 20px;
+    }
+    
+    .delete-warning {
+        font-size: 13px;
+    }
+    
+    .btn-danger {
+        width: 100%;
+        align-self: stretch;
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+    
+    .notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        transform: translateY(-100%);
+    }
+    
+    .notification.show {
+        transform: translateY(0);
     }
 }
 
@@ -519,6 +625,7 @@
     .profile-card {
         padding: 15px;
         border-radius: 8px;
+        margin-bottom: 10px;
     }
     
     .profile-layout {
@@ -529,19 +636,37 @@
         max-width: 150px;
     }
     
+    .profile-picture-column h3 {
+        font-size: 16px;
+    }
+    
     .profile-section {
         margin-bottom: 25px;
         padding-bottom: 15px;
     }
     
     .section-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
     }
     
     .section-title {
         font-size: 15px;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .edit-btn.secondary {
+        padding: 6px 8px;
+        flex-shrink: 0;
+    }
+    
+    .edit-btn.secondary svg {
+        width: 14px;
+        height: 14px;
     }
     
     .profile-picture {
@@ -554,8 +679,9 @@
     }
     
     .edit-btn {
-        padding: 6px 12px;
+        padding: 10px 16px;
         font-size: 12px;
+        width: 100%;
     }
     
     .form-group {
@@ -563,41 +689,105 @@
     }
     
     .form-group input {
-        padding: 8px 12px;
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    
+    .file-upload-display {
+        padding: 10px 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .file-upload-text {
         font-size: 12px;
+        word-break: break-word;
+    }
+    
+    .file-icon {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .file-upload-icon {
+        width: 14px;
+        height: 14px;
     }
     
     .modal-content {
         width: 95%;
-        margin: 20px;
+        max-width: 95%;
+        margin: 10px;
+        max-height: 95vh;
     }
     
     .modal-header {
-        padding: 20px 20px 15px 20px;
+        padding: 15px 15px 12px 15px;
+    }
+    
+    .modal-title {
+        font-size: 14px;
     }
     
     .modal-body {
-        padding: 20px;
+        padding: 15px;
     }
     
     .modal-footer {
-        padding: 15px 20px 20px 20px;
+        padding: 12px 15px 15px 15px;
+        gap: 8px;
+    }
+    
+    .modal-footer .btn {
+        padding: 10px 18px;
+        font-size: 13px;
     }
     
     .btn {
-        padding: 8px 20px;
-        font-size: 12px;
+        padding: 10px 18px;
+        font-size: 13px;
     }
     
     .upload-controls {
         flex-direction: column;
         gap: 10px;
+        width: 100%;
     }
     
     .upload-photo-btn,
     .save-changes-btn {
         width: 100%;
         justify-content: center;
+        padding: 10px 20px;
+        font-size: 13px;
+    }
+    
+    .profile-picture-frame {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .profile-placeholder-preview {
+        font-size: 36px;
+    }
+    
+    .upload-instruction {
+        font-size: 12px;
+    }
+    
+    .delete-account-section {
+        margin-top: 25px;
+        padding-top: 15px;
+    }
+    
+    .delete-warning {
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    
+    .btn-danger {
+        padding: 10px 18px;
+        font-size: 13px;
     }
 }
 
@@ -684,6 +874,8 @@
     cursor: pointer;
     transition: all 0.3s ease;
     font-family: 'Afacad', sans-serif;
+    gap: 10px;
+    min-width: 0;
 }
 
 .file-upload-display:hover {
@@ -695,11 +887,16 @@
     color: #666;
     font-size: 14px;
     font-weight: 400;
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .file-upload-icon {
     color: #4A7C59;
     transition: transform 0.3s ease;
+    flex-shrink: 0;
 }
 
 .file-upload-display:hover .file-upload-icon {
@@ -728,15 +925,49 @@
     flex-shrink: 0;
 }
 
-@media (max-width: 768px) {
-    .notification {
-        top: 10px;
-        right: 10px;
-        left: 10px;
-        transform: translateY(-100%);
-    }
-    
-    .notification.show {
-        transform: translateY(0);
-    }
+/* Delete Account Section */
+.delete-account-section {
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 2px solid #e5e5e5;
+}
+
+.delete-account-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.delete-warning {
+    color: #6c757d;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.btn-danger {
+    background: #DD5D36;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    align-self: flex-start;
+    font-family: 'Afacad', sans-serif;
+}
+
+.btn-danger:hover {
+    background: #C02121;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(221, 93, 54, 0.3);
+}
+
+.btn-danger:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    opacity: 0.6;
 }

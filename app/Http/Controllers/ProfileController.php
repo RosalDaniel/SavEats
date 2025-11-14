@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\Consumer;
 use App\Models\Establishment;
 use App\Models\Foodbank;
+use Illuminate\Support\Facades\DB;
 
 class ProfileController extends Controller
 {
@@ -296,6 +297,58 @@ class ProfileController extends Controller
             'profile_picture' => $user->profile_image ?? $user->avatar ?? null,
             'user_type' => $userType
         ];
+    }
+
+    /**
+     * Request account deletion
+     */
+    public function requestAccountDeletion(Request $request)
+    {
+        $userId = Session::get('user_id');
+        $userType = Session::get('user_type');
+        
+        if (!$userId || !$userType) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        // Check if there's already a pending request
+        $existingRequest = DB::table('account_deletion_requests')
+            ->where('user_id', $userId)
+            ->where('user_type', $userType)
+            ->where('status', 'pending')
+            ->first();
+
+        if ($existingRequest) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You already have a pending deletion request. Please wait for admin approval.'
+            ], 400);
+        }
+
+        try {
+            DB::table('account_deletion_requests')->insert([
+                'user_id' => $userId,
+                'user_type' => $userType,
+                'reason' => $request->input('reason'),
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Account deletion request submitted successfully. An admin will review your request.'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Account deletion request failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit deletion request: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

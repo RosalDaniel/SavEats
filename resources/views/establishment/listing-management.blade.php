@@ -231,9 +231,6 @@
                 <div class="form-group">
                     <div class="input-with-icon">
                         <input type="text" id="itemName" name="name" placeholder="Enter Item Name" required>
-                        <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                        </svg>
                     </div>
                 </div>
                 <div class="form-group">
@@ -246,9 +243,6 @@
                             <option value="packaged-goods">Packaged Goods</option>
                             <option value="beverages">Beverages</option>
                         </select>
-                        <svg class="input-icon dropdown-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M7 10l5 5 5-5z"/>
-                        </svg>
                     </div>
                 </div>
                 <div class="form-group">
@@ -270,9 +264,6 @@
                 <div class="form-group">
                     <div class="input-with-icon">
                         <input type="number" id="itemOriginalPrice" name="original_price" placeholder="Enter Original Price" min="0" step="0.01">
-                        <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                        </svg>
                     </div>
                 </div>
                 <div class="form-group">
@@ -285,17 +276,11 @@
                             <option value="40">40%</option>
                             <option value="50">50%</option>
                         </select>
-                        <svg class="input-icon dropdown-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M7 10l5 5 5-5z"/>
-                        </svg>
                     </div>
                 </div>
                 <div class="form-group">
                     <div class="input-with-icon">
                         <input type="text" id="itemDiscountedPrice" name="discounted_price" placeholder="Automated Discounted Price" readonly>
-                        <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                        </svg>
                     </div>
                 </div>
             </div>
@@ -306,9 +291,6 @@
                 <div class="form-group">
                     <div class="input-with-icon">
                         <input type="date" id="itemExpiry" name="expiry" required>
-                        <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
-                        </svg>
                     </div>
                 </div>
             </div>
