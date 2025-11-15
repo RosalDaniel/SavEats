@@ -182,36 +182,54 @@
         <!-- Reviews and Ratings -->
         <div class="sidebar-card">
             <h3 class="section-title">Reviews and Ratings</h3>
+            @php
+                $reviewsData = $reviewsData ?? [
+                    'average_rating' => 0,
+                    'total_reviews' => 0,
+                    'positive_reviews' => 0,
+                    'negative_reviews' => 0,
+                    'reviews_this_month' => 0,
+                    'positive_percentage' => 0,
+                    'rating_text' => 'No reviews yet. Start selling to get reviews!',
+                ];
+                $avgRating = $reviewsData['average_rating'] ?? 0;
+                $fullStars = floor($avgRating);
+                $hasHalfStar = ($avgRating - $fullStars) >= 0.5;
+            @endphp
             <div class="rating-summary">
-                <div class="rating-score">4.6/5</div>
-                <div class="rating-stars">
-                    <span class="star">★</span>
-                    <span class="star">★</span>
-                    <span class="star">★</span>
-                    <span class="star">★</span>
-                    <span class="star empty">★</span>
+                <div class="rating-score" id="ratingScore">{{ $avgRating > 0 ? number_format($avgRating, 1) : '0.0' }}/5</div>
+                <div class="rating-stars" id="ratingStars">
+                    @for($i = 1; $i <= 5; $i++)
+                        @if($i <= $fullStars)
+                            <span class="star filled">★</span>
+                        @elseif($i == $fullStars + 1 && $hasHalfStar)
+                            <span class="star half">★</span>
+                        @else
+                            <span class="star empty">★</span>
+                        @endif
+                    @endfor
                 </div>
-                <div class="rating-text">You've received +2 reviews this month - 99% positive!</div>
+                <div class="rating-text" id="ratingText">{{ $reviewsData['rating_text'] ?? 'No reviews yet.' }}</div>
             </div>
             
             <div class="review-breakdown">
                 <div class="review-item">
                     <svg class="review-icon positive" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                     </svg>
                     <span>Positive Reviews</span>
                 </div>
-                <div class="review-count">38</div>
+                <div class="review-count" id="positiveReviewsCount">{{ $reviewsData['positive_reviews'] ?? 0 }}</div>
             </div>
             
             <div class="review-breakdown">
                 <div class="review-item">
                     <svg class="review-icon negative" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                        <path d="M12 2l-3.09 6.26L2 9.27l5 4.87-1.18 6.88L12 17.77l6.18 3.25L17 14.14l5-4.87-6.91-1.01L12 2z"/>
                     </svg>
                     <span>Negative Reviews</span>
                 </div>
-                <div class="review-count">4</div>
+                <div class="review-count" id="negativeReviewsCount">{{ $reviewsData['negative_reviews'] ?? 0 }}</div>
             </div>
         </div>
     </div>
@@ -229,5 +247,89 @@ function viewListing(itemId) {
     // Redirect to listing management and scroll to the item
     window.location.href = '{{ route("establishment.listing-management") }}?view=' + itemId;
 }
+
+// Real-time reviews and ratings updates
+(function() {
+    const ratingScore = document.getElementById('ratingScore');
+    const ratingStars = document.getElementById('ratingStars');
+    const ratingText = document.getElementById('ratingText');
+    const positiveReviewsCount = document.getElementById('positiveReviewsCount');
+    const negativeReviewsCount = document.getElementById('negativeReviewsCount');
+    
+    function updateRatings(data) {
+        if (!data) return;
+        
+        // Update rating score
+        if (ratingScore) {
+            const avgRating = data.average_rating || 0;
+            ratingScore.textContent = avgRating > 0 ? parseFloat(avgRating).toFixed(1) + '/5' : '0.0/5';
+        }
+        
+        // Update stars
+        if (ratingStars) {
+            const avgRating = data.average_rating || 0;
+            const fullStars = Math.floor(avgRating);
+            const hasHalfStar = (avgRating - fullStars) >= 0.5;
+            
+            let starsHTML = '';
+            for (let i = 1; i <= 5; i++) {
+                if (i <= fullStars) {
+                    starsHTML += '<span class="star filled">★</span>';
+                } else if (i === fullStars + 1 && hasHalfStar) {
+                    starsHTML += '<span class="star half">★</span>';
+                } else {
+                    starsHTML += '<span class="star empty">★</span>';
+                }
+            }
+            ratingStars.innerHTML = starsHTML;
+        }
+        
+        // Update rating text
+        if (ratingText) {
+            ratingText.textContent = data.rating_text || 'No reviews yet.';
+        }
+        
+        // Update counts
+        if (positiveReviewsCount) {
+            positiveReviewsCount.textContent = data.positive_reviews || 0;
+        }
+        if (negativeReviewsCount) {
+            negativeReviewsCount.textContent = data.negative_reviews || 0;
+        }
+    }
+    
+    function fetchRatings() {
+        fetch('{{ route("establishment.dashboard.ratings") }}', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateRatings(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching ratings:', error);
+        });
+    }
+    
+    // Fetch ratings on page load
+    fetchRatings();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(fetchRatings, 30000);
+    
+    // Also refresh when the page becomes visible (user switches back to tab)
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            fetchRatings();
+        }
+    });
+})();
 </script>
 @endsection

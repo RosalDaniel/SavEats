@@ -65,6 +65,14 @@
             </a>
         </li>
         <li class="nav-item">
+            <a href="{{ route('establishment.donation-history') }}" class="nav-link {{ request()->routeIs('establishment.donation-history') ? 'active' : '' }}">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                </svg>
+                Donation History
+            </a>
+        </li>
+        <li class="nav-item">
             <a href="{{ route('establishment.impact-reports') }}" class="nav-link {{ request()->routeIs('establishment.impact-reports') ? 'active' : '' }}">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>

@@ -197,69 +197,39 @@
 /* Right Sidebar - Chart */
 .chart-section {
     background: white;
-    border-radius: 15px;
-    padding: 25px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .chart-container {
-    margin-top: 20px;
-    height: 300px;
     position: relative;
-}
-
-.chart-bars {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-around;
-    height: 250px;
-    gap: 8px;
-    padding: 0 10px;
-}
-
-.chart-bar {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-}
-
-.bar {
+    height: 400px;
+    margin-bottom: 20px;
     width: 100%;
-    background: linear-gradient(180deg, #ffc107 0%, #ffa726 100%);
-    border-radius: 6px 6px 0 0;
-    transition: all 0.3s ease;
-    position: relative;
-}
-
-.bar:hover {
-    filter: brightness(1.1);
-    transform: translateY(-2px);
-}
-
-.bar-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #666;
-    text-transform: uppercase;
+    overflow: hidden;
 }
 
 .chart-legend {
     display: flex;
-    align-items: center;
     justify-content: center;
-    margin-top: 20px;
+    align-items: center;
     gap: 8px;
-    font-size: 13px;
-    color: #666;
 }
 
-.legend-dot {
-    width: 10px;
-    height: 10px;
-    background: #ffa726;
-    border-radius: 50%;
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    background: #ffd700;
+    border-radius: 2px;
 }
 
 /* Loading Animation */
@@ -307,8 +277,22 @@
         flex-direction: column;
     }
 
-    .chart-bars {
-        gap: 4px;
+    .chart-section {
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .chart-container {
+        height: 280px;
+        margin-bottom: 15px;
+    }
+
+    .chart-legend {
+        justify-content: flex-start;
+    }
+
+    .legend-item {
+        font-size: 12px;
     }
 }
 
@@ -328,5 +312,24 @@
     .donation-header {
         flex-direction: column;
         gap: 10px;
+    }
+
+    .chart-section {
+        padding: 18px;
+        border-radius: 10px;
+    }
+
+    .chart-container {
+        height: 240px;
+        margin-bottom: 12px;
+    }
+
+    .legend-item {
+        font-size: 11px;
+    }
+
+    .legend-color {
+        width: 14px;
+        height: 14px;
     }
 }

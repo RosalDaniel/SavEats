@@ -84,6 +84,66 @@
             <!-- Pagination will be dynamically inserted here -->
         </div>
     </div>
+
+    <!-- Establishment Donations Section -->
+    <div class="establishment-donations-section">
+        <div class="section-header">
+            <h3 class="section-title">Donation Offers from Establishments</h3>
+            <span id="establishmentDonationsCount">{{ count($establishmentDonations ?? []) }} Offer{{ count($establishmentDonations ?? []) !== 1 ? 's' : '' }}</span>
+        </div>
+
+        <div class="establishment-donations-container">
+            @forelse($establishmentDonations ?? [] as $donation)
+            <div class="establishment-donation-card {{ $donation['is_urgent'] ? 'urgent' : '' }} {{ $donation['is_nearing_expiry'] ? 'nearing-expiry' : '' }}" data-id="{{ $donation['id'] }}">
+                <div class="donation-card-header">
+                    <div class="donation-card-id">
+                        <span class="donation-number">{{ $donation['donation_number'] }}</span>
+                        @if($donation['is_urgent'])
+                            <span class="badge badge-urgent">Urgent</span>
+                        @endif
+                        @if($donation['is_nearing_expiry'])
+                            <span class="badge badge-expiry">Expiring Soon</span>
+                        @endif
+                    </div>
+                    <span class="status-badge status-{{ $donation['status'] }}">{{ $donation['status_display'] }}</span>
+                </div>
+                <div class="donation-card-body">
+                    <div class="donation-card-info">
+                        <div class="info-row">
+                            <span class="info-label">Establishment:</span>
+                            <span class="info-value">{{ $donation['establishment_name'] }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Item:</span>
+                            <span class="info-value">{{ $donation['item_name'] }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Category:</span>
+                            <span class="info-value">{{ ucfirst($donation['category']) }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Quantity:</span>
+                            <span class="info-value">{{ $donation['quantity'] }} {{ $donation['unit'] }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Scheduled Date:</span>
+                            <span class="info-value">{{ $donation['scheduled_date_display'] }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="donation-card-actions">
+                    <button class="btn-action btn-view" onclick="viewEstablishmentDonationDetails('{{ $donation['id'] }}')">View Details</button>
+                    <button class="btn-action btn-accept" onclick="acceptDonation('{{ $donation['id'] }}')">Accept</button>
+                    <button class="btn-action btn-decline" onclick="declineDonation('{{ $donation['id'] }}')">Decline</button>
+                </div>
+            </div>
+            @empty
+            <div class="no-donations">
+                <p>No donation offers from establishments at this time.</p>
+            </div>
+            @endforelse
+        </div>
+    </div>
 </div>
 
 <!-- Publish Request Modal -->
@@ -286,6 +346,103 @@
     </div>
 </div>
 
+<!-- Preview Modal -->
+<div class="modal-overlay" id="previewModal">
+    <div class="modal modal-preview">
+        <div class="preview-container">
+            <h1 class="preview-title">PREVIEW</h1>
+            
+            <!-- Foodbank Header -->
+            <div class="preview-foodbank-header">
+                <div class="foodbank-logo">
+                    <div class="logo-icon">🏢</div>
+                    <div class="logo-text">
+                        <span class="logo-text-top">{{ strtoupper(explode(' ', $user->organization_name ?? session('user_name', 'Food Bank'))[0] ?? 'CEBU') }}</span>
+                        <span class="logo-text-bottom">FO<span class="logo-icon-inline">🍴</span>D BANK</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Content -->
+            <div class="preview-content">
+                <!-- Item Details -->
+                <div class="preview-section">
+                    <div class="preview-row">
+                        <span class="preview-label">Item Name</span>
+                        <span class="preview-value" id="previewItemName">-</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">Quantity</span>
+                        <span class="preview-value" id="previewQuantity">-</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">Item Category</span>
+                        <span class="preview-value" id="previewCategory">-</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">Description</span>
+                        <span class="preview-value" id="previewDescription">-</span>
+                    </div>
+                </div>
+
+                <!-- Distribution/Availability -->
+                <div class="preview-section">
+                    <div class="preview-row">
+                        <span class="preview-label">Distribution Zones</span>
+                        <span class="preview-value" id="previewDistributionZone">-</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">Day Available</span>
+                        <span class="preview-value" id="previewDayAvailable">-</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">Start Time</span>
+                        <span class="preview-value" id="previewStartTime">-</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">End Time</span>
+                        <span class="preview-value" id="previewEndTime">-</span>
+                    </div>
+                </div>
+
+                <!-- Location & Logistics -->
+                <div class="preview-section">
+                    <div class="preview-row">
+                        <span class="preview-label">Address</span>
+                        <span class="preview-value" id="previewAddress">-</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">Delivery Method</span>
+                        <span class="preview-value" id="previewDeliveryMethod">-</span>
+                    </div>
+                </div>
+
+                <!-- Contact Details -->
+                <div class="preview-section">
+                    <div class="preview-row">
+                        <span class="preview-label">Email Address</span>
+                        <span class="preview-value" id="previewEmail">-</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">Name of Contact Person</span>
+                        <span class="preview-value" id="previewContactName">-</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">Phone Number</span>
+                        <span class="preview-value" id="previewPhoneNumber">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="preview-actions">
+                <button class="btn btn-cancel" id="cancelPreview">Cancel</button>
+                <button class="btn btn-confirm" id="confirmPreview">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Edit Request Modal -->
 <div class="modal-overlay" id="editModal">
     <div class="modal">
@@ -321,11 +478,30 @@
         </div>
     </div>
 </div>
+
+<!-- Establishment Donation Details Modal -->
+<div class="modal-overlay" id="establishmentDonationModal">
+    <div class="modal modal-donation-details">
+        <div class="modal-header">
+            <h2 id="modalDonationNumber">Donation Details</h2>
+            <button class="modal-close" id="closeEstablishmentDonationModal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body" id="establishmentDonationModalBody">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="closeEstablishmentDonationModalBtn">Close</button>
+            <button class="btn btn-decline" id="modalDeclineBtn">Decline</button>
+            <button class="btn btn-accept" id="modalAcceptBtn">Accept</button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
 <script>
     window.donationRequests = @json($donationRequests ?? []);
+    window.establishmentDonations = @json($establishmentDonations ?? []);
 </script>
 <script src="{{ asset('js/donation-request.js') }}"></script>
 @endsection

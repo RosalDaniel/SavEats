@@ -3,6 +3,14 @@
 (function() {
     'use strict';
 
+    // Escape HTML helper function
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     // Initialize partners data from window object or use default
     let partners = window.partners || [
         { id: 1, name: 'Joy Grocery Store', type: 'grocery', location: '31 Luna Street, Cebu City', rating: 4.8, donations: 45, impact: 120 },
@@ -40,8 +48,11 @@
                 `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`
             ).join('');
             
+            // Escape HTML and handle UUID strings
+            const partnerId = typeof p.id === 'string' ? `'${p.id}'` : p.id;
+            
             return `
-                <div class="partner-card" onclick="window.showPartnerDetails(${p.id})">
+                <div class="partner-card" onclick="window.showPartnerDetails('${p.id}')">
                     <div class="partner-image">
                         <svg viewBox="0 0 24 24">
                             <path d="M18 6h-2c0-2.21-1.79-4-4-4S8 3.79 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2zm6 16H6V8h2v2c0 .55.45 1 1 1s1-.45 1-1V8h4v2c0 .55.45 1 1 1s1-.45 1-1V8h2v12z"/>
@@ -49,10 +60,10 @@
                         <span class="partner-type-badge ${p.type}">${p.type}</span>
                     </div>
                     <div class="partner-content">
-                        <div class="partner-name">${p.name}</div>
+                        <div class="partner-name">${escapeHtml(p.name)}</div>
                         <div class="partner-location">
                             <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                            ${p.location}
+                            ${escapeHtml(p.location)}
                         </div>
                         <div class="partner-rating">
                             <div class="stars">${stars}</div>
@@ -69,8 +80,8 @@
                             </div>
                         </div>
                         <div class="partner-actions">
-                            <button class="btn btn-primary" onclick="event.stopPropagation(); window.showPartnerDetails(${p.id})">View Details</button>
-                            <button class="btn btn-secondary" onclick="event.stopPropagation(); window.contactPartner(${p.id})">Contact</button>
+                            <button class="btn btn-primary" onclick="event.stopPropagation(); window.showPartnerDetails('${p.id}')">View Details</button>
+                            <button class="btn btn-secondary" onclick="event.stopPropagation(); window.contactPartner('${p.id}')">Contact</button>
                         </div>
                     </div>
                 </div>
@@ -80,8 +91,12 @@
 
     // Show partner details modal
     window.showPartnerDetails = function(id) {
-        const partner = partners.find(p => p.id === id);
-        if (!partner) return;
+        const partner = partners.find(p => p.id === id || p.id === String(id));
+        if (!partner) {
+            console.error('Partner not found with id:', id);
+            showToast('Partner not found', 'error');
+            return;
+        }
         
         const modalTitle = document.getElementById('modalTitle');
         const modalBody = document.getElementById('modalBody');
@@ -90,6 +105,7 @@
         if (!modalTitle || !modalBody || !detailModal) return;
         
         modalTitle.textContent = partner.name;
+        
         modalBody.innerHTML = `
             <div class="partner-detail-image">
                 <svg viewBox="0 0 24 24">
@@ -98,25 +114,34 @@
             </div>
             <div class="detail-section">
                 <h3>Business Information</h3>
-                <div class="detail-row"><span class="detail-label">Type:</span><span class="detail-value">${partner.type.charAt(0).toUpperCase() + partner.type.slice(1)}</span></div>
-                <div class="detail-row"><span class="detail-label">Location:</span><span class="detail-value">${partner.location}</span></div>
+                <div class="detail-row"><span class="detail-label">Business Name:</span><span class="detail-value">${escapeHtml(partner.name)}</span></div>
+                <div class="detail-row"><span class="detail-label">Type:</span><span class="detail-value">${partner.type ? partner.type.charAt(0).toUpperCase() + partner.type.slice(1) : 'N/A'}</span></div>
+                <div class="detail-row"><span class="detail-label">Location:</span><span class="detail-value">${escapeHtml(partner.location)}</span></div>
+                <div class="detail-row"><span class="detail-label">Owner:</span><span class="detail-value">${escapeHtml(partner.owner || 'N/A')}</span></div>
+                <div class="detail-row"><span class="detail-label">Email:</span><span class="detail-value">${escapeHtml(partner.email || 'N/A')}</span></div>
+                <div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value">${escapeHtml(partner.phone || 'N/A')}</span></div>
                 <div class="detail-row"><span class="detail-label">Rating:</span><span class="detail-value">${partner.rating} ⭐</span></div>
             </div>
             <div class="detail-section">
                 <h3>Partnership Statistics</h3>
-                <div class="detail-row"><span class="detail-label">Total Donations:</span><span class="detail-value">${partner.donations}</span></div>
-                <div class="detail-row"><span class="detail-label">Meals Provided:</span><span class="detail-value">${partner.impact}</span></div>
-                <div class="detail-row"><span class="detail-label">Partnership Since:</span><span class="detail-value">January 2024</span></div>
+                <div class="detail-row"><span class="detail-label">Total Donations:</span><span class="detail-value">${partner.donations || 0}</span></div>
+                <div class="detail-row"><span class="detail-label">Meals Provided:</span><span class="detail-value">${partner.impact || 0}</span></div>
+                <div class="detail-row"><span class="detail-label">Partnership Since:</span><span class="detail-value">${partner.registered_at || 'N/A'}</span></div>
             </div>
         `;
+        
+        // Store partner ID for contact button
+        detailModal.dataset.partnerId = id;
         detailModal.classList.add('show');
     };
 
     // Contact partner
     window.contactPartner = function(id) {
-        const partner = partners.find(p => p.id === id);
+        const partner = partners.find(p => p.id === id || p.id === String(id));
         if (partner) {
             showToast(`Contact request sent to ${partner.name}`, 'success');
+        } else {
+            showToast('Partner not found', 'error');
         }
     };
 
@@ -165,20 +190,17 @@
     // Update stats
     function updateStats() {
         const totalPartners = document.getElementById('totalPartners');
-        const activeDonations = document.getElementById('activeDonations');
-        const totalImpact = document.getElementById('totalImpact');
         
-        if (totalPartners) {
-            totalPartners.textContent = partners.length;
-        }
-        
-        if (activeDonations) {
-            activeDonations.textContent = partners.reduce((sum, p) => sum + p.donations, 0);
-        }
-        
-        if (totalImpact) {
-            const total = partners.reduce((sum, p) => sum + p.impact, 0);
-            totalImpact.textContent = total >= 1000 ? (total / 1000).toFixed(1) + 'K' : total.toString();
+        // Use stats from backend if available, otherwise calculate from partners
+        if (window.stats) {
+            if (totalPartners) {
+                totalPartners.textContent = window.stats.totalPartners || partners.length;
+            }
+        } else {
+            // Fallback to calculating from partners
+            if (totalPartners) {
+                totalPartners.textContent = partners.length;
+            }
         }
     }
 

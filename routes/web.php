@@ -94,6 +94,7 @@ Route::middleware('custom.auth')->group(function () {
         
         // Dashboard - Standardized path: /establishment/dashboard
         Route::get('/dashboard', [EstablishmentController::class, 'dashboard'])->name('dashboard');
+        Route::get('/dashboard/ratings', [EstablishmentController::class, 'getRatings'])->name('dashboard.ratings');
         
         // Food Listing Management
         Route::get('/listing-management', [EstablishmentController::class, 'listingManagement'])->name('listing-management');
@@ -112,6 +113,9 @@ Route::middleware('custom.auth')->group(function () {
         Route::get('/earnings', [EstablishmentController::class, 'earnings'])->name('earnings');
         Route::get('/impact-reports', [EstablishmentController::class, 'impactReports'])->name('impact-reports');
         Route::get('/donation-hub', [EstablishmentController::class, 'donationHub'])->name('donation-hub');
+        Route::post('/donation-request', [EstablishmentController::class, 'storeDonationRequest'])->name('donation-request.store');
+        Route::get('/donation-history', [EstablishmentController::class, 'donationHistory'])->name('donation-history');
+        Route::get('/donation-history/export/{type}', [EstablishmentController::class, 'exportDonationHistory'])->name('donation-history.export');
         
         // Other Pages
         Route::get('/announcements', [EstablishmentController::class, 'announcements'])->name('announcements');
@@ -129,11 +133,22 @@ Route::middleware('custom.auth')->group(function () {
         
         // Donation Request
         Route::get('/donation-request', [DashboardController::class, 'donationRequest'])->name('donation-request');
+        Route::post('/donation-request', [DashboardController::class, 'storeDonationRequest'])->name('donation-request.store');
+        Route::post('/donation-request/accept/{donationId}', [DashboardController::class, 'acceptDonation'])->name('donation-request.accept');
+        Route::post('/donation-request/decline/{donationId}', [DashboardController::class, 'declineDonation'])->name('donation-request.decline');
         
         // Partner Network
         Route::get('/partner-network', [DashboardController::class, 'partnerNetwork'])->name('partner-network');
         
+        // Donation History
+        Route::get('/donation-history', [DashboardController::class, 'donationHistory'])->name('donation-history');
+        Route::get('/donation-history/export', [DashboardController::class, 'exportDonationHistory'])->name('donation-history.export');
+        
+        // Impact Reports
+        Route::get('/impact-reports', [DashboardController::class, 'foodbankImpactReports'])->name('impact-reports');
+        
         // Other Pages
+        Route::get('/announcements', [DashboardController::class, 'foodbankAnnouncements'])->name('announcements');
         Route::get('/help', [DashboardController::class, 'foodbankHelp'])->name('help');
         Route::get('/settings', [DashboardController::class, 'foodbankSettings'])->name('settings');
     });

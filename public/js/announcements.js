@@ -300,8 +300,14 @@ function handleActionButtonClick(button) {
     const buttonText = button.querySelector('span').textContent;
     
     if (buttonText.includes('Go to Food Listing')) {
-        // Redirect to food listing page
+        // Redirect to food listing page for consumers
         window.location.href = '/consumer/food-listing';
+    } else if (buttonText.includes('Go to Listing Management')) {
+        // Redirect to listing management for establishments
+        window.location.href = '/establishment/listing-management';
+    } else if (buttonText.includes('Go to Partner Network')) {
+        // Redirect to partner network for foodbanks
+        window.location.href = '/foodbank/partner-network';
     } else {
         // Handle other action buttons
         console.log('Action button clicked:', buttonText);

@@ -108,41 +108,14 @@
             <h3 class="section-title">WEEKLY FOOD RECEIVED</h3>
             
             <div class="chart-container">
-                <div class="chart-bars">
-                    <div class="chart-bar">
-                        <div class="bar" style="height: 15%;" data-value="10"></div>
-                        <div class="bar-label">M</div>
-                    </div>
-                    <div class="chart-bar">
-                        <div class="bar" style="height: 55%;" data-value="55"></div>
-                        <div class="bar-label">T</div>
-                    </div>
-                    <div class="chart-bar">
-                        <div class="bar" style="height: 100%;" data-value="100"></div>
-                        <div class="bar-label">W</div>
-                    </div>
-                    <div class="chart-bar">
-                        <div class="bar" style="height: 20%;" data-value="20"></div>
-                        <div class="bar-label">TH</div>
-                    </div>
-                    <div class="chart-bar">
-                        <div class="bar" style="height: 45%;" data-value="45"></div>
-                        <div class="bar-label">FRI</div>
-                    </div>
-                    <div class="chart-bar">
-                        <div class="bar" style="height: 70%;" data-value="70"></div>
-                        <div class="bar-label">SAT</div>
-                    </div>
-                    <div class="chart-bar">
-                        <div class="bar" style="height: 95%;" data-value="95"></div>
-                        <div class="bar-label">SUN</div>
-                    </div>
-                </div>
+                <canvas id="weeklyChart"></canvas>
             </div>
 
             <div class="chart-legend">
-                <div class="legend-dot"></div>
-                <span>Number of items saved</span>
+                <div class="legend-item">
+                    <div class="legend-color"></div>
+                    <span>Number of items received</span>
+                </div>
             </div>
         </div>
     </div>
@@ -150,5 +123,10 @@
 @endsection
 
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Pass chart data to JavaScript
+    window.weeklyChartData = @json($weeklyData ?? []);
+</script>
 <script src="{{ asset('js/foodbank-dashboard.js') }}"></script>
 @endsection

@@ -5,11 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\FoodListing;
 use App\Models\Establishment;
 use App\Models\Order;
+use App\Models\Donation;
+use App\Models\DonationRequest;
+use App\Models\Foodbank;
+use App\Models\Review;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class EstablishmentController extends Controller
 {
@@ -159,7 +164,131 @@ class EstablishmentController extends Controller
             ];
         }
         
-        return view('establishment.dashboard', compact('user', 'expiringItems', 'inventoryHealth', 'dashboardStats', 'pendingOrderData'));
+        // Fetch reviews and ratings data
+        $reviews = Review::where('establishment_id', $establishmentId)
+            ->with(['consumer'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Calculate rating statistics
+        $totalReviews = $reviews->count();
+        $averageRating = $totalReviews > 0 ? round($reviews->avg('rating'), 1) : 0;
+        
+        // Positive reviews (4-5 stars)
+        $positiveReviews = $reviews->filter(function ($review) {
+            return $review->rating >= 4;
+        })->count();
+        
+        // Negative reviews (1-3 stars)
+        $negativeReviews = $reviews->filter(function ($review) {
+            return $review->rating <= 3;
+        })->count();
+        
+        // Reviews this month
+        $reviewsThisMonth = $reviews->filter(function ($review) {
+            return $review->created_at->isCurrentMonth();
+        })->count();
+        
+        // Calculate positive percentage
+        $positivePercentage = $totalReviews > 0 
+            ? round(($positiveReviews / $totalReviews) * 100) 
+            : 0;
+        
+        // Format rating text
+        $ratingText = '';
+        if ($reviewsThisMonth > 0) {
+            $ratingText = "You've received +{$reviewsThisMonth} review" . ($reviewsThisMonth !== 1 ? 's' : '') . " this month";
+            if ($positivePercentage > 0) {
+                $ratingText .= " - {$positivePercentage}% positive!";
+            }
+        } else {
+            $ratingText = $totalReviews > 0 
+                ? "You have {$totalReviews} total review" . ($totalReviews !== 1 ? 's' : '') . " - {$positivePercentage}% positive!"
+                : "No reviews yet. Start selling to get reviews!";
+        }
+        
+        $reviewsData = [
+            'average_rating' => $averageRating,
+            'total_reviews' => $totalReviews,
+            'positive_reviews' => $positiveReviews,
+            'negative_reviews' => $negativeReviews,
+            'reviews_this_month' => $reviewsThisMonth,
+            'positive_percentage' => $positivePercentage,
+            'rating_text' => $ratingText,
+        ];
+        
+        return view('establishment.dashboard', compact('user', 'expiringItems', 'inventoryHealth', 'dashboardStats', 'pendingOrderData', 'reviewsData'));
+    }
+
+    /**
+     * Get real-time reviews and ratings data (AJAX endpoint)
+     */
+    public function getRatings(Request $request)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        $establishmentId = Session::get('user_id');
+        
+        // Fetch reviews and ratings data
+        $reviews = Review::where('establishment_id', $establishmentId)
+            ->with(['consumer'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Calculate rating statistics
+        $totalReviews = $reviews->count();
+        $averageRating = $totalReviews > 0 ? round($reviews->avg('rating'), 1) : 0;
+        
+        // Positive reviews (4-5 stars)
+        $positiveReviews = $reviews->filter(function ($review) {
+            return $review->rating >= 4;
+        })->count();
+        
+        // Negative reviews (1-3 stars)
+        $negativeReviews = $reviews->filter(function ($review) {
+            return $review->rating <= 3;
+        })->count();
+        
+        // Reviews this month
+        $reviewsThisMonth = $reviews->filter(function ($review) {
+            return $review->created_at->isCurrentMonth();
+        })->count();
+        
+        // Calculate positive percentage
+        $positivePercentage = $totalReviews > 0 
+            ? round(($positiveReviews / $totalReviews) * 100) 
+            : 0;
+        
+        // Format rating text
+        $ratingText = '';
+        if ($reviewsThisMonth > 0) {
+            $ratingText = "You've received +{$reviewsThisMonth} review" . ($reviewsThisMonth !== 1 ? 's' : '') . " this month";
+            if ($positivePercentage > 0) {
+                $ratingText .= " - {$positivePercentage}% positive!";
+            }
+        } else {
+            $ratingText = $totalReviews > 0 
+                ? "You have {$totalReviews} total review" . ($totalReviews !== 1 ? 's' : '') . " - {$positivePercentage}% positive!"
+                : "No reviews yet. Start selling to get reviews!";
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'average_rating' => $averageRating,
+                'total_reviews' => $totalReviews,
+                'positive_reviews' => $positiveReviews,
+                'negative_reviews' => $negativeReviews,
+                'reviews_this_month' => $reviewsThisMonth,
+                'positive_percentage' => $positivePercentage,
+                'rating_text' => $ratingText,
+            ]
+        ]);
     }
 
     /**
@@ -635,31 +764,144 @@ class EstablishmentController extends Controller
         }
 
         $user = $this->getUserData();
-        $establishmentId = Session::get('user_id');
         
-        // Calculate total donations (completed donations)
-        $totalDonations = 0; // Placeholder - implement when donation system is ready
+        // Fetch all active donation requests from food banks
+        $donationRequests = DonationRequest::whereIn('status', ['pending', 'active'])
+            ->with('foodbank')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($request) {
+                $foodbank = $request->foodbank;
+                
+                // Format time display
+                $timeDisplay = 'N/A';
+                if ($request->time_option === 'specific' && $request->start_time && $request->end_time) {
+                    $startTime = is_string($request->start_time) ? substr($request->start_time, 0, 5) : $request->start_time->format('H:i');
+                    $endTime = is_string($request->end_time) ? substr($request->end_time, 0, 5) : $request->end_time->format('H:i');
+                    $timeDisplay = $startTime . ' - ' . $endTime;
+                } elseif ($request->time_option === 'anytime') {
+                    $timeDisplay = 'Anytime';
+                } elseif ($request->time_option === 'allDay') {
+                    $timeDisplay = 'All Day';
+                }
+                
+                return [
+                    'id' => $request->donation_request_id,
+                    'foodbank_id' => $request->foodbank_id,
+                    'foodbank_name' => $foodbank->organization_name ?? 'Food Bank',
+                    'item_name' => $request->item_name,
+                    'quantity' => $request->quantity,
+                    'category' => $request->category,
+                    'description' => $request->description,
+                    'distribution_zone' => $request->distribution_zone,
+                    'dropoff_date' => $request->dropoff_date->format('Y-m-d'),
+                    'dropoff_date_display' => $request->dropoff_date->format('F d, Y'),
+                    'time_option' => $request->time_option,
+                    'time_display' => $timeDisplay,
+                    'start_time' => $request->start_time ? (is_string($request->start_time) ? substr($request->start_time, 0, 5) : $request->start_time->format('H:i')) : null,
+                    'end_time' => $request->end_time ? (is_string($request->end_time) ? substr($request->end_time, 0, 5) : $request->end_time->format('H:i')) : null,
+                    'address' => $request->address,
+                    'delivery_option' => $request->delivery_option,
+                    'delivery_option_display' => ucfirst($request->delivery_option),
+                    'contact_name' => $request->contact_name,
+                    'phone_number' => $request->phone_number,
+                    'email' => $request->email,
+                    'status' => $request->status,
+                    'status_display' => ucfirst($request->status),
+                    'matches' => $request->matches,
+                    'created_at' => $request->created_at->format('F d, Y'),
+                ];
+            })
+            ->toArray();
         
-        // Calculate partner charities count
-        $partnerCharities = 0; // Placeholder - implement when donation system is ready
-        
-        // Sample donation history data (replace with actual database queries)
-        $donationHistory = [
-            // Add actual donation history from database here
-        ];
-        
-        // Sample donation requests data (replace with actual database queries)
-        $donationRequests = [
-            // Add actual donation requests from database here
-        ];
+        // Fetch all registered food banks
+        $foodbanks = Foodbank::orderBy('organization_name', 'asc')
+            ->get()
+            ->map(function ($foodbank) {
+                return [
+                    'id' => $foodbank->foodbank_id,
+                    'organization_name' => $foodbank->organization_name,
+                    'address' => $foodbank->address ?? 'Not provided',
+                    'phone_no' => $foodbank->phone_no ?? 'Not provided',
+                    'email' => $foodbank->email,
+                    'contact_person' => $foodbank->contact_person ?? 'Not provided',
+                    'registration_number' => $foodbank->registration_number ?? 'Not provided',
+                ];
+            })
+            ->toArray();
         
         return view('establishment.donation-hub', compact(
             'user',
-            'totalDonations',
-            'partnerCharities',
-            'donationHistory',
-            'donationRequests'
+            'donationRequests',
+            'foodbanks'
         ));
+    }
+
+    /**
+     * Store a donation request from establishment
+     */
+    public function storeDonationRequest(Request $request)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as an establishment.'
+            ], 403);
+        }
+
+        $establishmentId = Session::get('user_id');
+
+        // Validate the request
+        $validated = $request->validate([
+            'foodbank_id' => 'required|uuid|exists:foodbanks,foodbank_id',
+            'item_name' => 'required|string|max:255',
+            'quantity' => 'required|integer|min:1',
+            'unit' => 'required|string|max:20',
+            'category' => 'required|string',
+            'description' => 'nullable|string',
+            'expiry_date' => 'nullable|date|after_or_equal:today',
+            'scheduled_date' => 'required|date|after_or_equal:today',
+            'scheduled_time' => 'nullable|date_format:H:i',
+            'pickup_method' => 'required|in:pickup,delivery',
+            'establishment_notes' => 'nullable|string',
+        ]);
+
+        try {
+            // Create the donation
+            $donation = Donation::create([
+                'foodbank_id' => $validated['foodbank_id'],
+                'establishment_id' => $establishmentId,
+                'donation_request_id' => null, // Not linked to a specific request
+                'item_name' => $validated['item_name'],
+                'item_category' => $validated['category'],
+                'quantity' => $validated['quantity'],
+                'unit' => $validated['unit'],
+                'description' => $validated['description'] ?? null,
+                'expiry_date' => $validated['expiry_date'] ?? null,
+                'status' => 'pending_pickup',
+                'pickup_method' => $validated['pickup_method'],
+                'scheduled_date' => $validated['scheduled_date'],
+                'scheduled_time' => $validated['scheduled_time'] ?? null,
+                'establishment_notes' => $validated['establishment_notes'] ?? null,
+                'is_urgent' => false,
+                'is_nearing_expiry' => false,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Donation request submitted successfully! The foodbank will review your request.',
+                'data' => [
+                    'id' => $donation->donation_id,
+                    'donation_number' => $donation->donation_number,
+                ]
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit donation request. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function impactReports()
@@ -1030,5 +1272,237 @@ class EstablishmentController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to delete food listing'], 500);
         }
+    }
+
+    /**
+     * Show donation history page for establishment
+     */
+    public function donationHistory(Request $request)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
+        }
+
+        $user = $this->getUserData();
+        $establishmentId = Session::get('user_id');
+
+        // Build query with filters
+        $query = Donation::where('establishment_id', $establishmentId)
+            ->with(['foodbank']);
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function($q) use ($search) {
+                $q->where('item_name', 'like', "%{$search}%")
+                  ->orWhereHas('foodbank', function($q) use ($search) {
+                      $q->where('organization_name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Apply status filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Apply date filters
+        if ($request->filled('date_from')) {
+            $query->where('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
+        }
+
+        // Get donations
+        $donations = $query->orderBy('created_at', 'desc')->get();
+
+        // Format donations for view
+        $formattedDonations = $donations->map(function ($donation) {
+            $foodbank = $donation->foodbank;
+            
+            return [
+                'id' => $donation->donation_id,
+                'donation_number' => $donation->donation_number,
+                'item_name' => $donation->item_name,
+                'category' => $donation->item_category,
+                'quantity' => $donation->quantity,
+                'unit' => $donation->unit,
+                'date_donated' => $donation->created_at->format('F d, Y'),
+                'date_donated_raw' => $donation->created_at->format('Y-m-d'),
+                'foodbank_name' => $foodbank->organization_name ?? 'Unknown',
+                'foodbank_id' => $donation->foodbank_id,
+                'status' => $donation->status,
+                'status_display' => ucfirst(str_replace('_', ' ', $donation->status)),
+                'description' => $donation->description,
+                'expiry_date' => $donation->expiry_date ? $donation->expiry_date->format('F d, Y') : 'N/A',
+                'scheduled_date' => $donation->scheduled_date ? $donation->scheduled_date->format('F d, Y') : 'N/A',
+                'scheduled_time' => $donation->scheduled_time ? (is_string($donation->scheduled_time) ? substr($donation->scheduled_time, 0, 5) : $donation->scheduled_time->format('H:i')) : 'N/A',
+                'pickup_method' => ucfirst($donation->pickup_method),
+                'collected_at' => $donation->collected_at ? $donation->collected_at->format('F d, Y H:i') : 'N/A',
+            ];
+        })->toArray();
+
+        // Calculate statistics
+        $allDonations = Donation::where('establishment_id', $establishmentId)->get();
+        $stats = [
+            'total_donations' => $allDonations->count(),
+            'total_quantity' => $allDonations->sum('quantity'),
+            'foodbanks_served' => $allDonations->pluck('foodbank_id')->unique()->count(),
+        ];
+
+        return view('establishment.donation-history', compact('user', 'formattedDonations', 'stats'));
+    }
+
+    /**
+     * Export donation history
+     */
+    public function exportDonationHistory(Request $request, $type)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+
+        $establishmentId = Session::get('user_id');
+
+        // Build query with same filters as donationHistory
+        $query = Donation::where('establishment_id', $establishmentId)
+            ->with(['foodbank']);
+
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function($q) use ($search) {
+                $q->where('item_name', 'like', "%{$search}%")
+                  ->orWhereHas('foodbank', function($q) use ($search) {
+                      $q->where('organization_name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->where('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
+        }
+
+        $donations = $query->orderBy('created_at', 'desc')->get();
+
+        switch ($type) {
+            case 'csv':
+                return $this->exportToCsv($donations);
+            case 'excel':
+                return $this->exportToExcel($donations);
+            case 'pdf':
+                return $this->exportToPdf($donations);
+            default:
+                return redirect()->back()->with('error', 'Invalid export type.');
+        }
+    }
+
+    /**
+     * Export to CSV
+     */
+    private function exportToCsv($donations)
+    {
+        $filename = 'donation_history_' . date('Y-m-d_His') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        // Add BOM for Excel compatibility
+        $callback = function() use ($donations) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Headers
+            fputcsv($file, [
+                'Donation Number',
+                'Item Name',
+                'Category',
+                'Quantity',
+                'Unit',
+                'Date Donated',
+                'Recipient (Foodbank)',
+                'Status',
+                'Scheduled Date',
+                'Scheduled Time',
+                'Pickup Method',
+                'Expiry Date',
+                'Description'
+            ]);
+
+            // Data rows
+            foreach ($donations as $donation) {
+                $foodbank = $donation->foodbank;
+                fputcsv($file, [
+                    $donation->donation_number,
+                    $donation->item_name,
+                    ucfirst($donation->item_category),
+                    $donation->quantity,
+                    $donation->unit,
+                    $donation->created_at->format('Y-m-d H:i:s'),
+                    $foodbank->organization_name ?? 'Unknown',
+                    ucfirst(str_replace('_', ' ', $donation->status)),
+                    $donation->scheduled_date ? $donation->scheduled_date->format('Y-m-d') : 'N/A',
+                    $donation->scheduled_time ? (is_string($donation->scheduled_time) ? substr($donation->scheduled_time, 0, 5) : $donation->scheduled_time->format('H:i')) : 'N/A',
+                    ucfirst($donation->pickup_method),
+                    $donation->expiry_date ? $donation->expiry_date->format('Y-m-d') : 'N/A',
+                    $donation->description ?? ''
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export to Excel (CSV with .xlsx extension for compatibility)
+     */
+    private function exportToExcel($donations)
+    {
+        // For simplicity, we'll use CSV format but with .xlsx extension
+        // In production, you might want to use a library like PhpSpreadsheet
+        return $this->exportToCsv($donations);
+    }
+
+    /**
+     * Export to PDF
+     */
+    private function exportToPdf($donations)
+    {
+        // For PDF export, we'll return a simple HTML view that can be printed as PDF
+        // In production, you might want to use a library like DomPDF or TCPDF
+        $data = $donations->map(function ($donation) {
+            $foodbank = $donation->foodbank;
+            return [
+                'donation_number' => $donation->donation_number,
+                'item_name' => $donation->item_name,
+                'category' => ucfirst($donation->item_category),
+                'quantity' => $donation->quantity . ' ' . $donation->unit,
+                'date_donated' => $donation->created_at->format('F d, Y'),
+                'foodbank' => $foodbank->organization_name ?? 'Unknown',
+                'status' => ucfirst(str_replace('_', ' ', $donation->status)),
+            ];
+        })->toArray();
+
+        $html = view('establishment.donation-history-pdf', compact('data'))->render();
+        
+        return response()->make($html, 200, [
+            'Content-Type' => 'text/html',
+            'Content-Disposition' => 'attachment; filename="donation_history_' . date('Y-m-d_His') . '.html"',
+        ]);
     }
 }

@@ -7,17 +7,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeAnimations() {
-    // Chart bar animation
-    const bars = document.querySelectorAll('.bar');
-    bars.forEach((bar, index) => {
-        const originalHeight = bar.style.height;
-        bar.style.height = '0';
-        setTimeout(() => {
-            bar.style.transition = 'height 0.6s ease';
-            bar.style.height = originalHeight;
-        }, 100 + (index * 100));
-    });
-
     // Stats animation
     const statValues = document.querySelectorAll('.stat-value');
     statValues.forEach((stat, index) => {
@@ -69,43 +58,83 @@ function initializeInteractions() {
         }
     });
 
-    // Bar hover tooltip
-    const bars = document.querySelectorAll('.bar');
-    bars.forEach(bar => {
-        bar.addEventListener('mouseenter', (e) => {
-            const value = e.target.getAttribute('data-value');
-            const tooltip = document.createElement('div');
-            tooltip.className = 'bar-tooltip';
-            tooltip.textContent = `${value} items`;
-            tooltip.style.cssText = `
-                position: absolute;
-                bottom: 100%;
-                left: 50%;
-                transform: translateX(-50%) translateY(-5px);
-                background: #333;
-                color: white;
-                padding: 5px 10px;
-                border-radius: 4px;
-                font-size: 12px;
-                white-space: nowrap;
-                z-index: 10;
-            `;
-            e.target.style.position = 'relative';
-            e.target.appendChild(tooltip);
-        });
-
-        bar.addEventListener('mouseleave', (e) => {
-            const tooltip = e.target.querySelector('.bar-tooltip');
-            if (tooltip) {
-                tooltip.remove();
-            }
-        });
-    });
 }
 
 function initializeChart() {
-    // Chart initialization if needed
-    console.log('Chart initialized');
+    const ctx = document.getElementById('weeklyChart');
+    if (!ctx) return;
+
+    // Use real data from server, fallback to empty array if not available
+    const weeklyDataFromServer = window.weeklyChartData || [];
+    const labels = weeklyDataFromServer.map(d => d.label);
+    const data = weeklyDataFromServer.map(d => d.value);
+
+    const weeklyData = {
+        labels: labels.length > 0 ? labels : ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'],
+        datasets: [{
+            label: 'Number of items received',
+            data: data.length > 0 ? data : [0, 0, 0, 0, 0, 0, 0],
+            backgroundColor: '#ffd700',
+            borderColor: '#ffd700',
+            borderWidth: 0,
+            borderRadius: 4,
+            borderSkipped: false,
+        }]
+    };
+
+    const config = {
+        type: 'bar',
+        data: weeklyData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#6b7280',
+                        font: {
+                            size: 12,
+                            weight: '500'
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 20, // Weekly: 0-20 items (matching consumer's daily scale)
+                    ticks: {
+                        stepSize: 4,
+                        color: '#6b7280',
+                        font: {
+                            size: 12,
+                            weight: '500'
+                        },
+                        callback: function(value) {
+                            return value;
+                        }
+                    },
+                    grid: {
+                        color: '#e5e7eb',
+                        drawBorder: false
+                    }
+                }
+            },
+            elements: {
+                bar: {
+                    borderRadius: 4
+                }
+            }
+        }
+    };
+
+    new Chart(ctx, config);
 }
 
 // Notification system

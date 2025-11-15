@@ -10,99 +10,335 @@
 @endsection
 
 @section('content')
-<!-- Stats Cards -->
-<div class="stats-grid">
-    <div class="stats-card orange">
-        <h3>Total Donations</h3>
-        <div class="value" id="totalDonations">{{ $totalDonations ?? 0 }}</div>
-    </div>
-    <div class="stats-card yellow">
-        <h3>Partner Charities</h3>
-        <div class="value" id="partnerCharities">{{ $partnerCharities ?? 0 }}</div>
-    </div>
-</div>
-
-<!-- Donation History Section -->
-<div class="history-section">
-    <div class="section-header">
-        <h3 class="section-title">Donation History</h3>
-        <div class="header-actions">
-            <button class="icon-btn" id="exportBtn" title="Export data">
-                <svg viewBox="0 0 24 24">
-                    <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/>
-                </svg>
-            </button>
-            <button class="icon-btn" id="filterBtn" title="Filter">
-                <svg viewBox="0 0 24 24">
-                    <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
-                </svg>
-            </button>
-        </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="history-filters">
-        <div class="search-container">
-            <input 
-                type="text" 
-                class="search-input" 
-                id="searchInput" 
-                placeholder="Search..."
-                aria-label="Search donation history"
-            >
-            <svg class="search-icon" viewBox="0 0 24 24">
-                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-            </svg>
-        </div>
-        <input type="date" class="date-select" id="dateSelect" aria-label="Select date">
-    </div>
-
-    <!-- Desktop Table -->
-    <table class="history-table" id="historyTable">
-        <thead>
-            <tr>
-                <th>Charity/Org</th>
-                <th>Address</th>
-                <th>Phone Number</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            <!-- Rows will be inserted by JavaScript -->
-        </tbody>
-    </table>
-
-    <!-- Mobile Cards -->
-    <div class="mobile-history-cards" id="mobileCards">
-        <!-- Cards will be inserted by JavaScript -->
-    </div>
-
-    <!-- Pagination -->
-    <div class="pagination" id="pagination">
-        <!-- Pagination will be inserted by JavaScript -->
-    </div>
-</div>
-
 <!-- Donation Requests Section -->
-<div class="requests-section">
-    <div class="requests-header">
+<div class="donation-requests-section">
+    <div class="section-header">
         <h3 class="section-title">Donation Requests</h3>
-        <a href="#" class="see-all-link" id="seeAllLink">See All</a>
+        <span id="requestsCount">{{ count($donationRequests ?? []) }} Request{{ count($donationRequests ?? []) !== 1 ? 's' : '' }}</span>
+    </div>
+
+    <!-- Filters for Donation Requests -->
+    <div class="filters-section">
+        <div class="filters-header">
+            <h4>Filters</h4>
+            <button class="btn-clear-filters" id="clearRequestFilters">Clear All</button>
+        </div>
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label for="requestSearchInput">Search</label>
+                <input type="text" id="requestSearchInput" class="filter-input" placeholder="Search by foodbank, item name...">
+            </div>
+            <div class="filter-group">
+                <label for="requestStatusFilter">Status</label>
+                <select id="requestStatusFilter" class="filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="requestCategoryFilter">Category</label>
+                <select id="requestCategoryFilter" class="filter-select">
+                    <option value="">All Categories</option>
+                    <option value="fruits-vegetables">Fruits & Vegetables</option>
+                    <option value="baked-goods">Baked Goods</option>
+                    <option value="cooked-meals">Cooked Meals</option>
+                    <option value="packaged-goods">Packaged Goods</option>
+                    <option value="beverages">Beverages</option>
+                    <option value="dairy">Dairy</option>
+                    <option value="meat-seafood">Meat & Seafood</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+        </div>
     </div>
 
     <div class="requests-grid" id="requestsGrid">
-        <!-- Request cards will be inserted by JavaScript -->
+        @forelse($donationRequests ?? [] as $request)
+        <div class="request-card" data-id="{{ $request['id'] }}">
+            <div class="request-card-header">
+                <div class="request-logo-circle">
+                    <div class="logo-wheat-top">🌾</div>
+                    <div class="logo-bread">🍞</div>
+                    <div class="logo-label">{{ ucwords(strtolower(substr($request['foodbank_name'], 0, 6))) }}</div>
+                </div>
+            </div>
+            <div class="request-card-body">
+                <h4 class="request-foodbank-name">{{ $request['foodbank_name'] }}</h4>
+                <p class="request-item-name">{{ $request['item_name'] }}</p>
+                <p class="request-quantity">{{ $request['quantity'] }} pcs. • {{ ucfirst($request['category']) }}</p>
+            </div>
+            <div class="request-card-actions">
+                <button class="btn-view-details-outline" onclick="viewRequestDetails('{{ $request['id'] }}')">View Details</button>
+                <button class="btn-donate-now" onclick="donateNow('{{ $request['id'] }}')">Donate Now</button>
+            </div>
+        </div>
+        @empty
+        <div class="no-requests">
+            <p>No donation requests available at this time.</p>
+        </div>
+        @endforelse
+    </div>
+</div>
+
+<!-- Food Banks Accounts Section -->
+<div class="foodbanks-section">
+    <div class="section-header">
+        <h3 class="section-title">Food Banks Accounts</h3>
+        <span id="foodbanksCount">{{ count($foodbanks ?? []) }} Food Bank{{ count($foodbanks ?? []) !== 1 ? 's' : '' }}</span>
+    </div>
+
+    <!-- Filters for Food Banks -->
+    <div class="filters-section">
+        <div class="filters-header">
+            <h4>Filters</h4>
+            <button class="btn-clear-filters" id="clearFoodbankFilters">Clear All</button>
+        </div>
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label for="foodbankSearchInput">Search</label>
+                <input type="text" id="foodbankSearchInput" class="filter-input" placeholder="Search by organization name, address...">
+            </div>
+        </div>
+    </div>
+
+    <div class="foodbanks-grid" id="foodbanksGrid">
+        @forelse($foodbanks ?? [] as $foodbank)
+        <div class="foodbank-card" data-id="{{ $foodbank['id'] }}">
+            <div class="foodbank-card-header">
+                <div class="foodbank-logo-circle">
+                    <div class="logo-wheat-top">🌾</div>
+                    <div class="logo-bread">🍞</div>
+                    <div class="logo-label">{{ ucwords(strtolower(substr($foodbank['organization_name'], 0, 6))) }}</div>
+                </div>
+            </div>
+            <div class="foodbank-card-body">
+                <h4 class="foodbank-name">{{ $foodbank['organization_name'] }}</h4>
+                <p class="foodbank-address">{{ $foodbank['address'] }}</p>
+            </div>
+            <div class="foodbank-card-actions">
+                <button class="btn-view-details-outline" onclick="viewFoodbankDetails('{{ $foodbank['id'] }}')">View Details</button>
+                <button class="btn-contact" onclick="contactFoodbank('{{ $foodbank['id'] }}')">Contact</button>
+                <button class="btn-request-donate" onclick="requestToDonate('{{ $foodbank['id'] }}')">Request to Donate</button>
+            </div>
+        </div>
+        @empty
+        <div class="no-foodbanks">
+            <p>No food banks registered yet.</p>
+        </div>
+        @endforelse
+    </div>
+</div>
+
+<!-- Donation Request Details Modal -->
+<div class="modal-overlay" id="requestDetailsModal">
+    <div class="modal modal-request-details">
+        <div class="request-details-container">
+            <!-- Foodbank Header -->
+            <div class="request-details-header">
+                <h2 class="request-foodbank-name" id="modalFoodbankName">Food Bank</h2>
+                <div class="request-foodbank-logo">
+                    <div class="logo-icon">🏢</div>
+                    <div class="logo-text">
+                        <span class="logo-text-top" id="modalLogoTop">CEBU</span>
+                        <span class="logo-text-bottom">FO<span class="logo-icon-inline">🍴</span>D BANK</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Item Details -->
+            <div class="request-item-section">
+                <div class="request-item-name" id="modalItemName">-</div>
+                <div class="request-item-quantity" id="modalItemQuantity">-</div>
+            </div>
+
+            <!-- Description -->
+            <div class="request-detail-section">
+                <div class="request-detail-label">Description</div>
+                <div class="request-detail-value" id="modalDescription">-</div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="request-detail-section">
+                <div class="request-contact-item">
+                    <span class="contact-icon">📞</span>
+                    <span class="contact-text" id="modalPhone">-</span>
+                </div>
+                <div class="request-contact-item">
+                    <span class="contact-icon">📍</span>
+                    <span class="contact-text" id="modalAddress">-</span>
+                </div>
+                <div class="request-contact-item">
+                    <span class="contact-icon">✉️</span>
+                    <span class="contact-text" id="modalEmail">-</span>
+                </div>
+            </div>
+
+            <!-- Logistical Details -->
+            <div class="request-detail-section">
+                <div class="request-logistic-item">
+                    <span class="logistic-icon">🕐</span>
+                    <div class="logistic-content">
+                        <div class="logistic-text" id="modalDateAvailable">-</div>
+                        <div class="logistic-label">Date Available</div>
+                    </div>
+                </div>
+                <div class="request-logistic-item">
+                    <span class="logistic-icon">📦</span>
+                    <div class="logistic-content">
+                        <div class="logistic-text" id="modalDeliveryOption">-</div>
+                    </div>
+                </div>
+                <div class="request-logistic-item">
+                    <span class="logistic-icon">🚚</span>
+                    <div class="logistic-content">
+                        <div class="logistic-text" id="modalDistributionZones">-</div>
+                        <div class="logistic-label">Distribution Zones</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Button -->
+            <div class="request-details-actions">
+                <button class="btn-donate-now" id="modalDonateNowBtn">Donate Now</button>
+            </div>
+
+            <!-- Close Button -->
+            <button class="modal-close" id="closeRequestDetailsModal" aria-label="Close modal">&times;</button>
+        </div>
+    </div>
+</div>
+
+<!-- Foodbank Details Modal -->
+<div class="modal-overlay" id="foodbankDetailsModal">
+    <div class="modal modal-foodbank-details">
+        <div class="modal-header">
+            <h2 id="modalFoodbankDetailsName">Food Bank Details</h2>
+            <button class="modal-close" id="closeFoodbankDetailsModal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body" id="foodbankDetailsModalBody">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="closeFoodbankDetailsModalBtn">Close</button>
+            <button class="btn btn-primary" id="requestDonateFromDetailsBtn">Request to Donate</button>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Foodbank Modal -->
+<div class="modal-overlay" id="contactFoodbankModal">
+    <div class="modal modal-contact-foodbank">
+        <div class="modal-header">
+            <h2 id="contactFoodbankModalTitle">Contact Food Bank</h2>
+            <button class="modal-close" id="closeContactFoodbankModal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body" id="contactFoodbankModalBody">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="closeContactFoodbankModalBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Request to Donate Modal -->
+<div class="modal-overlay" id="requestToDonateModal">
+    <div class="modal modal-request-donate">
+        <div class="modal-header">
+            <h2 id="requestDonateModalTitle">Request to Donate</h2>
+            <button class="modal-close" id="closeRequestToDonateModal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="requestToDonateForm">
+                <input type="hidden" id="requestDonateFoodbankId" name="foodbank_id">
+                
+                <div class="form-group">
+                    <label for="donateItemName">Item Name *</label>
+                    <input type="text" id="donateItemName" name="item_name" class="form-input" required placeholder="Enter item name">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="donateQuantity">Quantity *</label>
+                        <input type="number" id="donateQuantity" name="quantity" class="form-input" required min="1" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="donateUnit">Unit *</label>
+                        <select id="donateUnit" name="unit" class="form-input" required>
+                            <option value="pcs">Pieces</option>
+                            <option value="kg">Kilograms</option>
+                            <option value="g">Grams</option>
+                            <option value="L">Liters</option>
+                            <option value="ml">Milliliters</option>
+                            <option value="boxes">Boxes</option>
+                            <option value="packages">Packages</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="donateCategory">Category *</label>
+                    <select id="donateCategory" name="category" class="form-input" required>
+                        <option value="">Select category</option>
+                        <option value="fruits-vegetables">Fruits & Vegetables</option>
+                        <option value="baked-goods">Baked Goods</option>
+                        <option value="cooked-meals">Cooked Meals</option>
+                        <option value="packaged-goods">Packaged Goods</option>
+                        <option value="beverages">Beverages</option>
+                        <option value="dairy">Dairy</option>
+                        <option value="meat-seafood">Meat & Seafood</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="donateDescription">Description</label>
+                    <textarea id="donateDescription" name="description" class="form-input" rows="4" placeholder="Enter item description (optional)"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="donateExpiryDate">Expiry Date</label>
+                    <input type="date" id="donateExpiryDate" name="expiry_date" class="form-input" placeholder="Select expiry date (optional)">
+                </div>
+
+                <div class="form-group">
+                    <label for="donateScheduledDate">Scheduled Pickup/Delivery Date *</label>
+                    <input type="date" id="donateScheduledDate" name="scheduled_date" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="donateScheduledTime">Scheduled Time</label>
+                    <input type="time" id="donateScheduledTime" name="scheduled_time" class="form-input" placeholder="Select time (optional)">
+                </div>
+
+                <div class="form-group">
+                    <label for="donatePickupMethod">Pickup Method *</label>
+                    <select id="donatePickupMethod" name="pickup_method" class="form-input" required>
+                        <option value="pickup">Pickup</option>
+                        <option value="delivery">Delivery</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="donateNotes">Notes</label>
+                    <textarea id="donateNotes" name="establishment_notes" class="form-input" rows="3" placeholder="Additional notes for the foodbank (optional)"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelRequestDonate">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Request</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 @endsection
 
 @section('scripts')
 <script>
-    // Pass data to JavaScript
-    window.donationHistory = @json($donationHistory ?? []);
     window.donationRequests = @json($donationRequests ?? []);
+    window.foodbanks = @json($foodbanks ?? []);
 </script>
 <script src="{{ asset('js/donation-hub.js') }}"></script>
 @endsection
-

@@ -7,49 +7,14 @@
     overflow-x: hidden;
 }
 
-/* Stats Cards */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 25px;
-    margin-bottom: 40px;
-}
-
-.stats-card {
+/* Donation Requests Section */
+.donation-requests-section {
+    background: white;
     border-radius: 12px;
     padding: 30px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: transform 0.2s ease;
-}
-
-.stats-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-}
-
-.stats-card.orange {
-    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-    color: white;
-}
-
-.stats-card.yellow {
-    background: linear-gradient(135deg, #f7b731 0%, #fed330 100%);
-    color: white;
-}
-
-.stats-card h3 {
-    font-size: 14px;
-    font-weight: 500;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-    letter-spacing: 0.5px;
-    opacity: 0.9;
-}
-
-.stats-card .value {
-    font-size: 52px;
-    font-weight: 700;
-    line-height: 1;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
 }
 
 /* Section Header */
@@ -98,115 +63,28 @@
     fill: currentColor;
 }
 
-/* Donation History Section */
-.history-section {
-    background: white;
-    border-radius: 15px;
-    padding: 35px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    margin-bottom: 40px;
-}
-
-.history-filters {
+/* Section Header */
+.section-header {
     display: flex;
-    gap: 15px;
-    margin-bottom: 30px;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
     flex-wrap: wrap;
+    gap: 15px;
 }
 
-.search-container {
-    position: relative;
-    flex: 1;
-    min-width: 250px;
+.section-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2d5016;
+    margin: 0;
 }
 
-.search-input {
-    width: 100%;
-    padding: 12px 45px 12px 20px;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    font-size: 15px;
-    font-family: 'Afacad', sans-serif;
-    transition: all 0.3s ease;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: #2d5016;
-    box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
-}
-
-.search-icon {
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
-    fill: #999;
-    pointer-events: none;
-}
-
-.date-select {
-    padding: 12px 20px;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    font-size: 15px;
-    font-family: 'Afacad', sans-serif;
-    background: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 180px;
-}
-
-.date-select:focus {
-    outline: none;
-    border-color: #2d5016;
-    box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
-}
-
-/* Table Styles */
-.history-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-.history-table thead {
-    background: #2d5016;
-    color: white;
-}
-
-.history-table th {
-    padding: 18px;
-    text-align: left;
-    font-weight: 600;
+#requestsCount,
+#foodbanksCount {
     font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.history-table th:first-child {
-    border-radius: 10px 0 0 0;
-}
-
-.history-table th:last-child {
-    border-radius: 0 10px 0 0;
-}
-
-.history-table tbody tr {
-    background: white;
-    border-bottom: 1px solid #f0f0f0;
-    transition: background 0.2s ease;
-}
-
-.history-table tbody tr:hover {
-    background: #fafafa;
-}
-
-.history-table td {
-    padding: 20px 18px;
-    font-size: 15px;
+    color: #6b7280;
+    font-weight: 500;
 }
 
 /* Status Badge */
@@ -289,107 +167,219 @@
     cursor: not-allowed;
 }
 
-/* Donation Requests Section */
-.requests-section {
-    margin-bottom: 40px;
-}
-
-.requests-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-}
-
-.see-all-link {
-    color: #2d5016;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 16px;
-    transition: color 0.2s ease;
-}
-
-.see-all-link:hover {
-    color: #1e3a0f;
-    text-decoration: underline;
-}
-
+/* Requests Grid */
 .requests-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 25px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
 }
 
 .request-card {
     background: white;
     border-radius: 12px;
-    padding: 25px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
-}
-
-.request-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-}
-
-.request-logo {
-    width: 100%;
-    height: 80px;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    margin-bottom: 20px;
-}
-
-.request-logo svg {
-    width: 100%;
-    height: 100%;
-    max-width: 200px;
-}
-
-.request-info h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 5px;
-}
-
-.request-info p {
-    font-size: 14px;
-    color: #666;
-    margin-bottom: 15px;
-}
-
-.request-details {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    padding: 15px 0;
-    border-top: 1px solid #f0f0f0;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.detail-item {
     text-align: center;
 }
 
-.detail-label {
-    font-size: 13px;
-    color: #999;
-    margin-bottom: 5px;
+.request-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #2d5016;
 }
 
-.detail-value {
+.request-card-header {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.request-logo-circle {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 3px solid #8b6f47;
+    background: #fff8e1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.request-card-body {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.request-foodbank-name {
     font-size: 18px;
-    font-weight: 700;
-    color: #f7b731;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 8px 0;
+    text-align: center;
 }
 
-.request-actions {
+.request-item-name {
+    font-size: 16px;
+    color: #6b7280;
+    margin: 0 0 8px 0;
+    text-align: center;
+    font-weight: 500;
+}
+
+.request-quantity {
+    font-size: 14px;
+    color: #9ca3af;
+    margin: 0;
+    text-align: center;
+}
+
+.request-card-actions {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    width: 100%;
+    margin-top: auto;
+}
+
+.btn-view-details-outline {
+    width: 100%;
+    padding: 10px 16px;
+    background: transparent;
+    color: #236816;
+    border: 2px solid #236816;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-view-details-outline:hover {
+    background: #236816;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(45, 80, 22, 0.3);
+}
+
+.btn-donate-now {
+    width: 100%;
+    padding: 10px 16px;
+    background: #236816;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-donate-now:hover {
+    background: #2d5016;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(45, 80, 22, 0.3);
+}
+
+.no-requests {
+    text-align: center;
+    padding: 40px;
+    color: #9ca3af;
+    font-size: 14px;
+    grid-column: 1 / -1;
+}
+
+/* Filters Section */
+.filters-section {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    border: 1px solid #e5e7eb;
+}
+
+.filters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.filters-header h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+}
+
+.btn-clear-filters {
+    background: transparent;
+    border: 1px solid #d1d5db;
+    color: #6b7280;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Afacad', sans-serif;
+}
+
+.btn-clear-filters:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+    color: #374151;
+}
+
+.filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.filter-input,
+.filter-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #374151;
+    background: white;
+    transition: all 0.2s ease;
+    font-family: 'Afacad', sans-serif;
+    box-sizing: border-box;
+}
+
+.filter-input:focus,
+.filter-select:focus {
+    outline: none;
+    border-color: #2d5016;
+    box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
+}
+
+.filter-input::placeholder {
+    color: #9ca3af;
 }
 
 .btn {
@@ -588,6 +578,802 @@
     
     .request-card {
         padding: 20px;
+    }
+}
+
+/* Modal Overlay */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.modal-overlay.show {
+    display: flex;
+}
+
+.modal-request-details {
+    background: white;
+    border-radius: 16px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.request-details-container {
+    border: 2px dashed #2d5016;
+    border-radius: 12px;
+    padding: 30px;
+    background: white;
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #666;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.modal-close:hover {
+    background: #f5f5f5;
+    color: #333;
+}
+
+/* Foodbank Header */
+.request-details-header {
+    text-align: center;
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.request-foodbank-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2d5016;
+    margin: 0 0 15px 0;
+}
+
+.request-foodbank-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.logo-icon {
+    font-size: 24px;
+}
+
+.logo-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.logo-text-top {
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffa726;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.logo-text-bottom {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2d5016;
+    line-height: 1.2;
+}
+
+.logo-icon-inline {
+    font-size: 14px;
+    margin: 0 2px;
+}
+
+/* Item Section */
+.request-item-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.request-item-name {
+    font-size: 32px;
+    font-weight: 700;
+    color: #ffa726;
+    flex: 1;
+}
+
+.request-item-quantity {
+    font-size: 32px;
+    font-weight: 700;
+    color: #ffa726;
+    text-align: right;
+}
+
+/* Detail Sections */
+.request-detail-section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.request-detail-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.request-detail-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.request-detail-value {
+    font-size: 14px;
+    color: #374151;
+    line-height: 1.6;
+}
+
+/* Contact Items */
+.request-contact-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.request-contact-item:last-child {
+    margin-bottom: 0;
+}
+
+.contact-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.contact-text {
+    font-size: 14px;
+    color: #374151;
+}
+
+/* Logistic Items */
+.request-logistic-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.request-logistic-item:last-child {
+    margin-bottom: 0;
+}
+
+.logistic-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.logistic-content {
+    flex: 1;
+}
+
+.logistic-text {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.logistic-label {
+    font-size: 11px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Action Button */
+.request-details-actions {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.btn-donate-now {
+    width: 100%;
+    background: #2d5016;
+    color: white;
+    border: none;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-donate-now:hover {
+    background: #236816;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(45, 80, 22, 0.3);
+}
+
+.btn-donate-now:active {
+    transform: translateY(0);
+}
+
+/* Responsive Modal */
+@media (max-width: 768px) {
+    .modal-request-details {
+        max-width: 95%;
+        padding: 15px;
+    }
+
+    .request-details-container {
+        padding: 20px;
+    }
+
+    .request-item-name,
+    .request-item-quantity {
+        font-size: 24px;
+    }
+
+    .request-foodbank-name {
+        font-size: 18px;
+    }
+
+    .logo-text-top {
+        font-size: 16px;
+    }
+
+    .logo-text-bottom {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .request-details-container {
+        padding: 15px;
+    }
+
+    .request-item-name,
+    .request-item-quantity {
+        font-size: 20px;
+    }
+
+    .request-item-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .request-item-quantity {
+        text-align: left;
+    }
+}
+
+/* Food Banks Accounts Section */
+.foodbanks-section {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+}
+
+.foodbanks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+.foodbank-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.foodbank-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #2d5016;
+}
+
+.foodbank-card-header {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.foodbank-logo-circle {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 3px solid #8b6f47;
+    background: #fff8e1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.logo-wheat-top {
+    font-size: 24px;
+    line-height: 1;
+    position: absolute;
+    top: 20px;
+    z-index: 2;
+}
+
+.logo-bread {
+    font-size: 48px;
+    line-height: 1;
+    margin-top: 8px;
+    z-index: 1;
+}
+
+.logo-label {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #8b6f47;
+    font-style: italic;
+    margin-top: 8px;
+    text-transform: capitalize;
+    letter-spacing: 0.5px;
+}
+
+.foodbank-card-body {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.foodbank-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 8px 0;
+    text-align: center;
+}
+
+.foodbank-address {
+    font-size: 14px;
+    color: #9ca3af;
+    margin: 0;
+    text-align: center;
+}
+
+.foodbank-card-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-top: auto;
+}
+
+.btn-view-details-outline {
+    width: 100%;
+    padding: 10px 16px;
+    background: transparent;
+    color: #236816;
+    border: 2px solid #236816;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-view-details-outline:hover {
+    background: #236816;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(45, 80, 22, 0.3);
+}
+
+.btn-request-donate {
+    width: 100%;
+    padding: 10px 16px;
+    background: #236816;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-request-donate:hover {
+    background: #2d5016;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(45, 80, 22, 0.3);
+}
+
+.btn-contact {
+    width: 100%;
+    padding: 10px 16px;
+    background: #f3f4f6;
+    color: #374151;
+    border: 2px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-contact:hover {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+    color: #1f2937;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.no-foodbanks {
+    text-align: center;
+    padding: 40px;
+    color: #9ca3af;
+    font-size: 14px;
+    grid-column: 1 / -1;
+}
+
+/* Foodbank Details Modal */
+.modal-foodbank-details {
+    background: white;
+    border-radius: 12px;
+    max-width: 700px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2d5016;
+    margin: 0;
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 25px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.modal-footer .btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.modal-footer .btn-primary {
+    background: #236816;
+    color: white;
+}
+
+.modal-footer .btn-primary:hover {
+    background: #2d5016;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(45, 80, 22, 0.3);
+}
+
+.foodbank-detail-content {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.detail-section {
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 20px;
+}
+
+.detail-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.detail-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2d5016;
+    margin: 0 0 15px 0;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detail-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-value {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 500;
+}
+
+/* Contact Foodbank Modal */
+.modal-contact-foodbank {
+    background: white;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.contact-foodbank-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.contact-section {
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 20px;
+}
+
+.contact-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.contact-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2d5016;
+    margin: 0 0 15px 0;
+}
+
+.contact-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.contact-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.contact-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.contact-value {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.contact-link {
+    display: inline-flex;
+    align-items: center;
+    font-size: 14px;
+    color: #236816;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.contact-link:hover {
+    color: #2d5016;
+    text-decoration: underline;
+}
+
+.contact-link svg {
+    flex-shrink: 0;
+}
+
+/* Request to Donate Modal */
+.modal-request-donate {
+    background: white;
+    border-radius: 12px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.form-group label::after {
+    content: '';
+}
+
+.form-group label:has(+ input[required])::after,
+.form-group label:has(+ select[required])::after,
+.form-group label:has(+ textarea[required])::after {
+    content: ' *';
+    color: #ef4444;
+}
+
+.form-input,
+.form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #374151;
+    background: white;
+    transition: all 0.2s ease;
+    font-family: 'Afacad', sans-serif;
+    box-sizing: border-box;
+}
+
+.form-input:focus,
+.form-select:focus {
+    outline: none;
+    border-color: #2d5016;
+    box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .donation-requests-section,
+    .foodbanks-section {
+        padding: 20px;
+    }
+
+    .requests-grid,
+    .foodbanks-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .request-card-actions,
+    .foodbank-card-actions {
+        flex-direction: column;
+    }
+
+    .btn-view-details,
+    .btn-donate-now,
+    .btn-request-donate,
+    .btn-view-details-outline,
+    .btn-contact {
+        width: 100%;
+    }
+
+    .foodbank-logo-circle,
+    .request-logo-circle {
+        width: 120px;
+        height: 120px;
+    }
+
+    .logo-bread {
+        font-size: 36px;
+    }
+
+    .logo-wheat-top {
+        font-size: 20px;
+        top: 15px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filters-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filters-section {
+        padding: 15px;
     }
 }
 

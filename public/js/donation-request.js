@@ -30,6 +30,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 
+    // Make showToast globally accessible
+    window.showToast = showToast;
+
     // Render table
     function renderTable() {
         const tableBody = document.getElementById('tableBody');
@@ -246,9 +249,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Time option toggle
     function toggleTimeInputs() {
         const allDayChecked = document.getElementById('allDay');
+        const anytimeChecked = document.getElementById('anytime');
         const timeInputs = document.getElementById('timeInputs');
-        if (allDayChecked && timeInputs) {
-            timeInputs.style.display = allDayChecked.checked ? 'none' : 'flex';
+        if (allDayChecked && anytimeChecked && timeInputs) {
+            // Show time inputs when anytime is selected (for specific time entry)
+            timeInputs.style.display = anytimeChecked.checked ? 'flex' : 'none';
         }
     }
 
@@ -363,6 +368,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const endTime = document.getElementById('endTime');
             const description = document.getElementById('description');
 
+            // Determine time option value
+            let timeOptionValue = timeOption?.value || 'allDay';
+            let startTimeValue = '';
+            let endTimeValue = '';
+            
+            // If anytime is selected and time inputs have values, treat as specific time
+            if (timeOptionValue === 'anytime') {
+                const timeInputs = document.getElementById('timeInputs');
+                if (timeInputs && timeInputs.style.display !== 'none' && startTime?.value && endTime?.value) {
+                    timeOptionValue = 'specific';
+                    startTimeValue = startTime.value;
+                    endTimeValue = endTime.value;
+                }
+            }
+
+            // Collect form data
             const formData = {
                 itemName: itemName.value.trim(),
                 quantity: parseInt(quantityInput?.value || 1),
@@ -370,9 +391,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 distributionZone: distributionZone.value,
                 description: description?.value.trim() || '',
                 dropoffDate: dropoffDate.value,
-                timeOption: timeOption?.value || 'allDay',
-                startTime: startTime?.value || '',
-                endTime: endTime?.value || '',
+                timeOption: timeOptionValue,
+                startTime: startTimeValue,
+                endTime: endTimeValue,
                 address: address.value.trim(),
                 deliveryOption: deliveryOption?.value || 'pickup',
                 contactName: contactName.value.trim(),
@@ -380,63 +401,203 @@ document.addEventListener('DOMContentLoaded', function() {
                 email: email.value.trim()
             };
 
-            // Create new request object for display
-            const newRequest = {
-                id: requests.length > 0 ? Math.max(...requests.map(r => r.id)) + 1 : 1,
-                foodType: formData.itemName,
-                quantity: formData.quantity,
-                matches: 0,
-                status: 'pending',
-                // Store additional data for future use
-                category: formData.category,
-                distributionZone: formData.distributionZone,
-                dropoffDate: formData.dropoffDate,
-                address: formData.address,
-                contactName: formData.contactName,
-                phoneNumber: formData.phoneNumber,
-                email: formData.email
-            };
+            // Store form data for later submission
+            window.pendingFormData = formData;
 
-            // TODO: Send formData to backend API
-            // fetch('/foodbank/donation-request', {
-            //     method: 'POST',
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            //     },
-            //     body: JSON.stringify(formData)
-            // })
-            // .then(response => response.json())
-            // .then(data => {
-            //     if (data.success) {
-            //         requests.unshift(newRequest);
-            //         filteredRequests = [...requests];
-            //         currentPage = 1;
-            //         renderTable();
-            //         publishForm.reset();
-            //         quantity = 1;
-            //         if (quantityInput) quantityInput.value = 1;
-            //         publishModal.classList.remove('show');
-            //         showToast('Request published successfully!', 'success');
-            //     }
-            // })
-            // .catch(error => {
-            //     console.error('Error:', error);
-            //     showToast('Failed to publish request. Please try again.', 'error');
-            // });
+            // Show preview modal
+            showPreviewModal(formData);
+        });
+    }
 
-            // For now, add to local array
-            requests.unshift(newRequest);
-            filteredRequests = [...requests];
-            currentPage = 1;
-            renderTable();
-            
-            publishForm.reset();
-            quantity = 1;
-            if (quantityInput) quantityInput.value = 1;
-            toggleTimeInputs();
-            if (publishModal) publishModal.classList.remove('show');
-            showToast('Request published successfully!', 'success');
+    // Preview modal functions
+    function showPreviewModal(formData) {
+        const previewModal = document.getElementById('previewModal');
+        if (!previewModal) return;
+
+        // Format category
+        const categoryLabels = {
+            'fresh-produce': 'Fresh Produce',
+            'canned-goods': 'Canned Goods',
+            'dairy': 'Dairy Products',
+            'grains': 'Grains & Cereals',
+            'protein': 'Protein (Meat/Fish)',
+            'prepared': 'Prepared Meals',
+            'other': 'Other'
+        };
+
+        // Format distribution zone
+        const zoneLabels = {
+            'zone-a': 'Zone A - North District',
+            'zone-b': 'Zone B - South District',
+            'zone-c': 'Zone C - East District',
+            'zone-d': 'Zone D - West District',
+            'zone-e': 'Zone E - Central District'
+        };
+
+        // Format date
+        const dateObj = new Date(formData.dropoffDate);
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayAvailable = dayNames[dateObj.getDay()];
+
+        // Format time
+        function formatTime(timeString) {
+            if (!timeString) return 'All Day';
+            const [hours, minutes] = timeString.split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'pm' : 'am';
+            const hour12 = hour % 12 || 12;
+            return `${hour12}:${minutes} ${ampm}`;
+        }
+
+        // Format phone number
+        function formatPhoneNumber(phone) {
+            if (!phone) return '-';
+            const cleaned = phone.replace(/\D/g, '');
+            if (cleaned.length === 13) {
+                return `+${cleaned.slice(0, 2)} | ${cleaned.slice(2, 5)} - ${cleaned.slice(5, 8)} - ${cleaned.slice(8)}`;
+            }
+            return phone;
+        }
+
+        // Populate preview fields
+        document.getElementById('previewItemName').textContent = formData.itemName || '-';
+        document.getElementById('previewQuantity').textContent = formData.quantity || '-';
+        document.getElementById('previewCategory').textContent = categoryLabels[formData.category] || formData.category || '-';
+        document.getElementById('previewDescription').textContent = formData.description || '-';
+        document.getElementById('previewDistributionZone').textContent = zoneLabels[formData.distributionZone] || formData.distributionZone || '-';
+        document.getElementById('previewDayAvailable').textContent = dayAvailable || '-';
+        
+        if (formData.timeOption === 'allDay') {
+            document.getElementById('previewStartTime').textContent = 'All Day';
+            document.getElementById('previewEndTime').textContent = 'All Day';
+        } else if (formData.timeOption === 'anytime') {
+            document.getElementById('previewStartTime').textContent = 'Anytime';
+            document.getElementById('previewEndTime').textContent = 'Anytime';
+        } else {
+            document.getElementById('previewStartTime').textContent = formatTime(formData.startTime);
+            document.getElementById('previewEndTime').textContent = formatTime(formData.endTime);
+        }
+        
+        document.getElementById('previewAddress').textContent = formData.address || '-';
+        document.getElementById('previewDeliveryMethod').textContent = formData.deliveryOption === 'pickup' ? 'Pick-up Only' : 'Delivery';
+        document.getElementById('previewEmail').textContent = formData.email || '-';
+        document.getElementById('previewContactName').textContent = formData.contactName || '-';
+        document.getElementById('previewPhoneNumber').textContent = formatPhoneNumber(formData.phoneNumber);
+
+        // Show modal
+        previewModal.classList.add('show');
+    }
+
+    // Preview modal controls
+    const previewModal = document.getElementById('previewModal');
+    const cancelPreview = document.getElementById('cancelPreview');
+    const confirmPreview = document.getElementById('confirmPreview');
+
+    // Close preview modal when clicking outside
+    if (previewModal) {
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) {
+                previewModal.classList.remove('show');
+            }
+        });
+    }
+
+    if (cancelPreview) {
+        cancelPreview.addEventListener('click', () => {
+            if (previewModal) previewModal.classList.remove('show');
+            window.pendingFormData = null;
+        });
+    }
+
+    if (confirmPreview) {
+        confirmPreview.addEventListener('click', () => {
+            if (!window.pendingFormData) return;
+
+            const formData = window.pendingFormData;
+
+            // Send formData to backend API
+            const publishForm = document.getElementById('publishForm');
+            const searchInput = document.getElementById('searchInput');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+            // Show loading state
+            if (confirmPreview) {
+                confirmPreview.disabled = true;
+                confirmPreview.textContent = 'Publishing...';
+            }
+
+            fetch('/foodbank/donation-request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Create new request object from server response
+                    const newRequest = {
+                        id: data.data.id,
+                        foodType: data.data.foodType,
+                        quantity: data.data.quantity,
+                        matches: data.data.matches,
+                        status: data.data.status
+                    };
+
+                    // Add new request to the beginning of the array
+                    requests.unshift(newRequest);
+                    
+                    // Clear search filter to show all requests including the new one
+                    if (searchInput) {
+                        searchInput.value = '';
+                    }
+                    
+                    // Update filtered requests to show all (no filter)
+                    filteredRequests = [...requests];
+                    currentPage = 1;
+                    
+                    // Render the table with the new request
+                    renderTable();
+                    
+                    // Reset form
+                    if (publishForm) publishForm.reset();
+                    quantity = 1;
+                    if (quantityInput) quantityInput.value = 1;
+                    toggleTimeInputs();
+                    
+                    // Close modals
+                    if (publishModal) publishModal.classList.remove('show');
+                    if (previewModal) previewModal.classList.remove('show');
+                    
+                    // Clear pending form data
+                    window.pendingFormData = null;
+                    
+                    // Show success message
+                    showToast(data.message || 'Request published successfully!', 'success');
+                    
+                    // Scroll to the requests section to show the new request
+                    const requestsSection = document.querySelector('.requests-section');
+                    if (requestsSection) {
+                        requestsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                } else {
+                    showToast(data.message || 'Failed to publish request. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Failed to publish request. Please try again.', 'error');
+            })
+            .finally(() => {
+                // Reset button state
+                if (confirmPreview) {
+                    confirmPreview.disabled = false;
+                    confirmPreview.textContent = 'Confirm';
+                }
+            });
         });
     }
 
@@ -533,5 +694,273 @@ document.addEventListener('DOMContentLoaded', function() {
     renderTable();
 
     console.log('Donation Request page initialized successfully!');
+});
+
+// Establishment Donation Functions
+window.viewEstablishmentDonationDetails = function(id) {
+    const donations = window.establishmentDonations || [];
+    const donation = donations.find(d => d.id === id);
+    
+    if (!donation) {
+        showToast('Donation not found', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('establishmentDonationModal');
+    const modalBody = document.getElementById('establishmentDonationModalBody');
+    const modalNumber = document.getElementById('modalDonationNumber');
+
+    if (!modal || !modalBody || !modalNumber) return;
+
+    modalNumber.textContent = `Donation ${donation.donation_number}`;
+
+    // Escape HTML helper
+    const escapeHtml = (text) => {
+        if (!text) return 'N/A';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+
+    modalBody.innerHTML = `
+        <div class="donation-detail-content">
+            ${donation.is_urgent || donation.is_nearing_expiry ? `
+            <div class="alert-section">
+                ${donation.is_urgent ? '<div class="alert alert-urgent">⚠️ Urgent: This donation requires immediate attention</div>' : ''}
+                ${donation.is_nearing_expiry ? '<div class="alert alert-expiry">⏰ Expiring Soon: This item is nearing its expiry date</div>' : ''}
+            </div>
+            ` : ''}
+
+            <div class="detail-section">
+                <h3>Basic Information</h3>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Donation ID:</span>
+                        <span class="detail-value">${escapeHtml(donation.donation_number)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Establishment:</span>
+                        <span class="detail-value">${escapeHtml(donation.establishment_name)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Item Name:</span>
+                        <span class="detail-value">${escapeHtml(donation.item_name)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Category:</span>
+                        <span class="detail-value">${escapeHtml(donation.category)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Quantity:</span>
+                        <span class="detail-value">${donation.quantity} ${donation.unit}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value"><span class="status-badge status-${donation.status}">${donation.status_display}</span></span>
+                    </div>
+                </div>
+            </div>
+
+            ${donation.description ? `
+            <div class="detail-section">
+                <h3>Description</h3>
+                <p class="detail-description">${escapeHtml(donation.description)}</p>
+            </div>
+            ` : ''}
+
+            <div class="detail-section">
+                <h3>Schedule & Logistics</h3>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Scheduled Date:</span>
+                        <span class="detail-value">${escapeHtml(donation.scheduled_date_display)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Scheduled Time:</span>
+                        <span class="detail-value">${escapeHtml(donation.scheduled_time)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Pickup Method:</span>
+                        <span class="detail-value">${escapeHtml(donation.pickup_method_display)}</span>
+                    </div>
+                    ${donation.expiry_date ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Expiry Date:</span>
+                        <span class="detail-value">${escapeHtml(donation.expiry_date_display)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            ${donation.establishment_notes ? `
+            <div class="detail-section">
+                <h3>Notes from Establishment</h3>
+                <div class="note-item">
+                    <p class="note-content">${escapeHtml(donation.establishment_notes)}</p>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+    `;
+
+    // Set up modal button actions
+    const acceptBtn = document.getElementById('modalAcceptBtn');
+    const declineBtn = document.getElementById('modalDeclineBtn');
+    
+    if (acceptBtn) {
+        acceptBtn.onclick = () => {
+            acceptDonation(id);
+        };
+    }
+    
+    if (declineBtn) {
+        declineBtn.onclick = () => {
+            declineDonation(id);
+        };
+    }
+
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+};
+
+window.acceptDonation = function(id) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    
+    fetch(`/foodbank/donation-request/accept/${id}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || 'Donation accepted successfully!', 'success');
+            
+            // Remove donation from list
+            const donations = window.establishmentDonations || [];
+            window.establishmentDonations = donations.filter(d => d.id !== id);
+            
+            // Remove card from DOM
+            const card = document.querySelector(`.establishment-donation-card[data-id="${id}"]`);
+            if (card) {
+                card.remove();
+            }
+            
+            // Update count
+            const countEl = document.getElementById('establishmentDonationsCount');
+            if (countEl) {
+                const newCount = window.establishmentDonations.length;
+                countEl.textContent = `${newCount} Offer${newCount !== 1 ? 's' : ''}`;
+            }
+            
+            // Close modal
+            const modal = document.getElementById('establishmentDonationModal');
+            if (modal) {
+                modal.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+        } else {
+            showToast(data.message || 'Failed to accept donation. Please try again.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Failed to accept donation. Please try again.', 'error');
+    });
+};
+
+window.declineDonation = function(id) {
+    if (!confirm('Are you sure you want to decline this donation?')) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    
+    fetch(`/foodbank/donation-request/decline/${id}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || 'Donation declined successfully.', 'success');
+            
+            // Remove donation from list
+            const donations = window.establishmentDonations || [];
+            window.establishmentDonations = donations.filter(d => d.id !== id);
+            
+            // Remove card from DOM
+            const card = document.querySelector(`.establishment-donation-card[data-id="${id}"]`);
+            if (card) {
+                card.remove();
+            }
+            
+            // Update count
+            const countEl = document.getElementById('establishmentDonationsCount');
+            if (countEl) {
+                const newCount = window.establishmentDonations.length;
+                countEl.textContent = `${newCount} Offer${newCount !== 1 ? 's' : ''}`;
+            }
+            
+            // Close modal
+            const modal = document.getElementById('establishmentDonationModal');
+            if (modal) {
+                modal.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+        } else {
+            showToast(data.message || 'Failed to decline donation. Please try again.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Failed to decline donation. Please try again.', 'error');
+    });
+};
+
+// Close establishment donation modal
+document.addEventListener('DOMContentLoaded', function() {
+    const closeModalBtn = document.getElementById('closeEstablishmentDonationModal');
+    const closeModalBtn2 = document.getElementById('closeEstablishmentDonationModalBtn');
+    const modal = document.getElementById('establishmentDonationModal');
+
+    const closeModal = () => {
+        if (modal) {
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+    };
+
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeModal);
+    }
+
+    if (closeModalBtn2) {
+        closeModalBtn2.addEventListener('click', closeModal);
+    }
+
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    }
+
+    // ESC key to close modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (modal && modal.classList.contains('show')) {
+                closeModal();
+            }
+        }
+    });
 });
 

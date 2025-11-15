@@ -392,6 +392,26 @@
     color: #ffc107;
     font-size: 20px;
     margin: 0 2px;
+    display: inline-block;
+}
+
+.star.filled {
+    color: #ffc107;
+}
+
+.star.half {
+    color: #e0e0e0;
+    position: relative;
+}
+
+.star.half::before {
+    content: '★';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 50%;
+    overflow: hidden;
+    color: #ffc107;
 }
 
 .star.empty {

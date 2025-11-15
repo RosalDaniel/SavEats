@@ -15,14 +15,6 @@
             <h3>Business Partnered</h3>
             <div class="value" id="totalPartners">0</div>
         </div>
-        <div class="stats-card">
-            <h3>Active Donations</h3>
-            <div class="value" id="activeDonations">0</div>
-        </div>
-        <div class="stats-card">
-            <h3>Total Impact</h3>
-            <div class="value" id="totalImpact">0</div>
-        </div>
     </div>
 
     <div class="action-buttons">
@@ -100,6 +92,9 @@
 @section('scripts')
 <script>
     window.partners = @json($partners ?? []);
+    window.stats = {
+        totalPartners: {{ $totalPartners ?? 0 }}
+    };
 </script>
 <script src="{{ asset('js/partner-network.js') }}"></script>
 @endsection
