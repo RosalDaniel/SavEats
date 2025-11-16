@@ -44,6 +44,7 @@ class Consumer extends Authenticatable
         'profile_image',
         'username',
         'password',
+        'status',
     ];
 
     /**

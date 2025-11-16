@@ -44,36 +44,39 @@ function initializeCollapsibleSections() {
 
 // Initialize search functionality
 function initializeSearch() {
-    const searchInput = document.querySelector('.search-input');
+    const searchInput = document.getElementById('announcementSearch') || document.querySelector('.search-input');
     
     if (searchInput) {
+        let searchTimeout;
         searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            const announcementItems = document.querySelectorAll('.announcement-item');
-            
-            announcementItems.forEach(item => {
-                const title = item.querySelector('.announcement-title').textContent.toLowerCase();
-                const text = item.querySelector('.announcement-text').textContent.toLowerCase();
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const searchTerm = this.value.toLowerCase().trim();
+                const announcementItems = document.querySelectorAll('.announcement-item');
                 
-                if (title.includes(searchTerm) || text.includes(searchTerm)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
+                announcementItems.forEach(item => {
+                    const searchText = item.getAttribute('data-search-text') || '';
+                    
+                    if (!searchTerm || searchText.includes(searchTerm)) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
             
-            // Show/hide sections based on visible items
-            const sections = document.querySelectorAll('.announcement-section');
-            sections.forEach(section => {
-                const visibleItems = section.querySelectorAll('.announcement-item:not([style*="display: none"])');
-                const sectionContent = section.querySelector('.section-content');
-                
-                if (visibleItems.length === 0 && searchTerm !== '') {
-                    sectionContent.style.display = 'none';
-                } else if (section.classList.contains('active')) {
-                    sectionContent.style.display = 'block';
-                }
-            });
+                // Show/hide sections based on visible items
+                const sections = document.querySelectorAll('.announcement-section');
+                sections.forEach(section => {
+                    const visibleItems = section.querySelectorAll('.announcement-item:not([style*="display: none"])');
+                    const sectionContent = section.querySelector('.section-content');
+                    
+                    if (visibleItems.length === 0 && searchTerm !== '') {
+                        sectionContent.style.display = 'none';
+                    } else if (section.classList.contains('active')) {
+                        sectionContent.style.display = 'block';
+                    }
+                });
+            }, 300);
         });
     }
 }

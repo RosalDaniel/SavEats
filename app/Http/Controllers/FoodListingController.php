@@ -7,6 +7,7 @@ use App\Models\FoodListing;
 use App\Models\Establishment;
 use App\Models\Order;
 use App\Models\Review;
+use App\Models\Announcement;
 use Illuminate\Http\Request;
 use App\Models\Consumer;
 use Illuminate\Support\Facades\Storage;
@@ -147,7 +148,58 @@ class FoodListingController extends Controller
     public function announcements()
     {
         $userData = $this->getUserData();
-        return view('consumer.announcements', compact('userData'));
+        
+        // Fetch announcements for consumers (all + consumer-specific)
+        $announcements = Announcement::where('status', 'active')
+            ->where(function($query) {
+                $query->where('target_audience', 'all')
+                      ->orWhere('target_audience', 'consumer');
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Group announcements by date
+        $groupedAnnouncements = $this->groupAnnouncementsByDate($announcements);
+        
+        return view('consumer.announcements', compact('userData', 'announcements', 'groupedAnnouncements'));
+    }
+    
+    /**
+     * Group announcements by date (Today, Yesterday, A week ago, A month ago)
+     */
+    private function groupAnnouncementsByDate($announcements)
+    {
+        $now = now();
+        $today = $now->copy()->startOfDay();
+        $yesterday = $today->copy()->subDay();
+        $weekAgo = $today->copy()->subWeek();
+        $monthAgo = $today->copy()->subMonth();
+        
+        $grouped = [
+            'today' => [],
+            'yesterday' => [],
+            'week' => [],
+            'month' => []
+        ];
+        
+        foreach ($announcements as $announcement) {
+            $createdAt = $announcement->created_at;
+            
+            // Use Carbon's built-in date comparison methods
+            if ($createdAt->isToday()) {
+                $grouped['today'][] = $announcement;
+            } elseif ($createdAt->isYesterday()) {
+                $grouped['yesterday'][] = $announcement;
+            } elseif ($createdAt->gte($weekAgo)) {
+                // Created within the last week (but not today or yesterday)
+                $grouped['week'][] = $announcement;
+            } elseif ($createdAt->gte($monthAgo)) {
+                // Created within the last month (but not within the last week)
+                $grouped['month'][] = $announcement;
+            }
+        }
+        
+        return $grouped;
     }
 
     /**

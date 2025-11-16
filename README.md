@@ -34,6 +34,19 @@ SavEats provides:
 
 ---
 
+##  Admin Login  
+
+The application includes a default admin account for system administration:
+
+- **Email**: `admin@saveats.com`
+- **Password**: `SaveatsAdmin2024!`
+
+**⚠️ Important**: Change these default credentials in production environments for security.
+
+To access the admin dashboard, log in with the credentials above and you will be automatically redirected to the admin dashboard.
+
+---
+
 ##  Tech Stack  
 
 - **Backend**: Laravel (PHP)  
@@ -59,6 +72,12 @@ SavEats provides:
 5. Run migrations
     ```bash
     php artisan migrate
+    ```
+
+6. Seed the database (creates default admin user)
+    ```bash
+    php artisan db:seed
+    ```
 
 7. Start local server
     ```bash

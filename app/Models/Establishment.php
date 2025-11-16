@@ -47,6 +47,10 @@ class Establishment extends Authenticatable
         'profile_image',
         'username',
         'password',
+        'status',
+        'verified',
+        'violations_count',
+        'violations',
     ];
 
     /**
@@ -70,6 +74,8 @@ class Establishment extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'registered_at' => 'datetime',
+            'verified' => 'boolean',
+            'violations' => 'array',
         ];
     }
 
@@ -94,6 +100,6 @@ class Establishment extends Authenticatable
      */
     public function foodListings(): HasMany
     {
-        return $this->hasMany(FoodListing::class);
+        return $this->hasMany(FoodListing::class, 'establishment_id', 'establishment_id');
     }
 }

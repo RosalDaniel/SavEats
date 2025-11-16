@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\Review;
 use App\Models\DonationRequest;
 use App\Models\Donation;
+use App\Models\Announcement;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
@@ -208,7 +209,58 @@ class DashboardController extends Controller
         }
         
         $user = $this->getUserData();
-        return view('foodbank.announcements', compact('user'));
+        
+        // Fetch announcements for foodbanks (all + foodbank-specific)
+        $announcements = Announcement::where('status', 'active')
+            ->where(function($query) {
+                $query->where('target_audience', 'all')
+                      ->orWhere('target_audience', 'foodbank');
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Group announcements by date
+        $groupedAnnouncements = $this->groupAnnouncementsByDate($announcements);
+        
+        return view('foodbank.announcements', compact('user', 'announcements', 'groupedAnnouncements'));
+    }
+    
+    /**
+     * Group announcements by date (Today, Yesterday, A week ago, A month ago)
+     */
+    private function groupAnnouncementsByDate($announcements)
+    {
+        $now = now();
+        $today = $now->copy()->startOfDay();
+        $yesterday = $today->copy()->subDay();
+        $weekAgo = $today->copy()->subWeek();
+        $monthAgo = $today->copy()->subMonth();
+        
+        $grouped = [
+            'today' => [],
+            'yesterday' => [],
+            'week' => [],
+            'month' => []
+        ];
+        
+        foreach ($announcements as $announcement) {
+            $createdAt = $announcement->created_at;
+            
+            // Use Carbon's built-in date comparison methods
+            if ($createdAt->isToday()) {
+                $grouped['today'][] = $announcement;
+            } elseif ($createdAt->isYesterday()) {
+                $grouped['yesterday'][] = $announcement;
+            } elseif ($createdAt->gte($weekAgo)) {
+                // Created within the last week (but not today or yesterday)
+                $grouped['week'][] = $announcement;
+            } elseif ($createdAt->gte($monthAgo)) {
+                // Created within the last month (but not within the last week)
+                $grouped['month'][] = $announcement;
+            }
+        }
+        
+        return $grouped;
     }
 
     /**
@@ -1012,7 +1064,1723 @@ class DashboardController extends Controller
         }
         
         $user = $this->getUserData();
-        return view('admin.dashboard', compact('user'));
+        
+        // ============================================
+        // USER STATISTICS BY ROLE
+        // ============================================
+        $totalConsumers = Consumer::count();
+        $totalEstablishments = Establishment::count();
+        $totalFoodbanks = Foodbank::count();
+        $totalUsers = $totalConsumers + $totalEstablishments + $totalFoodbanks;
+        
+        // ============================================
+        // FOOD LISTINGS STATISTICS
+        // ============================================
+        $totalActiveListings = FoodListing::where('status', 'active')
+            ->where('expiry_date', '>=', Carbon::now()->toDateString())
+            ->count();
+        $totalListings = FoodListing::count();
+        
+        // ============================================
+        // ORDERS STATISTICS BY STATUS
+        // ============================================
+        $ordersByStatus = [
+            'pending' => Order::where('status', 'pending')->count(),
+            'accepted' => Order::where('status', 'accepted')->count(),
+            'completed' => Order::where('status', 'completed')->count(),
+            'cancelled' => Order::where('status', 'cancelled')->count(),
+        ];
+        $totalOrders = array_sum($ordersByStatus);
+        
+        // ============================================
+        // DONATIONS STATISTICS
+        // ============================================
+        $totalDonations = Donation::count();
+        $completedDonations = Donation::whereIn('status', ['collected', 'ready_for_collection'])->count();
+        $pendingDonations = Donation::whereIn('status', ['pending_pickup', 'ready_for_collection'])->count();
+        
+        // ============================================
+        // FOOD RESCUED STATISTICS
+        // ============================================
+        // From completed orders
+        $foodRescuedFromOrders = Order::where('status', 'completed')->sum('quantity');
+        
+        // From completed donations
+        $foodRescuedFromDonations = Donation::whereIn('status', ['collected', 'ready_for_collection'])
+            ->sum('quantity');
+        
+        $totalFoodRescued = $foodRescuedFromOrders + $foodRescuedFromDonations;
+        
+        // Format food rescued
+        $foodRescuedFormatted = $totalFoodRescued >= 1000 
+            ? number_format($totalFoodRescued / 1000, 1) . 'K' 
+            : number_format($totalFoodRescued);
+        
+        // ============================================
+        // MONTHLY ACTIVITY DATA (Last 6 months)
+        // ============================================
+        $monthlyActivity = [];
+        $months = [];
+        
+        for ($i = 5; $i >= 0; $i--) {
+            $date = Carbon::now()->subMonths($i);
+            $monthStart = $date->copy()->startOfMonth();
+            $monthEnd = $date->copy()->endOfMonth();
+            
+            $monthName = $date->format('M Y');
+            $months[] = $monthName;
+            
+            // Count activities for this month
+            $monthlyActivity[] = [
+                'month' => $monthName,
+                'users' => Consumer::whereBetween('created_at', [$monthStart, $monthEnd])->count() +
+                          Establishment::whereBetween('created_at', [$monthStart, $monthEnd])->count() +
+                          Foodbank::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
+                'orders' => Order::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
+                'donations' => Donation::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
+                'listings' => FoodListing::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
+            ];
+        }
+        
+        // ============================================
+        // RECENT ACTIVITY
+        // ============================================
+        $recentConsumers = Consumer::orderBy('created_at', 'desc')->limit(3)->get();
+        $recentEstablishments = Establishment::orderBy('created_at', 'desc')->limit(3)->get();
+        $recentDonations = Donation::whereIn('status', ['collected', 'ready_for_collection'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+        
+        // ============================================
+        // USER ENGAGEMENT
+        // ============================================
+        $thirtyDaysAgo = Carbon::now()->subDays(30);
+        $activeConsumers = Consumer::where('created_at', '>=', $thirtyDaysAgo)->count();
+        $activeEstablishments = Establishment::where('created_at', '>=', $thirtyDaysAgo)->count();
+        $activeFoodbanks = Foodbank::where('created_at', '>=', $thirtyDaysAgo)->count();
+        $totalActiveUsers = $activeConsumers + $activeEstablishments + $activeFoodbanks;
+        $engagementPercentage = $totalUsers > 0 ? round(($totalActiveUsers / $totalUsers) * 100) : 0;
+        
+        return view('admin.dashboard', compact(
+            'user',
+            'totalUsers',
+            'totalConsumers',
+            'totalEstablishments',
+            'totalFoodbanks',
+            'totalActiveListings',
+            'totalListings',
+            'ordersByStatus',
+            'totalOrders',
+            'totalDonations',
+            'completedDonations',
+            'pendingDonations',
+            'totalFoodRescued',
+            'foodRescuedFormatted',
+            'foodRescuedFromOrders',
+            'foodRescuedFromDonations',
+            'monthlyActivity',
+            'months',
+            'recentConsumers',
+            'recentEstablishments',
+            'recentDonations',
+            'engagementPercentage'
+        ));
+    }
+
+    /**
+     * Admin - User Management
+     */
+    public function adminUsers(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Get filter parameters
+        $roleFilter = $request->get('role', 'all');
+        $statusFilter = $request->get('status', 'all');
+        $searchQuery = $request->get('search', '');
+        
+        // Initialize user collections
+        $allUsers = collect();
+        
+        // Fetch consumers
+        if ($roleFilter === 'all' || $roleFilter === 'consumer') {
+            $consumers = Consumer::query();
+            
+            if ($statusFilter !== 'all') {
+                $consumers->where('status', $statusFilter);
+            }
+            
+            if ($searchQuery) {
+                $consumers->where(function($query) use ($searchQuery) {
+                    $query->where('fname', 'like', "%{$searchQuery}%")
+                          ->orWhere('lname', 'like', "%{$searchQuery}%")
+                          ->orWhere('email', 'like', "%{$searchQuery}%")
+                          ->orWhere('username', 'like', "%{$searchQuery}%");
+                });
+            }
+            
+            $consumers = $consumers->get()->map(function($consumer) {
+                return [
+                    'id' => $consumer->consumer_id,
+                    'name' => $consumer->fname . ' ' . $consumer->lname,
+                    'email' => $consumer->email,
+                    'username' => $consumer->username,
+                    'phone' => $consumer->phone_no,
+                    'address' => $consumer->address,
+                    'role' => 'consumer',
+                    'status' => $consumer->status ?? 'active',
+                    'registered_at' => $consumer->created_at,
+                    'profile_image' => $consumer->profile_image,
+                ];
+            });
+            
+            $allUsers = $allUsers->merge($consumers);
+        }
+        
+        // Fetch establishments
+        if ($roleFilter === 'all' || $roleFilter === 'establishment') {
+            $establishments = Establishment::query();
+            
+            if ($statusFilter !== 'all') {
+                $establishments->where('status', $statusFilter);
+            }
+            
+            if ($searchQuery) {
+                $establishments->where(function($query) use ($searchQuery) {
+                    $query->where('business_name', 'like', "%{$searchQuery}%")
+                          ->orWhere('email', 'like', "%{$searchQuery}%")
+                          ->orWhere('username', 'like', "%{$searchQuery}%")
+                          ->orWhere('owner_fname', 'like', "%{$searchQuery}%")
+                          ->orWhere('owner_lname', 'like', "%{$searchQuery}%");
+                });
+            }
+            
+            $establishments = $establishments->get()->map(function($establishment) {
+                return [
+                    'id' => $establishment->establishment_id,
+                    'name' => $establishment->business_name,
+                    'email' => $establishment->email,
+                    'username' => $establishment->username,
+                    'phone' => $establishment->phone_no,
+                    'address' => $establishment->address,
+                    'role' => 'establishment',
+                    'status' => $establishment->status ?? 'active',
+                    'registered_at' => $establishment->created_at,
+                    'profile_image' => $establishment->profile_image,
+                    'business_type' => $establishment->business_type,
+                ];
+            });
+            
+            $allUsers = $allUsers->merge($establishments);
+        }
+        
+        // Fetch foodbanks
+        if ($roleFilter === 'all' || $roleFilter === 'foodbank') {
+            $foodbanks = Foodbank::query();
+            
+            if ($statusFilter !== 'all') {
+                $foodbanks->where('status', $statusFilter);
+            }
+            
+            if ($searchQuery) {
+                $foodbanks->where(function($query) use ($searchQuery) {
+                    $query->where('organization_name', 'like', "%{$searchQuery}%")
+                          ->orWhere('email', 'like', "%{$searchQuery}%")
+                          ->orWhere('username', 'like', "%{$searchQuery}%")
+                          ->orWhere('contact_person', 'like', "%{$searchQuery}%");
+                });
+            }
+            
+            $foodbanks = $foodbanks->get()->map(function($foodbank) {
+                return [
+                    'id' => $foodbank->foodbank_id,
+                    'name' => $foodbank->organization_name,
+                    'email' => $foodbank->email,
+                    'username' => $foodbank->username,
+                    'phone' => $foodbank->phone_no,
+                    'address' => $foodbank->address,
+                    'role' => 'foodbank',
+                    'status' => $foodbank->status ?? 'active',
+                    'registered_at' => $foodbank->created_at,
+                    'profile_image' => $foodbank->profile_image,
+                    'contact_person' => $foodbank->contact_person,
+                ];
+            });
+            
+            $allUsers = $allUsers->merge($foodbanks);
+        }
+        
+        // Sort by registered date (newest first)
+        $allUsers = $allUsers->sortByDesc('registered_at')->values();
+        
+        // Statistics
+        $stats = [
+            'total' => Consumer::count() + Establishment::count() + Foodbank::count(),
+            'consumers' => Consumer::count(),
+            'establishments' => Establishment::count(),
+            'foodbanks' => Foodbank::count(),
+            'active' => Consumer::where('status', 'active')->count() + 
+                       Establishment::where('status', 'active')->count() + 
+                       Foodbank::where('status', 'active')->count(),
+            'suspended' => Consumer::where('status', 'suspended')->count() + 
+                          Establishment::where('status', 'suspended')->count() + 
+                          Foodbank::where('status', 'suspended')->count(),
+        ];
+        
+        return view('admin.users', compact('user', 'allUsers', 'stats', 'roleFilter', 'statusFilter', 'searchQuery'));
+    }
+    
+    /**
+     * Admin - Update User Status
+     */
+    public function updateUserStatus(Request $request, $role, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'status' => 'required|in:active,suspended,deleted'
+        ]);
+        
+        try {
+            $model = match($role) {
+                'consumer' => Consumer::find($id),
+                'establishment' => Establishment::find($id),
+                'foodbank' => Foodbank::find($id),
+                default => null
+            };
+            
+            if (!$model) {
+                return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+            }
+            
+            $model->status = $request->status;
+            $model->save();
+            
+            $action = match($request->status) {
+                'active' => 'activated',
+                'suspended' => 'suspended',
+                'deleted' => 'deleted',
+                default => 'updated'
+            };
+            
+            return response()->json([
+                'success' => true,
+                'message' => "User {$action} successfully."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update user status.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Update User Information
+     */
+    public function updateUserInfo(Request $request, $role, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        try {
+            $model = match($role) {
+                'consumer' => Consumer::find($id),
+                'establishment' => Establishment::find($id),
+                'foodbank' => Foodbank::find($id),
+                default => null
+            };
+            
+            if (!$model) {
+                return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+            }
+            
+            // Validate based on role
+            $rules = [];
+            if ($role === 'consumer') {
+                $rules = [
+                    'fname' => 'required|string|max:255',
+                    'lname' => 'required|string|max:255',
+                    'email' => 'required|email|unique:consumers,email,' . $id . ',consumer_id',
+                    'phone_no' => 'nullable|string|max:20',
+                ];
+            } elseif ($role === 'establishment') {
+                $rules = [
+                    'business_name' => 'required|string|max:255',
+                    'email' => 'required|email|unique:establishments,email,' . $id . ',establishment_id',
+                    'phone_no' => 'nullable|string|max:20',
+                ];
+            } elseif ($role === 'foodbank') {
+                $rules = [
+                    'organization_name' => 'required|string|max:255',
+                    'email' => 'required|email|unique:foodbanks,email,' . $id . ',foodbank_id',
+                    'phone_no' => 'nullable|string|max:20',
+                ];
+            }
+            
+            $validated = $request->validate($rules);
+            
+            // Update user
+            $model->update($validated);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'User information updated successfully.'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update user information.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Delete User
+     */
+    public function deleteUser($role, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        try {
+            $model = match($role) {
+                'consumer' => Consumer::find($id),
+                'establishment' => Establishment::find($id),
+                'foodbank' => Foodbank::find($id),
+                default => null
+            };
+            
+            if (!$model) {
+                return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+            }
+            
+            // Soft delete by setting status to deleted
+            $model->status = 'deleted';
+            $model->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'User deleted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete user.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin - Establishments Management
+     */
+    public function adminEstablishments(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Get filter parameters
+        $searchQuery = $request->get('search', '');
+        $statusFilter = $request->get('status', 'all');
+        $verifiedFilter = $request->get('verified', 'all');
+        $violationsFilter = $request->get('violations', 'all');
+        
+        // Optimized query with eager loading
+        $establishmentsQuery = Establishment::withCount([
+            'foodListings as active_listings_count' => function($query) {
+                $query->where('food_listings.status', 'active');
+            },
+            'foodListings as total_listings_count'
+        ])
+        ->with(['foodListings' => function($query) {
+            $query->select('establishment_id', 'status')
+                  ->where('status', 'active')
+                  ->limit(1); // Just to check if has listings
+        }]);
+        
+        // Apply search filter
+        if ($searchQuery) {
+            $establishmentsQuery->where(function($query) use ($searchQuery) {
+                $query->where('business_name', 'like', "%{$searchQuery}%")
+                      ->orWhere('email', 'like', "%{$searchQuery}%")
+                      ->orWhere('username', 'like', "%{$searchQuery}%")
+                      ->orWhere('owner_fname', 'like', "%{$searchQuery}%")
+                      ->orWhere('owner_lname', 'like', "%{$searchQuery}%");
+            });
+        }
+        
+        // Apply status filter
+        if ($statusFilter !== 'all') {
+            $establishmentsQuery->where('status', $statusFilter);
+        }
+        
+        // Apply verified filter
+        if ($verifiedFilter !== 'all') {
+            $establishmentsQuery->where('verified', $verifiedFilter === 'verified');
+        }
+        
+        // Apply violations filter
+        if ($violationsFilter !== 'all') {
+            if ($violationsFilter === 'has_violations') {
+                $establishmentsQuery->where('violations_count', '>', 0);
+            } else {
+                $establishmentsQuery->where('violations_count', 0);
+            }
+        }
+        
+        // Get establishments with pagination for large datasets
+        $establishments = $establishmentsQuery->orderBy('created_at', 'desc')->get();
+        
+        // Calculate ratings for each establishment (optimized)
+        $establishmentIds = $establishments->pluck('establishment_id')->toArray();
+        $ratings = Review::whereIn('establishment_id', $establishmentIds)
+            ->selectRaw('establishment_id, AVG(rating) as avg_rating, COUNT(*) as total_reviews')
+            ->groupBy('establishment_id')
+            ->get()
+            ->keyBy('establishment_id');
+        
+        // Format establishments data
+        $formattedEstablishments = $establishments->map(function($establishment) use ($ratings) {
+            $ratingData = $ratings->get($establishment->establishment_id);
+            $violations = $establishment->violations ?? [];
+            
+            return [
+                'id' => $establishment->establishment_id,
+                'business_name' => $establishment->business_name,
+                'owner_name' => $establishment->owner_fname . ' ' . $establishment->owner_lname,
+                'email' => $establishment->email,
+                'phone' => $establishment->phone_no,
+                'address' => $establishment->address,
+                'business_type' => $establishment->business_type,
+                'username' => $establishment->username,
+                'status' => $establishment->status ?? 'active',
+                'verified' => $establishment->verified ?? false,
+                'violations_count' => $establishment->violations_count ?? 0,
+                'violations' => $violations,
+                'active_listings' => $establishment->active_listings_count ?? 0,
+                'total_listings' => $establishment->total_listings_count ?? 0,
+                'avg_rating' => $ratingData ? round($ratingData->avg_rating, 1) : 0,
+                'total_reviews' => $ratingData ? $ratingData->total_reviews : 0,
+                'registered_at' => $establishment->created_at,
+                'profile_image' => $establishment->profile_image,
+            ];
+        });
+        
+        // Statistics
+        $stats = [
+            'total' => Establishment::count(),
+            'verified' => Establishment::where('verified', true)->count(),
+            'unverified' => Establishment::where('verified', false)->count(),
+            'active' => Establishment::where('status', 'active')->count(),
+            'suspended' => Establishment::where('status', 'suspended')->count(),
+            'with_violations' => Establishment::where('violations_count', '>', 0)->count(),
+        ];
+        
+        return view('admin.establishments', compact(
+            'user',
+            'formattedEstablishments',
+            'stats',
+            'searchQuery',
+            'statusFilter',
+            'verifiedFilter',
+            'violationsFilter'
+        ));
+    }
+    
+    /**
+     * Admin - Update Establishment Status
+     */
+    public function updateEstablishmentStatus(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'status' => 'required|in:active,suspended,deleted'
+        ]);
+        
+        try {
+            $establishment = Establishment::find($id);
+            
+            if (!$establishment) {
+                return response()->json(['success' => false, 'message' => 'Establishment not found.'], 404);
+            }
+            
+            $establishment->status = $request->status;
+            $establishment->save();
+            
+            $action = match($request->status) {
+                'active' => 'activated',
+                'suspended' => 'suspended',
+                'deleted' => 'deleted',
+                default => 'updated'
+            };
+            
+            return response()->json([
+                'success' => true,
+                'message' => "Establishment {$action} successfully."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update establishment status.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Verify/Unverify Establishment
+     */
+    public function toggleEstablishmentVerification(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'verified' => 'required|boolean'
+        ]);
+        
+        try {
+            $establishment = Establishment::find($id);
+            
+            if (!$establishment) {
+                return response()->json(['success' => false, 'message' => 'Establishment not found.'], 404);
+            }
+            
+            $establishment->verified = $request->verified;
+            $establishment->save();
+            
+            $action = $request->verified ? 'verified' : 'unverified';
+            
+            return response()->json([
+                'success' => true,
+                'message' => "Establishment {$action} successfully."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update verification status.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Add Violation to Establishment
+     */
+    public function addEstablishmentViolation(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'violation_type' => 'required|string|max:255',
+            'description' => 'required|string',
+            'severity' => 'required|in:low,medium,high'
+        ]);
+        
+        try {
+            $establishment = Establishment::find($id);
+            
+            if (!$establishment) {
+                return response()->json(['success' => false, 'message' => 'Establishment not found.'], 404);
+            }
+            
+            $violations = $establishment->violations ?? [];
+            $violations[] = [
+                'type' => $request->violation_type,
+                'description' => $request->description,
+                'severity' => $request->severity,
+                'date' => now()->toDateString(),
+                'admin' => session('user_name'),
+            ];
+            
+            $establishment->violations = $violations;
+            $establishment->violations_count = count($violations);
+            $establishment->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Violation added successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add violation.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Delete Establishment
+     */
+    public function deleteEstablishment($id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        try {
+            $establishment = Establishment::find($id);
+            
+            if (!$establishment) {
+                return response()->json(['success' => false, 'message' => 'Establishment not found.'], 404);
+            }
+            
+            // Soft delete by setting status to deleted
+            $establishment->status = 'deleted';
+            $establishment->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Establishment deleted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete establishment.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin - Food Listings Management
+     */
+    public function adminFoodListings(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Get filter parameters
+        $searchQuery = $request->get('search', '');
+        $categoryFilter = $request->get('category', 'all');
+        $statusFilter = $request->get('status', 'all');
+        $expiryFilter = $request->get('expiry', 'all');
+        
+        // Optimized query with eager loading
+        $listingsQuery = FoodListing::with(['establishment' => function($query) {
+            $query->select('establishment_id', 'business_name', 'email', 'status');
+        }])
+        ->select('food_listings.*');
+        
+        // Apply search filter
+        if ($searchQuery) {
+            $listingsQuery->where(function($query) use ($searchQuery) {
+                $query->where('food_listings.name', 'like', "%{$searchQuery}%")
+                      ->orWhere('food_listings.description', 'like', "%{$searchQuery}%")
+                      ->orWhereHas('establishment', function($q) use ($searchQuery) {
+                          $q->where('business_name', 'like', "%{$searchQuery}%")
+                            ->orWhere('email', 'like', "%{$searchQuery}%");
+                      });
+            });
+        }
+        
+        // Apply category filter
+        if ($categoryFilter !== 'all') {
+            $listingsQuery->where('food_listings.category', $categoryFilter);
+        }
+        
+        // Apply status filter
+        if ($statusFilter !== 'all') {
+            $listingsQuery->where('food_listings.status', $statusFilter);
+        }
+        
+        // Apply expiry filter
+        if ($expiryFilter !== 'all') {
+            $today = now()->toDateString();
+            if ($expiryFilter === 'expired') {
+                $listingsQuery->where('food_listings.expiry_date', '<', $today);
+            } elseif ($expiryFilter === 'expiring_soon') {
+                $nextWeek = now()->addWeek()->toDateString();
+                $listingsQuery->whereBetween('food_listings.expiry_date', [$today, $nextWeek]);
+            } elseif ($expiryFilter === 'active') {
+                $listingsQuery->where('food_listings.expiry_date', '>=', $today);
+            }
+        }
+        
+        // Get listings ordered by creation date
+        $listings = $listingsQuery->orderBy('food_listings.created_at', 'desc')->get();
+        
+        // Format listings data
+        $formattedListings = $listings->map(function($listing) {
+            $isExpired = $listing->expiry_date < now()->toDateString();
+            $daysUntilExpiry = $isExpired ? 0 : now()->diffInDays($listing->expiry_date, false);
+            
+            return [
+                'id' => $listing->id,
+                'name' => $listing->name,
+                'description' => $listing->description,
+                'category' => $listing->category,
+                'quantity' => $listing->quantity,
+                'reserved_stock' => $listing->reserved_stock ?? 0,
+                'sold_stock' => $listing->sold_stock ?? 0,
+                'available_stock' => $listing->available_stock,
+                'original_price' => $listing->original_price,
+                'discount_percentage' => $listing->discount_percentage,
+                'discounted_price' => $listing->discounted_price,
+                'expiry_date' => $listing->expiry_date,
+                'is_expired' => $isExpired,
+                'days_until_expiry' => $daysUntilExpiry,
+                'status' => $listing->status,
+                'image_path' => $listing->image_path,
+                'pickup_available' => $listing->pickup_available,
+                'delivery_available' => $listing->delivery_available,
+                'establishment' => $listing->establishment ? [
+                    'id' => $listing->establishment->establishment_id,
+                    'name' => $listing->establishment->business_name,
+                    'email' => $listing->establishment->email,
+                    'status' => $listing->establishment->status,
+                ] : null,
+                'created_at' => $listing->created_at,
+            ];
+        });
+        
+        // Get unique categories for filter
+        $categories = FoodListing::distinct()->pluck('category')->filter()->sort()->values();
+        
+        // Statistics
+        $stats = [
+            'total' => FoodListing::count(),
+            'active' => FoodListing::where('status', 'active')->count(),
+            'inactive' => FoodListing::where('status', 'inactive')->count(),
+            'expired' => FoodListing::where('expiry_date', '<', now()->toDateString())->count(),
+            'expiring_soon' => FoodListing::whereBetween('expiry_date', [now()->toDateString(), now()->addWeek()->toDateString()])->count(),
+        ];
+        
+        return view('admin.food-listings', compact(
+            'user',
+            'formattedListings',
+            'categories',
+            'stats',
+            'searchQuery',
+            'categoryFilter',
+            'statusFilter',
+            'expiryFilter'
+        ));
+    }
+    
+    /**
+     * Admin - Update Food Listing Status
+     */
+    public function updateFoodListingStatus(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'status' => 'required|in:active,inactive,expired'
+        ]);
+        
+        try {
+            $listing = FoodListing::find($id);
+            
+            if (!$listing) {
+                return response()->json(['success' => false, 'message' => 'Food listing not found.'], 404);
+            }
+            
+            $listing->status = $request->status;
+            $listing->save();
+            
+            $action = match($request->status) {
+                'active' => 'activated',
+                'inactive' => 'disabled',
+                'expired' => 'marked as expired',
+                default => 'updated'
+            };
+            
+            return response()->json([
+                'success' => true,
+                'message' => "Food listing {$action} successfully."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update food listing status.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Delete Food Listing
+     */
+    public function deleteFoodListing($id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        try {
+            $listing = FoodListing::find($id);
+            
+            if (!$listing) {
+                return response()->json(['success' => false, 'message' => 'Food listing not found.'], 404);
+            }
+            
+            // Delete the listing
+            $listing->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Food listing deleted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete food listing.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin - Order Management
+     */
+    public function adminOrders(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Get filter parameters
+        $searchQuery = $request->get('search', '');
+        $statusFilter = $request->get('status', 'all');
+        $dateFilter = $request->get('date', 'all');
+        
+        // Optimized query with eager loading of all relationships
+        $ordersQuery = Order::with([
+            'consumer' => function($query) {
+                $query->select('consumer_id', 'fname', 'lname', 'email', 'phone_no');
+            },
+            'establishment' => function($query) {
+                $query->select('establishment_id', 'business_name', 'email', 'phone_no');
+            },
+            'foodListing' => function($query) {
+                $query->select('id', 'name', 'category', 'image_path');
+            }
+        ]);
+        
+        // Apply search filter
+        if ($searchQuery) {
+            $ordersQuery->where(function($query) use ($searchQuery) {
+                $query->where('order_number', 'like', "%{$searchQuery}%")
+                      ->orWhere('customer_name', 'like', "%{$searchQuery}%")
+                      ->orWhere('customer_phone', 'like', "%{$searchQuery}%")
+                      ->orWhereHas('consumer', function($q) use ($searchQuery) {
+                          $q->where('fname', 'like', "%{$searchQuery}%")
+                            ->orWhere('lname', 'like', "%{$searchQuery}%")
+                            ->orWhere('email', 'like', "%{$searchQuery}%");
+                      })
+                      ->orWhereHas('establishment', function($q) use ($searchQuery) {
+                          $q->where('business_name', 'like', "%{$searchQuery}%")
+                            ->orWhere('email', 'like', "%{$searchQuery}%");
+                      })
+                      ->orWhereHas('foodListing', function($q) use ($searchQuery) {
+                          $q->where('name', 'like', "%{$searchQuery}%");
+                      });
+            });
+        }
+        
+        // Apply status filter
+        if ($statusFilter !== 'all') {
+            $ordersQuery->where('status', $statusFilter);
+        }
+        
+        // Apply date filter
+        if ($dateFilter !== 'all') {
+            $today = now()->toDateString();
+            if ($dateFilter === 'today') {
+                $ordersQuery->whereDate('created_at', $today);
+            } elseif ($dateFilter === 'week') {
+                $ordersQuery->where('created_at', '>=', now()->subWeek());
+            } elseif ($dateFilter === 'month') {
+                $ordersQuery->where('created_at', '>=', now()->subMonth());
+            }
+        }
+        
+        // Get orders ordered by creation date (newest first)
+        $orders = $ordersQuery->orderBy('created_at', 'desc')->get();
+        
+        // Format orders data
+        $formattedOrders = $orders->map(function($order) {
+            $consumer = $order->consumer;
+            $establishment = $order->establishment;
+            $foodListing = $order->foodListing;
+            
+            return [
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'status' => $order->status,
+                'effective_status' => $order->effective_status,
+                'quantity' => $order->quantity,
+                'unit_price' => $order->unit_price,
+                'total_price' => $order->total_price,
+                'delivery_method' => $order->delivery_method,
+                'payment_method' => $order->payment_method,
+                'customer_name' => $order->customer_name,
+                'customer_phone' => $order->customer_phone,
+                'delivery_address' => $order->delivery_address,
+                'pickup_start_time' => $order->pickup_start_time,
+                'pickup_end_time' => $order->pickup_end_time,
+                'accepted_at' => $order->accepted_at,
+                'completed_at' => $order->completed_at,
+                'cancelled_at' => $order->cancelled_at,
+                'cancellation_reason' => $order->cancellation_reason,
+                'created_at' => $order->created_at,
+                'consumer' => $consumer ? [
+                    'id' => $consumer->consumer_id,
+                    'name' => $consumer->fname . ' ' . $consumer->lname,
+                    'email' => $consumer->email,
+                    'phone' => $consumer->phone_no,
+                ] : null,
+                'establishment' => $establishment ? [
+                    'id' => $establishment->establishment_id,
+                    'name' => $establishment->business_name,
+                    'email' => $establishment->email,
+                    'phone' => $establishment->phone_no,
+                ] : null,
+                'food_listing' => $foodListing ? [
+                    'id' => $foodListing->id,
+                    'name' => $foodListing->name,
+                    'category' => $foodListing->category,
+                    'image_path' => $foodListing->image_path,
+                ] : null,
+            ];
+        });
+        
+        // Statistics
+        $stats = [
+            'total' => Order::count(),
+            'pending' => Order::where('status', 'pending')->count(),
+            'accepted' => Order::where('status', 'accepted')->count(),
+            'completed' => Order::where('status', 'completed')->count(),
+            'cancelled' => Order::where('status', 'cancelled')->count(),
+            'today' => Order::whereDate('created_at', now()->toDateString())->count(),
+        ];
+        
+        return view('admin.orders', compact(
+            'user',
+            'formattedOrders',
+            'stats',
+            'searchQuery',
+            'statusFilter',
+            'dateFilter'
+        ));
+    }
+    
+    /**
+     * Admin - Force Cancel Order
+     */
+    public function forceCancelOrder(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'reason' => 'required|string|max:500'
+        ]);
+        
+        try {
+            $order = Order::find($id);
+            
+            if (!$order) {
+                return response()->json(['success' => false, 'message' => 'Order not found.'], 404);
+            }
+            
+            if ($order->status === 'cancelled') {
+                return response()->json(['success' => false, 'message' => 'Order is already cancelled.'], 400);
+            }
+            
+            if ($order->status === 'completed') {
+                return response()->json(['success' => false, 'message' => 'Cannot cancel a completed order.'], 400);
+            }
+            
+            $order->status = 'cancelled';
+            $order->cancelled_at = now();
+            $order->cancellation_reason = 'Admin Force Cancel: ' . $request->reason;
+            $order->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Order cancelled successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel order.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Resolve Dispute
+     */
+    public function resolveDispute(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'resolution' => 'required|string|in:refund,complete,cancel',
+            'notes' => 'nullable|string|max:1000'
+        ]);
+        
+        try {
+            $order = Order::find($id);
+            
+            if (!$order) {
+                return response()->json(['success' => false, 'message' => 'Order not found.'], 404);
+            }
+            
+            $resolution = $request->resolution;
+            $notes = $request->notes ?? '';
+            
+            if ($resolution === 'refund') {
+                // Mark as cancelled with refund note
+                $order->status = 'cancelled';
+                $order->cancelled_at = now();
+                $order->cancellation_reason = 'Dispute Resolved - Refund Issued. Admin Notes: ' . $notes;
+            } elseif ($resolution === 'complete') {
+                // Force complete the order
+                $order->status = 'completed';
+                $order->completed_at = now();
+                if ($notes) {
+                    $order->cancellation_reason = 'Dispute Resolved - Order Completed. Admin Notes: ' . $notes;
+                }
+            } elseif ($resolution === 'cancel') {
+                // Cancel the order
+                $order->status = 'cancelled';
+                $order->cancelled_at = now();
+                $order->cancellation_reason = 'Dispute Resolved - Order Cancelled. Admin Notes: ' . $notes;
+            }
+            
+            $order->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Dispute resolved successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to resolve dispute.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin - Donation Hub
+     */
+    public function adminDonations(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Get filter parameters
+        $searchQuery = $request->get('search', '');
+        $typeFilter = $request->get('type', 'all'); // 'all', 'donations', 'requests'
+        $statusFilter = $request->get('status', 'all');
+        $dateFrom = $request->get('date_from', '');
+        $dateTo = $request->get('date_to', '');
+        $perPage = $request->get('per_page', 20);
+        
+        // Initialize collections
+        $donations = collect();
+        $donationRequests = collect();
+        
+        // Fetch Donations with relationships
+        if ($typeFilter === 'all' || $typeFilter === 'donations') {
+            $donationsQuery = Donation::with([
+                'establishment' => function($query) {
+                    $query->select('establishment_id', 'business_name', 'email', 'phone_no');
+                },
+                'foodbank' => function($query) {
+                    $query->select('foodbank_id', 'organization_name', 'email', 'phone_no');
+                },
+                'donationRequest' => function($query) {
+                    $query->select('donation_request_id', 'item_name', 'status');
+                }
+            ]);
+            
+            // Apply search filter
+            if ($searchQuery) {
+                $donationsQuery->where(function($query) use ($searchQuery) {
+                    $query->where('donation_number', 'like', "%{$searchQuery}%")
+                          ->orWhere('item_name', 'like', "%{$searchQuery}%")
+                          ->orWhereHas('establishment', function($q) use ($searchQuery) {
+                              $q->where('business_name', 'like', "%{$searchQuery}%");
+                          })
+                          ->orWhereHas('foodbank', function($q) use ($searchQuery) {
+                              $q->where('organization_name', 'like', "%{$searchQuery}%");
+                          });
+                });
+            }
+            
+            // Apply status filter
+            if ($statusFilter !== 'all') {
+                $donationsQuery->where('status', $statusFilter);
+            }
+            
+            // Apply date filters
+            if ($dateFrom) {
+                $donationsQuery->whereDate('created_at', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $donationsQuery->whereDate('created_at', '<=', $dateTo);
+            }
+            
+            $donations = $donationsQuery->orderBy('created_at', 'desc')->get();
+        }
+        
+        // Fetch Donation Requests with relationships
+        if ($typeFilter === 'all' || $typeFilter === 'requests') {
+            $requestsQuery = DonationRequest::with([
+                'foodbank' => function($query) {
+                    $query->select('foodbank_id', 'organization_name', 'email', 'phone_no');
+                }
+            ]);
+            
+            // Apply search filter
+            if ($searchQuery) {
+                $requestsQuery->where(function($query) use ($searchQuery) {
+                    $query->where('item_name', 'like', "%{$searchQuery}%")
+                          ->orWhere('contact_name', 'like', "%{$searchQuery}%")
+                          ->orWhere('email', 'like', "%{$searchQuery}%")
+                          ->orWhereHas('foodbank', function($q) use ($searchQuery) {
+                              $q->where('organization_name', 'like', "%{$searchQuery}%");
+                          });
+                });
+            }
+            
+            // Apply status filter
+            if ($statusFilter !== 'all') {
+                $requestsQuery->where('status', $statusFilter);
+            }
+            
+            // Apply date filters
+            if ($dateFrom) {
+                $requestsQuery->whereDate('created_at', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $requestsQuery->whereDate('created_at', '<=', $dateTo);
+            }
+            
+            $donationRequests = $requestsQuery->orderBy('created_at', 'desc')->get();
+        }
+        
+        // Format donations data
+        $formattedDonations = $donations->map(function($donation) {
+            return [
+                'id' => $donation->donation_id,
+                'donation_number' => $donation->donation_number,
+                'item_name' => $donation->item_name,
+                'item_category' => $donation->item_category,
+                'quantity' => $donation->quantity,
+                'unit' => $donation->unit,
+                'description' => $donation->description,
+                'expiry_date' => $donation->expiry_date,
+                'status' => $donation->status,
+                'pickup_method' => $donation->pickup_method,
+                'scheduled_date' => $donation->scheduled_date,
+                'scheduled_time' => $donation->scheduled_time,
+                'collected_at' => $donation->collected_at,
+                'is_urgent' => $donation->is_urgent ?? false,
+                'created_at' => $donation->created_at,
+                'establishment' => $donation->establishment ? [
+                    'id' => $donation->establishment->establishment_id,
+                    'name' => $donation->establishment->business_name,
+                    'email' => $donation->establishment->email,
+                    'phone' => $donation->establishment->phone_no,
+                ] : null,
+                'foodbank' => $donation->foodbank ? [
+                    'id' => $donation->foodbank->foodbank_id,
+                    'name' => $donation->foodbank->organization_name,
+                    'email' => $donation->foodbank->email,
+                    'phone' => $donation->foodbank->phone_no,
+                ] : null,
+                'donation_request' => $donation->donationRequest ? [
+                    'id' => $donation->donationRequest->donation_request_id,
+                    'item_name' => $donation->donationRequest->item_name,
+                    'status' => $donation->donationRequest->status,
+                ] : null,
+            ];
+        });
+        
+        // Format donation requests data
+        $formattedRequests = $donationRequests->map(function($request) {
+            return [
+                'id' => $request->donation_request_id,
+                'item_name' => $request->item_name,
+                'quantity' => $request->quantity,
+                'category' => $request->category,
+                'description' => $request->description,
+                'distribution_zone' => $request->distribution_zone,
+                'dropoff_date' => $request->dropoff_date,
+                'time_option' => $request->time_option,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+                'address' => $request->address,
+                'delivery_option' => $request->delivery_option,
+                'contact_name' => $request->contact_name,
+                'phone_number' => $request->phone_number,
+                'email' => $request->email,
+                'status' => $request->status,
+                'matches' => $request->matches ?? 0,
+                'created_at' => $request->created_at,
+                'foodbank' => $request->foodbank ? [
+                    'id' => $request->foodbank->foodbank_id,
+                    'name' => $request->foodbank->organization_name,
+                    'email' => $request->foodbank->email,
+                    'phone' => $request->foodbank->phone_no,
+                ] : null,
+            ];
+        });
+        
+        // Combine and paginate
+        $allRecords = $formattedDonations->map(function($item) {
+            $item['record_type'] = 'donation';
+            return $item;
+        })->merge($formattedRequests->map(function($item) {
+            $item['record_type'] = 'request';
+            return $item;
+        }))->sortByDesc('created_at')->values();
+        
+        // Manual pagination
+        $currentPage = $request->get('page', 1);
+        $total = $allRecords->count();
+        $items = $allRecords->slice(($currentPage - 1) * $perPage, $perPage)->values();
+        
+        // Statistics
+        $stats = [
+            'total_donations' => Donation::count(),
+            'total_requests' => DonationRequest::count(),
+            'pending_donations' => Donation::where('status', 'pending_pickup')->count(),
+            'collected_donations' => Donation::where('status', 'collected')->count(),
+            'active_requests' => DonationRequest::whereIn('status', ['pending', 'active'])->count(),
+            'completed_requests' => DonationRequest::where('status', 'completed')->count(),
+        ];
+        
+        return view('admin.donations', compact(
+            'user',
+            'items',
+            'stats',
+            'searchQuery',
+            'typeFilter',
+            'statusFilter',
+            'dateFrom',
+            'dateTo',
+            'perPage',
+            'currentPage',
+            'total'
+        ));
+    }
+    
+    /**
+     * Admin - Export Donations to CSV
+     */
+    public function exportDonationsToCsv(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        // Get filter parameters (same as main view)
+        $searchQuery = $request->get('search', '');
+        $typeFilter = $request->get('type', 'all');
+        $statusFilter = $request->get('status', 'all');
+        $dateFrom = $request->get('date_from', '');
+        $dateTo = $request->get('date_to', '');
+        
+        $donations = collect();
+        $donationRequests = collect();
+        
+        // Fetch Donations
+        if ($typeFilter === 'all' || $typeFilter === 'donations') {
+            $donationsQuery = Donation::with(['establishment', 'foodbank', 'donationRequest']);
+            
+            if ($searchQuery) {
+                $donationsQuery->where(function($query) use ($searchQuery) {
+                    $query->where('donation_number', 'like', "%{$searchQuery}%")
+                          ->orWhere('item_name', 'like', "%{$searchQuery}%")
+                          ->orWhereHas('establishment', function($q) use ($searchQuery) {
+                              $q->where('business_name', 'like', "%{$searchQuery}%");
+                          })
+                          ->orWhereHas('foodbank', function($q) use ($searchQuery) {
+                              $q->where('organization_name', 'like', "%{$searchQuery}%");
+                          });
+                });
+            }
+            
+            if ($statusFilter !== 'all') {
+                $donationsQuery->where('status', $statusFilter);
+            }
+            
+            if ($dateFrom) {
+                $donationsQuery->whereDate('created_at', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $donationsQuery->whereDate('created_at', '<=', $dateTo);
+            }
+            
+            $donations = $donationsQuery->orderBy('created_at', 'desc')->get();
+        }
+        
+        // Fetch Donation Requests
+        if ($typeFilter === 'all' || $typeFilter === 'requests') {
+            $requestsQuery = DonationRequest::with(['foodbank']);
+            
+            if ($searchQuery) {
+                $requestsQuery->where(function($query) use ($searchQuery) {
+                    $query->where('item_name', 'like', "%{$searchQuery}%")
+                          ->orWhere('contact_name', 'like', "%{$searchQuery}%")
+                          ->orWhereHas('foodbank', function($q) use ($searchQuery) {
+                              $q->where('organization_name', 'like', "%{$searchQuery}%");
+                          });
+                });
+            }
+            
+            if ($statusFilter !== 'all') {
+                $requestsQuery->where('status', $statusFilter);
+            }
+            
+            if ($dateFrom) {
+                $requestsQuery->whereDate('created_at', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $requestsQuery->whereDate('created_at', '<=', $dateTo);
+            }
+            
+            $donationRequests = $requestsQuery->orderBy('created_at', 'desc')->get();
+        }
+        
+        // Generate CSV
+        $filename = 'donations_export_' . date('Y-m-d_His') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+        
+        $callback = function() use ($donations, $donationRequests) {
+            $file = fopen('php://output', 'w');
+            
+            // Headers
+            fputcsv($file, [
+                'Type',
+                'ID/Number',
+                'Item Name',
+                'Category',
+                'Quantity',
+                'Unit',
+                'Status',
+                'Establishment',
+                'Food Bank',
+                'Date Created',
+                'Scheduled Date',
+                'Collected At',
+                'Description'
+            ]);
+            
+            // Donations
+            foreach ($donations as $donation) {
+                fputcsv($file, [
+                    'Donation',
+                    $donation->donation_number,
+                    $donation->item_name,
+                    $donation->item_category,
+                    $donation->quantity,
+                    $donation->unit,
+                    $donation->status,
+                    $donation->establishment ? $donation->establishment->business_name : 'N/A',
+                    $donation->foodbank ? $donation->foodbank->organization_name : 'N/A',
+                    $donation->created_at->format('Y-m-d H:i:s'),
+                    $donation->scheduled_date ? $donation->scheduled_date->format('Y-m-d') : 'N/A',
+                    $donation->collected_at ? $donation->collected_at->format('Y-m-d H:i:s') : 'N/A',
+                    $donation->description ?? ''
+                ]);
+            }
+            
+            // Donation Requests
+            foreach ($donationRequests as $request) {
+                fputcsv($file, [
+                    'Request',
+                    $request->donation_request_id,
+                    $request->item_name,
+                    $request->category,
+                    $request->quantity,
+                    'pcs',
+                    $request->status,
+                    'N/A',
+                    $request->foodbank ? $request->foodbank->organization_name : 'N/A',
+                    $request->created_at->format('Y-m-d H:i:s'),
+                    $request->dropoff_date ? $request->dropoff_date->format('Y-m-d') : 'N/A',
+                    'N/A',
+                    $request->description ?? ''
+                ]);
+            }
+            
+            fclose($file);
+        };
+        
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Admin - Announcement Management
+     */
+    public function adminAnnouncements(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Get filter parameters
+        $searchQuery = $request->get('search', '');
+        $statusFilter = $request->get('status', 'all');
+        $audienceFilter = $request->get('audience', 'all');
+        
+        // Query announcements
+        $announcementsQuery = Announcement::query();
+        
+        // Apply search filter
+        if ($searchQuery) {
+            $announcementsQuery->where(function($query) use ($searchQuery) {
+                $query->where('title', 'like', "%{$searchQuery}%")
+                      ->orWhere('message', 'like', "%{$searchQuery}%");
+            });
+        }
+        
+        // Apply status filter
+        if ($statusFilter !== 'all') {
+            $announcementsQuery->where('status', $statusFilter);
+        }
+        
+        // Apply audience filter
+        if ($audienceFilter !== 'all') {
+            $announcementsQuery->where('target_audience', $audienceFilter);
+        }
+        
+        // Get announcements ordered by creation date (newest first)
+        $announcements = $announcementsQuery->orderBy('created_at', 'desc')->get();
+        
+        // Statistics
+        $stats = [
+            'total' => Announcement::count(),
+            'active' => Announcement::where('status', 'active')->count(),
+            'inactive' => Announcement::where('status', 'inactive')->count(),
+            'archived' => Announcement::where('status', 'archived')->count(),
+        ];
+        
+        return view('admin.announcements', compact(
+            'user',
+            'announcements',
+            'stats',
+            'searchQuery',
+            'statusFilter',
+            'audienceFilter'
+        ));
+    }
+    
+    /**
+     * Admin - Store Announcement
+     */
+    public function storeAnnouncement(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'message' => 'required|string',
+            'target_audience' => 'required|in:all,consumer,establishment,foodbank',
+            'status' => 'required|in:active,inactive,archived',
+            'published_at' => 'nullable|date',
+            'expires_at' => 'nullable|date|after:published_at',
+        ]);
+        
+        try {
+            $announcement = Announcement::create([
+                'title' => $request->title,
+                'message' => $request->message,
+                'target_audience' => $request->target_audience,
+                'status' => $request->status,
+                'published_at' => $request->published_at ? \Carbon\Carbon::parse($request->published_at) : now(),
+                'expires_at' => $request->expires_at ? \Carbon\Carbon::parse($request->expires_at) : null,
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Announcement created successfully.',
+                'announcement' => $announcement
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create announcement.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Update Announcement
+     */
+    public function updateAnnouncement(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'message' => 'required|string',
+            'target_audience' => 'required|in:all,consumer,establishment,foodbank',
+            'status' => 'required|in:active,inactive,archived',
+            'published_at' => 'nullable|date',
+            'expires_at' => 'nullable|date|after:published_at',
+        ]);
+        
+        try {
+            $announcement = Announcement::find($id);
+            
+            if (!$announcement) {
+                return response()->json(['success' => false, 'message' => 'Announcement not found.'], 404);
+            }
+            
+            $announcement->update([
+                'title' => $request->title,
+                'message' => $request->message,
+                'target_audience' => $request->target_audience,
+                'status' => $request->status,
+                'published_at' => $request->published_at ? \Carbon\Carbon::parse($request->published_at) : null,
+                'expires_at' => $request->expires_at ? \Carbon\Carbon::parse($request->expires_at) : null,
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Announcement updated successfully.',
+                'announcement' => $announcement
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update announcement.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Delete Announcement
+     */
+    public function deleteAnnouncement($id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        try {
+            $announcement = Announcement::find($id);
+            
+            if (!$announcement) {
+                return response()->json(['success' => false, 'message' => 'Announcement not found.'], 404);
+            }
+            
+            $announcement->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Announcement deleted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete announcement.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin - Food Banks Management
+     */
+    public function adminFoodbanks()
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        return view('admin.foodbanks', compact('user'));
+    }
+
+    /**
+     * Admin - Reports & Analytics
+     */
+    public function adminReports()
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        return view('admin.reports', compact('user'));
+    }
+
+
+    /**
+     * Admin - System Settings
+     */
+    public function adminSettings()
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        return view('admin.settings', compact('user'));
     }
 
     /**

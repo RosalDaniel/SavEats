@@ -9,7 +9,8 @@ use App\Models\Donation;
 use App\Models\DonationRequest;
 use App\Models\Foodbank;
 use App\Models\Review;
-use Illuminate\Http\Request;
+use App\Models\Announcement;
+ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -449,7 +450,63 @@ class EstablishmentController extends Controller
             return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
         }
 
-        return view('establishment.announcements');
+        $user = $this->getUserData();
+        
+        // Fetch announcements for establishments (all + establishment-specific)
+        // Simplified query - show all active announcements for establishments/all, regardless of published_at/expires_at for now
+        $announcements = Announcement::where('status', 'active')
+            ->where(function($query) {
+                $query->where('target_audience', 'all')
+                      ->orWhere('target_audience', 'establishment');
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Group announcements by date
+        $groupedAnnouncements = $this->groupAnnouncementsByDate($announcements);
+        
+        return view('establishment.announcements', compact('user', 'announcements', 'groupedAnnouncements'));
+    }
+    
+    /**
+     * Group announcements by date (Today, Yesterday, A week ago, A month ago)
+     */
+    private function groupAnnouncementsByDate($announcements)
+    {
+        $now = now();
+        $today = $now->copy()->startOfDay();
+        $yesterday = $today->copy()->subDay();
+        $weekAgo = $today->copy()->subWeek();
+        $monthAgo = $today->copy()->subMonth();
+        
+        $grouped = [
+            'today' => [],
+            'yesterday' => [],
+            'week' => [],
+            'month' => []
+        ];
+        
+        foreach ($announcements as $announcement) {
+            $createdAt = $announcement->created_at;
+            
+            // Use Carbon's built-in date comparison methods
+            if ($createdAt->isToday()) {
+                $grouped['today'][] = $announcement;
+            } elseif ($createdAt->isYesterday()) {
+                $grouped['yesterday'][] = $announcement;
+            } elseif ($createdAt->gte($weekAgo)) {
+                // Created within the last week (but not today or yesterday)
+                $grouped['week'][] = $announcement;
+            } elseif ($createdAt->gte($monthAgo)) {
+                // Created within the last month (but not within the last week)
+                $grouped['month'][] = $announcement;
+            } else {
+                // If announcement is older than a month, still show it in the month section
+                $grouped['month'][] = $announcement;
+            }
+        }
+        
+        return $grouped;
     }
 
     /**

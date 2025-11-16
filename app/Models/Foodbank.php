@@ -44,6 +44,7 @@ class Foodbank extends Authenticatable
         'profile_image',
         'username',
         'password',
+        'status',
     ];
 
     /**

@@ -16,7 +16,7 @@
         <div class="header-content">
             <h1 class="page-title">Get the Latest News</h1>
             <div class="header-badge">
-                <span class="badge-number">3</span>
+                <span class="badge-number">{{ count($announcements ?? []) }}</span>
             </div>
         </div>
         <div class="header-actions">
@@ -36,7 +36,7 @@
     <!-- Search Bar -->
     <div class="search-container">
         <div class="search-input-wrapper">
-            <input type="text" class="search-input" placeholder="Search...">
+            <input type="text" class="search-input" placeholder="Search..." id="announcementSearch">
             <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
             </svg>
@@ -45,75 +45,52 @@
 
     <!-- Announcements Sections -->
     <div class="announcements-sections">
+        @php
+            $isNewThreshold = now()->subDays(7);
+        @endphp
+        
         <!-- Today Section -->
-        <div class="announcement-section active">
+        <div class="announcement-section {{ count($groupedAnnouncements['today'] ?? []) > 0 ? 'active' : '' }}">
             <div class="section-header" data-section="today">
                 <div class="section-title">
                     <h3>Today</h3>
                     <div class="section-badge">
-                        <span class="badge-number">3</span>
+                        <span class="badge-number">{{ count($groupedAnnouncements['today'] ?? []) }}</span>
                     </div>
                 </div>
                 <svg class="section-arrow" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
                 </svg>
             </div>
-            <div class="section-content">
-                <!-- System Update Notice -->
-                <div class="announcement-item">
-                    <div class="announcement-icon system">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                    </div>
-                    <div class="announcement-content">
-                        <h4 class="announcement-title">System update notice!</h4>
-                        <p class="announcement-text">We're rolling out a new feature to make surplus listing even smoother. Stay tuned for updates!</p>
-                        <div class="announcement-meta">
-                            <span class="announcement-time">23 mins.</span>
+            <div class="section-content" style="{{ count($groupedAnnouncements['today'] ?? []) > 0 ? '' : 'display: none;' }}">
+                @if(isset($groupedAnnouncements['today']) && count($groupedAnnouncements['today']) > 0)
+                    @foreach($groupedAnnouncements['today'] as $announcement)
+                    <div class="announcement-item" data-search-text="{{ strtolower($announcement->title . ' ' . $announcement->message) }}">
+                        <div class="announcement-icon system">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                        </div>
+                        <div class="announcement-content">
+                            <div class="announcement-header">
+                                <h4 class="announcement-title">{{ $announcement->title }}</h4>
+                                @if($announcement->created_at >= $isNewThreshold)
+                                <span class="new-badge">New</span>
+                                @endif
+                            </div>
+                            <p class="announcement-text">{{ $announcement->message }}</p>
+                            <div class="announcement-meta">
+                                <span class="announcement-time">{{ $announcement->created_at->diffForHumans() }}</span>
+                                <span class="announcement-date">{{ $announcement->created_at->format('M d, Y') }}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Flash Sale Alert -->
-                <div class="announcement-item">
-                    <div class="announcement-icon sale">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5S20.55 6 20 6H19V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V6H4C3.45 6 3 5.55 3 5S3.45 4 4 4H7ZM9 3V4H15V3H9ZM7 6V19H17V6H7Z"/>
-                        </svg>
+                    @endforeach
+                @else
+                    <div class="empty-section">
+                        <p>No announcements for today.</p>
                     </div>
-                    <div class="announcement-content">
-                        <h4 class="announcement-title">Flash sale alert</h4>
-                        <p class="announcement-text">Limited-time offer! List your surplus food items and reach more customers. Boost your sales today!</p>
-                        <div class="announcement-meta">
-                            <span class="announcement-time">23 mins.</span>
-                        </div>
-                        <div class="announcement-action">
-                            <button class="action-button">
-                                <span>Go to Listing Management</span>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Technical Issue Alert -->
-                <div class="announcement-item">
-                    <div class="announcement-icon technical">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
-                        </svg>
-                    </div>
-                    <div class="announcement-content">
-                        <h4 class="announcement-title">Technical issue alert!</h4>
-                        <p class="announcement-text">We're aware of a temporary issue affecting notifications. Our team is working on a fix—thank you for your patience!</p>
-                        <div class="announcement-meta">
-                            <span class="announcement-time">40 mins.</span>
-                        </div>
-                    </div>
-                </div>
+                @endif
             </div>
         </div>
 
@@ -123,7 +100,7 @@
                 <div class="section-title">
                     <h3>Yesterday</h3>
                     <div class="section-badge">
-                        <span class="badge-number">0</span>
+                        <span class="badge-number">{{ count($groupedAnnouncements['yesterday'] ?? []) }}</span>
                     </div>
                 </div>
                 <svg class="section-arrow" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -131,9 +108,34 @@
                 </svg>
             </div>
             <div class="section-content" style="display: none;">
+                @if(isset($groupedAnnouncements['yesterday']) && count($groupedAnnouncements['yesterday']) > 0)
+                @foreach($groupedAnnouncements['yesterday'] as $announcement)
+                <div class="announcement-item" data-search-text="{{ strtolower($announcement->title . ' ' . $announcement->message) }}">
+                    <div class="announcement-icon system">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </div>
+                    <div class="announcement-content">
+                        <div class="announcement-header">
+                            <h4 class="announcement-title">{{ $announcement->title }}</h4>
+                            @if($announcement->created_at >= $isNewThreshold)
+                            <span class="new-badge">New</span>
+                            @endif
+                        </div>
+                        <p class="announcement-text">{{ $announcement->message }}</p>
+                        <div class="announcement-meta">
+                            <span class="announcement-time">{{ $announcement->created_at->diffForHumans() }}</span>
+                            <span class="announcement-date">{{ $announcement->created_at->format('M d, Y') }}</span>
+                        </div>
+                    </div>
+                </div>
+                @endforeach
+                @else
                 <div class="empty-section">
                     <p>No announcements for yesterday.</p>
                 </div>
+                @endif
             </div>
         </div>
 
@@ -143,7 +145,7 @@
                 <div class="section-title">
                     <h3>A week ago</h3>
                     <div class="section-badge">
-                        <span class="badge-number">0</span>
+                        <span class="badge-number">{{ count($groupedAnnouncements['week'] ?? []) }}</span>
                     </div>
                 </div>
                 <svg class="section-arrow" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -151,9 +153,34 @@
                 </svg>
             </div>
             <div class="section-content" style="display: none;">
+                @if(isset($groupedAnnouncements['week']) && count($groupedAnnouncements['week']) > 0)
+                @foreach($groupedAnnouncements['week'] as $announcement)
+                <div class="announcement-item" data-search-text="{{ strtolower($announcement->title . ' ' . $announcement->message) }}">
+                    <div class="announcement-icon system">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </div>
+                    <div class="announcement-content">
+                        <div class="announcement-header">
+                            <h4 class="announcement-title">{{ $announcement->title }}</h4>
+                            @if($announcement->created_at >= $isNewThreshold)
+                            <span class="new-badge">New</span>
+                            @endif
+                        </div>
+                        <p class="announcement-text">{{ $announcement->message }}</p>
+                        <div class="announcement-meta">
+                            <span class="announcement-time">{{ $announcement->created_at->diffForHumans() }}</span>
+                            <span class="announcement-date">{{ $announcement->created_at->format('M d, Y') }}</span>
+                        </div>
+                    </div>
+                </div>
+                @endforeach
+                @else
                 <div class="empty-section">
                     <p>No announcements for this week.</p>
                 </div>
+                @endif
             </div>
         </div>
 
@@ -163,7 +190,7 @@
                 <div class="section-title">
                     <h3>A month ago</h3>
                     <div class="section-badge">
-                        <span class="badge-number">0</span>
+                        <span class="badge-number">{{ count($groupedAnnouncements['month'] ?? []) }}</span>
                     </div>
                 </div>
                 <svg class="section-arrow" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -171,9 +198,34 @@
                 </svg>
             </div>
             <div class="section-content" style="display: none;">
+                @if(isset($groupedAnnouncements['month']) && count($groupedAnnouncements['month']) > 0)
+                @foreach($groupedAnnouncements['month'] as $announcement)
+                <div class="announcement-item" data-search-text="{{ strtolower($announcement->title . ' ' . $announcement->message) }}">
+                    <div class="announcement-icon system">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </div>
+                    <div class="announcement-content">
+                        <div class="announcement-header">
+                            <h4 class="announcement-title">{{ $announcement->title }}</h4>
+                            @if($announcement->created_at >= $isNewThreshold)
+                            <span class="new-badge">New</span>
+                            @endif
+                        </div>
+                        <p class="announcement-text">{{ $announcement->message }}</p>
+                        <div class="announcement-meta">
+                            <span class="announcement-time">{{ $announcement->created_at->diffForHumans() }}</span>
+                            <span class="announcement-date">{{ $announcement->created_at->format('M d, Y') }}</span>
+                        </div>
+                    </div>
+                </div>
+                @endforeach
+                @else
                 <div class="empty-section">
                     <p>No announcements for this month.</p>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -182,19 +234,4 @@
 
 @section('scripts')
 <script src="{{ asset('js/announcements.js') }}"></script>
-<script>
-    // Update action button to redirect to establishment listing management
-    document.addEventListener('DOMContentLoaded', function() {
-        const actionButtons = document.querySelectorAll('.action-button');
-        actionButtons.forEach(button => {
-            const span = button.querySelector('span');
-            if (span && span.textContent.includes('Go to Listing Management')) {
-                button.addEventListener('click', function() {
-                    window.location.href = '{{ route("establishment.listing-management") }}';
-                });
-            }
-        });
-    });
-</script>
 @endsection
-

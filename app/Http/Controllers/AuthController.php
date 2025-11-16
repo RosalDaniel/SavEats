@@ -44,6 +44,13 @@ class AuthController extends Controller
         ]);
         
         try {
+            // Prevent registration with admin email
+            if ($request->email === 'admin@saveats.com') {
+                throw ValidationException::withMessages([
+                    'email' => ['This email address is reserved and cannot be used for registration.'],
+                ]);
+            }
+            
             $request->validate([
                 'role' => 'required|in:consumer,establishment,foodbank',
                 'email' => 'required|email|unique:consumers,email|unique:establishments,email|unique:foodbanks,email',
@@ -268,6 +275,13 @@ class AuthController extends Controller
         if ($loginField === 'email') {
             $adminUser = User::where('email', $request->login)->first();
             if ($adminUser && Hash::check($request->password, $adminUser->password)) {
+                // Verify user has admin role
+                if ($adminUser->role !== 'admin') {
+                    throw ValidationException::withMessages([
+                        'login' => ['The provided credentials are incorrect.'],
+                    ]);
+                }
+                
                 session([
                     'user_id' => $adminUser->id,
                     'user_type' => 'admin',

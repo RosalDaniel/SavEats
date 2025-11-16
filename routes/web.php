@@ -160,6 +160,48 @@ Route::middleware('custom.auth')->group(function () {
         
         // Dashboard - Standardized path: /admin/dashboard
         Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
+        
+        // User Management
+        Route::get('/users', [DashboardController::class, 'adminUsers'])->name('users');
+        Route::post('/users/{role}/{id}/status', [DashboardController::class, 'updateUserStatus'])->name('users.updateStatus');
+        Route::post('/users/{role}/{id}/info', [DashboardController::class, 'updateUserInfo'])->name('users.updateInfo');
+        Route::delete('/users/{role}/{id}', [DashboardController::class, 'deleteUser'])->name('users.delete');
+        
+        // Establishments Management
+        Route::get('/establishments', [DashboardController::class, 'adminEstablishments'])->name('establishments');
+        Route::post('/establishments/{id}/status', [DashboardController::class, 'updateEstablishmentStatus'])->name('establishments.updateStatus');
+        Route::post('/establishments/{id}/verification', [DashboardController::class, 'toggleEstablishmentVerification'])->name('establishments.toggleVerification');
+        Route::post('/establishments/{id}/violation', [DashboardController::class, 'addEstablishmentViolation'])->name('establishments.addViolation');
+        Route::delete('/establishments/{id}', [DashboardController::class, 'deleteEstablishment'])->name('establishments.delete');
+        
+        // Food Listings Management
+        Route::get('/food-listings', [DashboardController::class, 'adminFoodListings'])->name('food-listings');
+        Route::post('/food-listings/{id}/status', [DashboardController::class, 'updateFoodListingStatus'])->name('food-listings.updateStatus');
+        Route::delete('/food-listings/{id}', [DashboardController::class, 'deleteFoodListing'])->name('food-listings.delete');
+        
+        // Order Management
+        Route::get('/orders', [DashboardController::class, 'adminOrders'])->name('orders');
+        Route::post('/orders/{id}/force-cancel', [DashboardController::class, 'forceCancelOrder'])->name('orders.forceCancel');
+        Route::post('/orders/{id}/resolve-dispute', [DashboardController::class, 'resolveDispute'])->name('orders.resolveDispute');
+        
+        // Donation Hub
+        Route::get('/donations', [DashboardController::class, 'adminDonations'])->name('donations');
+        Route::get('/donations/export/csv', [DashboardController::class, 'exportDonationsToCsv'])->name('donations.exportCsv');
+        
+        // Food Banks Management
+        Route::get('/foodbanks', [DashboardController::class, 'adminFoodbanks'])->name('foodbanks');
+        
+        // Reports & Analytics
+        Route::get('/reports', [DashboardController::class, 'adminReports'])->name('reports');
+        
+        // Announcements
+        Route::get('/announcements', [DashboardController::class, 'adminAnnouncements'])->name('announcements');
+        Route::post('/announcements', [DashboardController::class, 'storeAnnouncement'])->name('announcements.store');
+        Route::post('/announcements/{id}', [DashboardController::class, 'updateAnnouncement'])->name('announcements.update');
+        Route::delete('/announcements/{id}', [DashboardController::class, 'deleteAnnouncement'])->name('announcements.delete');
+        
+        // System Settings
+        Route::get('/settings', [DashboardController::class, 'adminSettings'])->name('settings');
     });
     
     // ========================================================================
