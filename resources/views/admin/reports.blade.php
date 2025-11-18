@@ -4,6 +4,10 @@
 
 @section('header', 'Reports & Analytics')
 
+@section('styles')
+<link rel="stylesheet" href="{{ asset('css/admin-reports.css') }}">
+@endsection
+
 @section('content')
 <div class="reports-dashboard">
     <div class="reports-filters">

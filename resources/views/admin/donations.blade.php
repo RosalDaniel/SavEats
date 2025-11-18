@@ -183,8 +183,15 @@
                         </td>
                         <td>
                             <div class="date-info">
-                                <div class="date-created">{{ isset($item['created_at']) ? \Carbon\Carbon::parse($item['created_at'])->format('M d, Y') : 'N/A' }}</div>
-                                <div class="date-time">{{ isset($item['created_at']) ? \Carbon\Carbon::parse($item['created_at'])->format('h:i A') : '' }}</div>
+                                @if(isset($item['created_at']) && $item['created_at'])
+                                    @php
+                                        $createdAt = \Carbon\Carbon::parse($item['created_at']);
+                                    @endphp
+                                    <div class="date-created">{{ $createdAt->format('M d, Y') }}</div>
+                                    <div class="date-time">{{ $createdAt->format('h:i A') }}</div>
+                                @else
+                                    <div class="date-created">N/A</div>
+                                @endif
                             </div>
                         </td>
                         <td>

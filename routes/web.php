@@ -200,6 +200,46 @@ Route::middleware('custom.auth')->group(function () {
         Route::post('/announcements/{id}', [DashboardController::class, 'updateAnnouncement'])->name('announcements.update');
         Route::delete('/announcements/{id}', [DashboardController::class, 'deleteAnnouncement'])->name('announcements.delete');
         
+        // Review Management
+        Route::get('/reviews', [DashboardController::class, 'adminReviews'])->name('reviews');
+        Route::post('/reviews/{id}/flag', [DashboardController::class, 'flagReview'])->name('reviews.flag');
+        Route::delete('/reviews/{id}', [DashboardController::class, 'deleteReview'])->name('reviews.delete');
+        
+        // System Logs
+        Route::get('/system-logs', [\App\Http\Controllers\SystemLogController::class, 'index'])->name('system-logs');
+        Route::get('/system-logs/data', [\App\Http\Controllers\SystemLogController::class, 'getLogs'])->name('system-logs.data');
+        Route::get('/system-logs/export/csv', [\App\Http\Controllers\SystemLogController::class, 'exportCsv'])->name('system-logs.export.csv');
+        Route::get('/system-logs/export/pdf', [\App\Http\Controllers\SystemLogController::class, 'exportPdf'])->name('system-logs.export.pdf');
+        Route::get('/system-logs/export/excel', [\App\Http\Controllers\SystemLogController::class, 'exportExcel'])->name('system-logs.export.excel');
+        Route::delete('/system-logs/cleanup', [\App\Http\Controllers\SystemLogController::class, 'deleteOldLogs'])->name('system-logs.cleanup');
+        
+        // Content Management System
+        Route::get('/cms', [\App\Http\Controllers\AdminCmsController::class, 'index'])->name('cms');
+        
+        // Banners
+        Route::get('/cms/banners', [\App\Http\Controllers\AdminCmsController::class, 'getBanners'])->name('cms.banners');
+        Route::post('/cms/banners', [\App\Http\Controllers\AdminCmsController::class, 'storeBanner'])->name('cms.banners.store');
+        Route::post('/cms/banners/{id}', [\App\Http\Controllers\AdminCmsController::class, 'updateBanner'])->name('cms.banners.update');
+        Route::delete('/cms/banners/{id}', [\App\Http\Controllers\AdminCmsController::class, 'deleteBanner'])->name('cms.banners.delete');
+        
+        // Help Articles
+        Route::get('/cms/articles', [\App\Http\Controllers\AdminCmsController::class, 'getArticles'])->name('cms.articles');
+        Route::post('/cms/articles', [\App\Http\Controllers\AdminCmsController::class, 'storeArticle'])->name('cms.articles.store');
+        Route::post('/cms/articles/{id}', [\App\Http\Controllers\AdminCmsController::class, 'updateArticle'])->name('cms.articles.update');
+        Route::delete('/cms/articles/{id}', [\App\Http\Controllers\AdminCmsController::class, 'deleteArticle'])->name('cms.articles.delete');
+        
+        // Terms & Conditions
+        Route::get('/cms/terms', [\App\Http\Controllers\AdminCmsController::class, 'getTerms'])->name('cms.terms');
+        Route::post('/cms/terms', [\App\Http\Controllers\AdminCmsController::class, 'storeTerms'])->name('cms.terms.store');
+        Route::post('/cms/terms/{id}', [\App\Http\Controllers\AdminCmsController::class, 'updateTerms'])->name('cms.terms.update');
+        Route::delete('/cms/terms/{id}', [\App\Http\Controllers\AdminCmsController::class, 'deleteTerms'])->name('cms.terms.delete');
+        
+        // Privacy Policy
+        Route::get('/cms/privacy', [\App\Http\Controllers\AdminCmsController::class, 'getPrivacy'])->name('cms.privacy');
+        Route::post('/cms/privacy', [\App\Http\Controllers\AdminCmsController::class, 'storePrivacy'])->name('cms.privacy.store');
+        Route::post('/cms/privacy/{id}', [\App\Http\Controllers\AdminCmsController::class, 'updatePrivacy'])->name('cms.privacy.update');
+        Route::delete('/cms/privacy/{id}', [\App\Http\Controllers\AdminCmsController::class, 'deletePrivacy'])->name('cms.privacy.delete');
+        
         // System Settings
         Route::get('/settings', [DashboardController::class, 'adminSettings'])->name('settings');
     });

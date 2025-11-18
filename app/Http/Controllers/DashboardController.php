@@ -2310,6 +2310,10 @@ class DashboardController extends Controller
         
         // Format donations data
         $formattedDonations = $donations->map(function($donation) {
+            $establishment = $donation->establishment;
+            $foodbank = $donation->foodbank;
+            $donationRequest = $donation->donationRequest;
+            
             return [
                 'id' => $donation->donation_id,
                 'donation_number' => $donation->donation_number,
@@ -2318,36 +2322,38 @@ class DashboardController extends Controller
                 'quantity' => $donation->quantity,
                 'unit' => $donation->unit,
                 'description' => $donation->description,
-                'expiry_date' => $donation->expiry_date,
+                'expiry_date' => $donation->expiry_date ? ($donation->expiry_date instanceof \Carbon\Carbon ? $donation->expiry_date->format('Y-m-d') : $donation->expiry_date) : null,
                 'status' => $donation->status,
                 'pickup_method' => $donation->pickup_method,
-                'scheduled_date' => $donation->scheduled_date,
-                'scheduled_time' => $donation->scheduled_time,
-                'collected_at' => $donation->collected_at,
+                'scheduled_date' => $donation->scheduled_date ? ($donation->scheduled_date instanceof \Carbon\Carbon ? $donation->scheduled_date->format('Y-m-d') : $donation->scheduled_date) : null,
+                'scheduled_time' => $donation->scheduled_time ? ($donation->scheduled_time instanceof \Carbon\Carbon ? $donation->scheduled_time->format('H:i:s') : $donation->scheduled_time) : null,
+                'collected_at' => $donation->collected_at ? ($donation->collected_at instanceof \Carbon\Carbon ? $donation->collected_at->toDateTimeString() : $donation->collected_at) : null,
                 'is_urgent' => $donation->is_urgent ?? false,
-                'created_at' => $donation->created_at,
-                'establishment' => $donation->establishment ? [
-                    'id' => $donation->establishment->establishment_id,
-                    'name' => $donation->establishment->business_name,
-                    'email' => $donation->establishment->email,
-                    'phone' => $donation->establishment->phone_no,
+                'created_at' => $donation->created_at ? ($donation->created_at instanceof \Carbon\Carbon ? $donation->created_at->toDateTimeString() : $donation->created_at) : null,
+                'establishment' => ($establishment && $establishment instanceof \Illuminate\Database\Eloquent\Model) ? [
+                    'id' => $establishment->establishment_id ?? null,
+                    'name' => $establishment->business_name ?? null,
+                    'email' => $establishment->email ?? null,
+                    'phone' => $establishment->phone_no ?? null,
                 ] : null,
-                'foodbank' => $donation->foodbank ? [
-                    'id' => $donation->foodbank->foodbank_id,
-                    'name' => $donation->foodbank->organization_name,
-                    'email' => $donation->foodbank->email,
-                    'phone' => $donation->foodbank->phone_no,
+                'foodbank' => ($foodbank && $foodbank instanceof \Illuminate\Database\Eloquent\Model) ? [
+                    'id' => $foodbank->foodbank_id ?? null,
+                    'name' => $foodbank->organization_name ?? null,
+                    'email' => $foodbank->email ?? null,
+                    'phone' => $foodbank->phone_no ?? null,
                 ] : null,
-                'donation_request' => $donation->donationRequest ? [
-                    'id' => $donation->donationRequest->donation_request_id,
-                    'item_name' => $donation->donationRequest->item_name,
-                    'status' => $donation->donationRequest->status,
+                'donation_request' => ($donationRequest && $donationRequest instanceof \Illuminate\Database\Eloquent\Model) ? [
+                    'id' => $donationRequest->donation_request_id ?? null,
+                    'item_name' => $donationRequest->item_name ?? null,
+                    'status' => $donationRequest->status ?? null,
                 ] : null,
             ];
         });
         
         // Format donation requests data
         $formattedRequests = $donationRequests->map(function($request) {
+            $foodbank = $request->foodbank;
+            
             return [
                 'id' => $request->donation_request_id,
                 'item_name' => $request->item_name,
@@ -2355,10 +2361,10 @@ class DashboardController extends Controller
                 'category' => $request->category,
                 'description' => $request->description,
                 'distribution_zone' => $request->distribution_zone,
-                'dropoff_date' => $request->dropoff_date,
+                'dropoff_date' => $request->dropoff_date ? ($request->dropoff_date instanceof \Carbon\Carbon ? $request->dropoff_date->format('Y-m-d') : $request->dropoff_date) : null,
                 'time_option' => $request->time_option,
-                'start_time' => $request->start_time,
-                'end_time' => $request->end_time,
+                'start_time' => $request->start_time ? ($request->start_time instanceof \Carbon\Carbon ? $request->start_time->toDateTimeString() : $request->start_time) : null,
+                'end_time' => $request->end_time ? ($request->end_time instanceof \Carbon\Carbon ? $request->end_time->toDateTimeString() : $request->end_time) : null,
                 'address' => $request->address,
                 'delivery_option' => $request->delivery_option,
                 'contact_name' => $request->contact_name,
@@ -2366,12 +2372,12 @@ class DashboardController extends Controller
                 'email' => $request->email,
                 'status' => $request->status,
                 'matches' => $request->matches ?? 0,
-                'created_at' => $request->created_at,
-                'foodbank' => $request->foodbank ? [
-                    'id' => $request->foodbank->foodbank_id,
-                    'name' => $request->foodbank->organization_name,
-                    'email' => $request->foodbank->email,
-                    'phone' => $request->foodbank->phone_no,
+                'created_at' => $request->created_at ? ($request->created_at instanceof \Carbon\Carbon ? $request->created_at->toDateTimeString() : $request->created_at) : null,
+                'foodbank' => ($foodbank && $foodbank instanceof \Illuminate\Database\Eloquent\Model) ? [
+                    'id' => $foodbank->foodbank_id ?? null,
+                    'name' => $foodbank->organization_name ?? null,
+                    'email' => $foodbank->email ?? null,
+                    'phone' => $foodbank->phone_no ?? null,
                 ] : null,
             ];
         });
@@ -2380,7 +2386,7 @@ class DashboardController extends Controller
         $allRecords = $formattedDonations->map(function($item) {
             $item['record_type'] = 'donation';
             return $item;
-        })->merge($formattedRequests->map(function($item) {
+        })->concat($formattedRequests->map(function($item) {
             $item['record_type'] = 'request';
             return $item;
         }))->sortByDesc('created_at')->values();
@@ -2769,6 +2775,170 @@ class DashboardController extends Controller
         return view('admin.reports', compact('user'));
     }
 
+
+    /**
+     * Admin - Review Management
+     */
+    public function adminReviews(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Get filter parameters
+        $searchQuery = $request->get('search', '');
+        $ratingFilter = $request->get('rating', 'all');
+        $flaggedFilter = $request->get('flagged', 'all');
+        $dateFrom = $request->get('date_from', '');
+        $dateTo = $request->get('date_to', '');
+        $perPage = $request->get('per_page', 20);
+        
+        // Build query
+        $query = Review::with([
+            'consumer' => function($query) {
+                $query->select('consumer_id', 'fname', 'lname', 'email');
+            },
+            'establishment' => function($query) {
+                $query->select('establishment_id', 'business_name', 'email');
+            },
+            'foodListing' => function($query) {
+                $query->select('id', 'name');
+            }
+        ]);
+        
+        // Apply search filter
+        if ($searchQuery) {
+            $query->where(function($q) use ($searchQuery) {
+                $q->where('description', 'like', "%{$searchQuery}%")
+                  ->orWhereHas('consumer', function($q) use ($searchQuery) {
+                      $q->where('fname', 'like', "%{$searchQuery}%")
+                        ->orWhere('lname', 'like', "%{$searchQuery}%")
+                        ->orWhere('email', 'like', "%{$searchQuery}%");
+                  })
+                  ->orWhereHas('establishment', function($q) use ($searchQuery) {
+                      $q->where('business_name', 'like', "%{$searchQuery}%");
+                  })
+                  ->orWhereHas('foodListing', function($q) use ($searchQuery) {
+                      $q->where('name', 'like', "%{$searchQuery}%");
+                  });
+            });
+        }
+        
+        // Apply rating filter
+        if ($ratingFilter !== 'all') {
+            $query->where('rating', $ratingFilter);
+        }
+        
+        // Apply flagged filter
+        if ($flaggedFilter === 'yes') {
+            $query->where('flagged', true);
+        } elseif ($flaggedFilter === 'no') {
+            $query->where('flagged', false);
+        }
+        
+        // Apply date filters
+        if ($dateFrom) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+        
+        // Get paginated results
+        $reviews = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        
+        // Statistics
+        $stats = [
+            'total_reviews' => Review::count(),
+            'flagged_reviews' => Review::where('flagged', true)->count(),
+            'average_rating' => round(Review::avg('rating'), 1),
+            'reviews_today' => Review::whereDate('created_at', now()->toDateString())->count(),
+        ];
+        
+        return view('admin.reviews', compact(
+            'user',
+            'reviews',
+            'stats',
+            'searchQuery',
+            'ratingFilter',
+            'flaggedFilter',
+            'dateFrom',
+            'dateTo',
+            'perPage'
+        ));
+    }
+    
+    /**
+     * Admin - Delete Review
+     */
+    public function deleteReview($id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied.'
+            ], 403);
+        }
+        
+        try {
+            $review = Review::findOrFail($id);
+            
+            // Delete associated files if they exist
+            if ($review->image_path && \Storage::exists($review->image_path)) {
+                \Storage::delete($review->image_path);
+            }
+            if ($review->video_path && \Storage::exists($review->video_path)) {
+                \Storage::delete($review->video_path);
+            }
+            
+            $review->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Review deleted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete review.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Flag/Unflag Review
+     */
+    public function flagReview($id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied.'
+            ], 403);
+        }
+        
+        try {
+            $review = Review::findOrFail($id);
+            $review->flagged = !$review->flagged;
+            $review->flagged_at = $review->flagged ? now() : null;
+            $review->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => $review->flagged ? 'Review flagged successfully.' : 'Review unflagged successfully.',
+                'flagged' => $review->flagged
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update review flag status.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
     /**
      * Admin - System Settings

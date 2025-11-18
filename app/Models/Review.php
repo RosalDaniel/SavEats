@@ -18,6 +18,13 @@ class Review extends Model
         'description',
         'image_path',
         'video_path',
+        'flagged',
+        'flagged_at',
+    ];
+
+    protected $casts = [
+        'flagged' => 'boolean',
+        'flagged_at' => 'datetime',
     ];
 
     // Relationships
