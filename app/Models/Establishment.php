@@ -102,4 +102,28 @@ class Establishment extends Authenticatable
     {
         return $this->hasMany(FoodListing::class, 'establishment_id', 'establishment_id');
     }
+
+    /**
+     * Get the orders for this establishment.
+     */
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'establishment_id', 'establishment_id');
+    }
+
+    /**
+     * Get the reviews about this establishment.
+     */
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'establishment_id', 'establishment_id');
+    }
+
+    /**
+     * Get the donations made by this establishment.
+     */
+    public function donations()
+    {
+        return $this->hasMany(Donation::class, 'establishment_id', 'establishment_id');
+    }
 }

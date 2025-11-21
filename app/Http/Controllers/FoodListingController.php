@@ -619,7 +619,12 @@ class FoodListingController extends Controller
             }
 
             // Check if sufficient quantity is available (available stock = quantity - reserved_stock)
-            $availableStock = $foodItem->quantity - ($foodItem->reserved_stock ?? 0);
+            // Use row-level locking to get accurate stock
+            $availableStock = DB::transaction(function () use ($foodItem) {
+                $lockedItem = FoodListing::lockForUpdate()->find($foodItem->id);
+                return $lockedItem->quantity - ($lockedItem->reserved_stock ?? 0);
+            });
+            
             if ($availableStock < $request->quantity) {
                 return response()->json([
                     'success' => false,
@@ -647,6 +652,7 @@ class FoodListingController extends Controller
                     'total_price' => $totalPrice,
                     'delivery_method' => $request->delivery_method,
                     'payment_method' => $request->payment_method,
+                    'payment_status' => 'confirmed', // Payment confirmed at order placement (immediate payment)
                     'status' => 'pending',
                     'customer_name' => $request->customer_name,
                     'customer_phone' => $request->customer_phone,
@@ -655,10 +661,13 @@ class FoodListingController extends Controller
                     'pickup_end_time' => $this->formatTimeForDatabase($request->pickup_end_time),
                 ]);
 
-                // Reserve stock: move from available to reserved
-                // available_stock -= qty, reserved_stock += qty
-                $foodItem->reserved_stock = ($foodItem->reserved_stock ?? 0) + $request->quantity;
-                $foodItem->save();
+                // Deduct stock immediately after payment confirmation
+                $stockService = new \App\Services\StockService();
+                $stockResult = $stockService->deductStock($order, $request->quantity);
+                
+                if (!$stockResult['success']) {
+                    throw new \Exception($stockResult['message']);
+                }
 
                 DB::commit();
             } catch (\Exception $e) {
@@ -937,19 +946,12 @@ class FoodListingController extends Controller
 
         DB::beginTransaction();
         try {
-            // Release stock: move from reserved/sold back to available
-            if ($order->foodListing) {
-                $foodListing = $order->foodListing;
-                
-                // If order was accepted, move from sold back to available
-                if ($order->status === 'accepted') {
-                    $foodListing->sold_stock = max(0, ($foodListing->sold_stock ?? 0) - $order->quantity);
-                    $foodListing->quantity += $order->quantity;
-                } else {
-                    // If order was pending, move from reserved back to available
-                    $foodListing->reserved_stock = max(0, ($foodListing->reserved_stock ?? 0) - $order->quantity);
-                }
-                $foodListing->save();
+            // Restore stock using StockService (idempotent)
+            $stockService = new \App\Services\StockService();
+            $stockResult = $stockService->restoreStock($order, $request->input('reason', 'Cancelled by customer'));
+            
+            if (!$stockResult['success']) {
+                throw new \Exception($stockResult['message']);
             }
 
             // Update order status

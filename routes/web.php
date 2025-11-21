@@ -194,11 +194,11 @@ Route::middleware('custom.auth')->group(function () {
         // Reports & Analytics
         Route::get('/reports', [DashboardController::class, 'adminReports'])->name('reports');
         
-        // Announcements
-        Route::get('/announcements', [DashboardController::class, 'adminAnnouncements'])->name('announcements');
-        Route::post('/announcements', [DashboardController::class, 'storeAnnouncement'])->name('announcements.store');
-        Route::post('/announcements/{id}', [DashboardController::class, 'updateAnnouncement'])->name('announcements.update');
-        Route::delete('/announcements/{id}', [DashboardController::class, 'deleteAnnouncement'])->name('announcements.delete');
+        // Announcements (moved to CMS)
+        Route::get('/cms/announcements', [\App\Http\Controllers\AdminCmsController::class, 'getAnnouncements'])->name('cms.announcements');
+        Route::post('/cms/announcements', [\App\Http\Controllers\AdminCmsController::class, 'storeAnnouncement'])->name('cms.announcements.store');
+        Route::post('/cms/announcements/{id}', [\App\Http\Controllers\AdminCmsController::class, 'updateAnnouncement'])->name('cms.announcements.update');
+        Route::delete('/cms/announcements/{id}', [\App\Http\Controllers\AdminCmsController::class, 'deleteAnnouncement'])->name('cms.announcements.delete');
         
         // Review Management
         Route::get('/reviews', [DashboardController::class, 'adminReviews'])->name('reviews');

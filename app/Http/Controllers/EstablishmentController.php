@@ -579,20 +579,12 @@ class EstablishmentController extends Controller
 
         DB::beginTransaction();
         try {
-            // Release stock: move from reserved back to available
-            // reserved_stock -= qty, available_stock += qty
-            if ($order->foodListing) {
-                $foodListing = $order->foodListing;
-                
-                // If order was accepted, move from sold back to available
-                if ($order->status === 'accepted') {
-                    $foodListing->sold_stock = max(0, ($foodListing->sold_stock ?? 0) - $order->quantity);
-                    $foodListing->quantity += $order->quantity;
-                } else {
-                    // If order was pending, move from reserved back to available
-                    $foodListing->reserved_stock = max(0, ($foodListing->reserved_stock ?? 0) - $order->quantity);
-                }
-                $foodListing->save();
+            // Restore stock using StockService (idempotent)
+            $stockService = new \App\Services\StockService();
+            $stockResult = $stockService->restoreStock($order, $request->input('reason', 'Cancelled by establishment'));
+            
+            if (!$stockResult['success']) {
+                throw new \Exception($stockResult['message']);
             }
 
             // Update order status
@@ -637,15 +629,8 @@ class EstablishmentController extends Controller
 
         DB::beginTransaction();
         try {
-            // Deduct quantity from food listing when order is completed
-            // The stock was already moved to sold_stock when accepted
-            // Now we actually reduce the physical quantity
-            if ($order->foodListing) {
-                $foodListing = $order->foodListing;
-                $foodListing->quantity = max(0, $foodListing->quantity - $order->quantity);
-                $foodListing->save();
-            }
-
+            // Stock is already deducted when payment is confirmed
+            // Completing order just changes status - no stock movement needed
             $order->status = 'completed';
             $order->completed_at = now();
             $order->save();

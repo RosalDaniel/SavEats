@@ -86,4 +86,20 @@ class Consumer extends Authenticatable
     {
         return 'consumer';
     }
+
+    /**
+     * Get the orders for this consumer.
+     */
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'consumer_id', 'consumer_id');
+    }
+
+    /**
+     * Get the reviews written by this consumer.
+     */
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'consumer_id', 'consumer_id');
+    }
 }

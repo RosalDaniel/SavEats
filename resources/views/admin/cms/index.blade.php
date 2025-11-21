@@ -59,6 +59,18 @@
                 <p class="stat-number">{{ number_format($privacyCount) }}</p>
             </div>
         </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon announcements">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <h3>Announcements</h3>
+                <p class="stat-number">{{ number_format($announcementsCount) }}</p>
+            </div>
+        </div>
     </div>
 
     <!-- Tabs Navigation -->
@@ -87,6 +99,12 @@
             </svg>
             Privacy Policy
         </button>
+        <button class="tab-btn" data-tab="announcements">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+            Announcements
+        </button>
     </div>
 
     <!-- Tab Content -->
@@ -109,6 +127,11 @@
         <!-- Privacy Tab -->
         <div class="tab-content" id="privacy-tab">
             @include('admin.cms.privacy')
+        </div>
+
+        <!-- Announcements Tab -->
+        <div class="tab-content" id="announcements-tab">
+            @include('admin.cms.announcements')
         </div>
     </div>
 </div>
@@ -143,6 +166,12 @@
             store: '{{ route('admin.cms.privacy.store') }}',
             update: function(id) { return '{{ route('admin.cms.privacy.update', ':id') }}'.replace(':id', id); },
             delete: function(id) { return '{{ route('admin.cms.privacy.delete', ':id') }}'.replace(':id', id); }
+        },
+        announcements: {
+            list: '{{ route('admin.cms.announcements') }}',
+            store: '{{ route('admin.cms.announcements.store') }}',
+            update: function(id) { return '{{ route('admin.cms.announcements.update', ':id') }}'.replace(':id', id); },
+            delete: function(id) { return '{{ route('admin.cms.announcements.delete', ':id') }}'.replace(':id', id); }
         }
     };
 </script>

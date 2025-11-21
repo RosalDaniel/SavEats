@@ -19,8 +19,13 @@ body {
 /* Sidebar Styles */
 .sidebar {
     width: 270px;
-    background: white;
-    color: black;
+    background: linear-gradient(to bottom, 
+        #347928 0%, 
+        #347928 29%, 
+        #7AB267 63%, 
+        #9DCF86 82%, 
+        #C0EBA6 100%);
+    color: white;
     padding: 20px 0;
     position: fixed;
     top: 0;
@@ -31,6 +36,12 @@ body {
     transition: transform 0.3s ease;
     z-index: 1001;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Admin Sidebar - White Background */
+.sidebar.admin-sidebar {
+    background: white;
+    color: black;
 }
 
 .sidebar.mobile-hidden {
@@ -45,8 +56,13 @@ body {
     display: flex;
     align-items: center;
     padding: 0 20px 30px;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     margin-bottom: 20px;
+}
+
+/* Admin sidebar user profile border */
+.sidebar.admin-sidebar .user-profile {
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .user-avatar {
@@ -74,13 +90,23 @@ body {
     font-size: 16px;
     font-weight: 600;
     margin: 0;
+    color: white;
+}
+
+/* Admin sidebar user info text */
+.sidebar.admin-sidebar .user-info h3 {
     color: black;
 }
 
 .user-info p {
     font-size: 13px;
-    color: #6b7280;
+    color: rgba(255, 255, 255, 0.8);
     margin: 2px 0 0;
+}
+
+/* Admin sidebar user info subtitle */
+.sidebar.admin-sidebar .user-info p {
+    color: #6b7280;
 }
 
 .nav-menu {
@@ -99,7 +125,7 @@ body {
     display: flex;
     align-items: center;
     padding: 15px 20px;
-    color: black;
+    color: white;
     text-decoration: none;
     transition: all 0.3s ease;
     border-left: 3px solid transparent;
@@ -109,12 +135,24 @@ body {
     overflow: hidden;
 }
 
+/* Admin sidebar nav links */
+.sidebar.admin-sidebar .nav-link {
+    color: black;
+}
+
 .nav-link:hover,
 .nav-link.active {
-    background: #f3f4f6;
-    border-left-color: #667eea;
+    background: rgba(255, 255, 255, 0.1);
+    border-left-color: #ffc107;
     transform: translateX(5px);
     box-sizing: border-box;
+}
+
+/* Admin sidebar nav link hover/active */
+.sidebar.admin-sidebar .nav-link:hover,
+.sidebar.admin-sidebar .nav-link.active {
+    background: #f3f4f6;
+    border-left-color: #667eea;
 }
 
 .nav-icon {
@@ -122,6 +160,112 @@ body {
     height: 22px;
     margin-right: 15px;
     fill: currentColor;
+    flex-shrink: 0;
+}
+
+/* Nested Menu Styles */
+.nav-item-has-children {
+    position: relative;
+}
+
+.nav-link-parent {
+    cursor: pointer;
+    position: relative;
+    justify-content: space-between;
+}
+
+.nav-link-parent span {
+    flex: 1;
+}
+
+.nav-link-parent .nav-arrow {
+    width: 16px;
+    height: 16px;
+    margin-left: auto;
+    margin-right: 0;
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.nav-item-has-children.expanded .nav-arrow {
+    transform: rotate(180deg);
+}
+
+.nav-submenu {
+    list-style: none;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    padding: 0;
+    margin: 0;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* Admin sidebar submenu */
+.sidebar.admin-sidebar .nav-submenu {
+    background: #f9fafb;
+}
+
+.nav-submenu.expanded {
+    max-height: 500px;
+}
+
+.nav-subitem {
+    margin: 0;
+}
+
+.nav-link-child {
+    padding-left: 57px; /* 20px (parent padding) + 22px (icon) + 15px (icon margin) */
+    font-size: 14px;
+    position: relative;
+}
+
+.nav-link-child::before {
+    content: '';
+    position: absolute;
+    left: 40px;
+    top: 50%;
+    width: 8px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translateY(-50%);
+}
+
+/* Admin sidebar child link connector */
+.sidebar.admin-sidebar .nav-link-child::before {
+    background: #9ca3af;
+}
+
+.nav-link-child:hover,
+.nav-link-child.active {
+    background: rgba(255, 255, 255, 0.1);
+    border-left-color: #ffc107;
+    transform: translateX(5px);
+}
+
+.nav-link-child.active {
+    background: rgba(255, 255, 255, 0.15);
+    border-left-width: 3px;
+    border-left-color: #ffc107;
+    font-weight: 500;
+}
+
+/* Admin sidebar child nav links */
+.sidebar.admin-sidebar .nav-link-child:hover,
+.sidebar.admin-sidebar .nav-link-child.active {
+    background: #f3f4f6;
+    border-left-color: #667eea;
+}
+
+.sidebar.admin-sidebar .nav-link-child.active {
+    background: #eef2ff;
+    border-left-color: #667eea;
+}
+
+.nav-link-child .nav-icon {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
 }
 
 /* Overlay for mobile sidebar */

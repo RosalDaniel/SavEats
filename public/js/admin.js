@@ -58,5 +58,42 @@ document.addEventListener('DOMContentLoaded', function() {
             e.stopPropagation();
         });
     }
+    
+    // Initialize nested menu expansion state
+    initializeNestedMenus();
 });
+
+// Toggle submenu function
+function toggleSubmenu(event, element) {
+    event.preventDefault();
+    const navItem = element.closest('.nav-item-has-children');
+    const submenu = navItem.querySelector('.nav-submenu');
+    
+    if (navItem && submenu) {
+        const isExpanded = navItem.classList.contains('expanded');
+        
+        if (isExpanded) {
+            navItem.classList.remove('expanded');
+            submenu.classList.remove('expanded');
+        } else {
+            navItem.classList.add('expanded');
+            submenu.classList.add('expanded');
+        }
+    }
+}
+
+// Initialize nested menus - expand if any child is active
+function initializeNestedMenus() {
+    const navItemsWithChildren = document.querySelectorAll('.nav-item-has-children');
+    
+    navItemsWithChildren.forEach(navItem => {
+        const submenu = navItem.querySelector('.nav-submenu');
+        const activeChild = navItem.querySelector('.nav-link-child.active');
+        
+        if (activeChild && submenu) {
+            navItem.classList.add('expanded');
+            submenu.classList.add('expanded');
+        }
+    });
+}
 

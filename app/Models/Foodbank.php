@@ -78,4 +78,20 @@ class Foodbank extends Authenticatable
     {
         return 'foodbank';
     }
+
+    /**
+     * Get the donations received by this foodbank.
+     */
+    public function donations()
+    {
+        return $this->hasMany(Donation::class, 'foodbank_id', 'foodbank_id');
+    }
+
+    /**
+     * Get the donation requests made by this foodbank.
+     */
+    public function donationRequests()
+    {
+        return $this->hasMany(DonationRequest::class, 'foodbank_id', 'foodbank_id');
+    }
 }

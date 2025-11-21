@@ -53,6 +53,9 @@ function loadTabData(tabName) {
         case 'privacy':
             loadPrivacy();
             break;
+        case 'announcements':
+            loadAnnouncements();
+            break;
     }
 }
 
@@ -807,6 +810,248 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (privacyStatusFilter) {
         privacyStatusFilter.addEventListener('change', () => loadPrivacy(1));
+    }
+});
+
+// ============================================================================
+// ANNOUNCEMENTS
+// ============================================================================
+
+let currentAnnouncementPage = 1;
+
+function loadAnnouncements(page = 1) {
+    currentAnnouncementPage = page;
+    const search = document.getElementById('announcementSearch')?.value || '';
+    const status = document.getElementById('announcementStatusFilter')?.value || 'all';
+    const audience = document.getElementById('announcementAudienceFilter')?.value || 'all';
+    
+    const params = new URLSearchParams({
+        page: page,
+        ...(search && { search }),
+        ...(status && status !== 'all' && { status }),
+        ...(audience && audience !== 'all' && { audience })
+    });
+    
+    fetch(`${CMS_ROUTES.announcements.list}?${params}`, {
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            renderAnnouncementsTable(data.data);
+            renderPagination('announcementsPagination', data.data, loadAnnouncements);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading announcements:', error);
+        showNotification('Error loading announcements', 'error');
+    });
+}
+
+function renderAnnouncementsTable(data) {
+    const tbody = document.getElementById('announcementsTableBody');
+    if (!tbody) return;
+    
+    if (data.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">No announcements found</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    data.data.forEach(announcement => {
+        const publishedAt = announcement.published_at ? formatDate(announcement.published_at) + '<br><small>' + new Date(announcement.published_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + '</small>' : '<span class="no-date">Not published</span>';
+        const expiresAt = announcement.expires_at ? formatDate(announcement.expires_at) + '<br><small>' + new Date(announcement.expires_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + '</small>' : '<span class="no-date">No expiry</span>';
+        const createdAt = formatDate(announcement.created_at) + '<br><small>' + new Date(announcement.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + '</small>';
+        const messagePreview = announcement.message.length > 100 ? announcement.message.substring(0, 100) + '...' : announcement.message;
+        
+        html += `<tr>
+            <td><strong>${escapeHtml(announcement.title)}</strong></td>
+            <td>${escapeHtml(messagePreview)}</td>
+            <td><span class="badge badge-${announcement.target_audience}">${escapeHtml(announcement.target_audience.charAt(0).toUpperCase() + announcement.target_audience.slice(1))}</span></td>
+            <td><span class="badge badge-${announcement.status}">${escapeHtml(announcement.status.charAt(0).toUpperCase() + announcement.status.slice(1))}</span></td>
+            <td>${publishedAt}</td>
+            <td>${expiresAt}</td>
+            <td>${createdAt}</td>
+            <td>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn-action btn-edit" onclick="editAnnouncement(${announcement.id})" title="Edit">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-action btn-delete" onclick="deleteAnnouncement(${announcement.id})" title="Delete">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                        </svg>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+function openAnnouncementModal(id = null) {
+    const modal = document.getElementById('announcementModal');
+    const form = document.getElementById('announcementForm');
+    const title = document.getElementById('announcementModalTitle');
+    
+    if (id) {
+        title.textContent = 'Edit Announcement';
+        fetch(`${CMS_ROUTES.announcements.list}?id=${id}`, {
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.data.length > 0) {
+                const announcement = data.data.data[0];
+                document.getElementById('announcementId').value = announcement.id;
+                document.getElementById('announcementTitle').value = announcement.title;
+                document.getElementById('announcementMessage').value = announcement.message;
+                document.getElementById('announcementAudience').value = announcement.target_audience;
+                document.getElementById('announcementStatus').value = announcement.status;
+                document.getElementById('announcementPublishedAt').value = formatDateTimeLocal(announcement.published_at);
+                document.getElementById('announcementExpiresAt').value = formatDateTimeLocal(announcement.expires_at);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading announcement:', error);
+            showNotification('Error loading announcement', 'error');
+        });
+    } else {
+        title.textContent = 'Add Announcement';
+        form.reset();
+        document.getElementById('announcementId').value = '';
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function closeAnnouncementModal() {
+    const modal = document.getElementById('announcementModal');
+    modal.style.display = 'none';
+    document.getElementById('announcementForm').reset();
+}
+
+function editAnnouncement(id) {
+    openAnnouncementModal(id);
+}
+
+function saveAnnouncement(event) {
+    event.preventDefault();
+    
+    const form = document.getElementById('announcementForm');
+    const formData = new FormData(form);
+    const id = document.getElementById('announcementId').value;
+    const isEdit = id && id !== '';
+    
+    const data = {
+        title: formData.get('title'),
+        message: formData.get('message'),
+        target_audience: formData.get('target_audience'),
+        status: formData.get('status'),
+        published_at: formData.get('published_at') || null,
+        expires_at: formData.get('expires_at') || null,
+    };
+    
+    // Validate expires_at is after published_at
+    if (data.expires_at && data.published_at) {
+        const publishedDate = new Date(data.published_at);
+        const expiresDate = new Date(data.expires_at);
+        if (expiresDate <= publishedDate) {
+            showNotification('Expires date must be after published date.', 'error');
+            return;
+        }
+    }
+    
+    const url = isEdit ? CMS_ROUTES.announcements.update(id) : CMS_ROUTES.announcements.store;
+    const method = isEdit ? 'POST' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            closeAnnouncementModal();
+            loadAnnouncements(currentAnnouncementPage);
+        } else {
+            showNotification(data.message || 'Failed to save announcement', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving announcement:', error);
+        showNotification('Error saving announcement', 'error');
+    });
+}
+
+function deleteAnnouncement(id) {
+    if (!confirm('Are you sure you want to delete this announcement?')) {
+        return;
+    }
+    
+    fetch(CMS_ROUTES.announcements.delete(id), {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            loadAnnouncements(currentAnnouncementPage);
+        } else {
+            showNotification(data.message || 'Failed to delete announcement', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting announcement:', error);
+        showNotification('Error deleting announcement', 'error');
+    });
+}
+
+// Initialize announcement filters
+document.addEventListener('DOMContentLoaded', function() {
+    const announcementSearch = document.getElementById('announcementSearch');
+    const announcementStatusFilter = document.getElementById('announcementStatusFilter');
+    const announcementAudienceFilter = document.getElementById('announcementAudienceFilter');
+    
+    if (announcementSearch) {
+        let searchTimeout;
+        announcementSearch.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => loadAnnouncements(1), 300);
+        });
+    }
+    
+    if (announcementStatusFilter) {
+        announcementStatusFilter.addEventListener('change', () => loadAnnouncements(1));
+    }
+    
+    if (announcementAudienceFilter) {
+        announcementAudienceFilter.addEventListener('change', () => loadAnnouncements(1));
+    }
+    
+    // Close modal on overlay click
+    const announcementModal = document.getElementById('announcementModal');
+    if (announcementModal) {
+        announcementModal.addEventListener('click', function(e) {
+            if (e.target === announcementModal) {
+                closeAnnouncementModal();
+            }
+        });
     }
 });
 

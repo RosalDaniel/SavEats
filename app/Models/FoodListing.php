@@ -46,6 +46,11 @@ class FoodListing extends Model
         return $this->hasMany(Review::class, 'food_listing_id');
     }
 
+    public function stockLedgerEntries()
+    {
+        return $this->hasMany(StockLedger::class, 'food_listing_id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('status', 'active');

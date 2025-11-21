@@ -19,7 +19,13 @@ class Order extends Model
         'total_price',
         'delivery_method',
         'payment_method',
+        'payment_status',
+        'payment_confirmed_at',
         'status',
+        'stock_deducted',
+        'stock_deducted_at',
+        'stock_restored',
+        'stock_restored_at',
         'customer_name',
         'customer_phone',
         'delivery_address',
@@ -34,6 +40,11 @@ class Order extends Model
     protected $casts = [
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'stock_deducted' => 'boolean',
+        'stock_restored' => 'boolean',
+        'payment_confirmed_at' => 'datetime',
+        'stock_deducted_at' => 'datetime',
+        'stock_restored_at' => 'datetime',
         'accepted_at' => 'datetime',
         'completed_at' => 'datetime',
         'cancelled_at' => 'datetime',
@@ -58,6 +69,11 @@ class Order extends Model
     public function review()
     {
         return $this->hasOne(Review::class);
+    }
+
+    public function stockLedgerEntries()
+    {
+        return $this->hasMany(StockLedger::class);
     }
 
     // Generate unique order number

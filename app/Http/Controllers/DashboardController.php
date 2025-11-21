@@ -1453,6 +1453,7 @@ class DashboardController extends Controller
     
     /**
      * Admin - Delete User
+     * Deletes personal content and anonymizes critical business records
      */
     public function deleteUser($role, $id)
     {
@@ -1461,6 +1462,8 @@ class DashboardController extends Controller
         }
         
         try {
+            \DB::beginTransaction();
+            
             $model = match($role) {
                 'consumer' => Consumer::find($id),
                 'establishment' => Establishment::find($id),
@@ -1472,20 +1475,114 @@ class DashboardController extends Controller
                 return response()->json(['success' => false, 'message' => 'User not found.'], 404);
             }
             
-            // Soft delete by setting status to deleted
-            $model->status = 'deleted';
-            $model->save();
+            $userId = $model->getKey();
+            $userName = $this->getUserName($model, $role);
+            
+            // Step 1: Delete personal content
+            $this->deletePersonalContent($model, $role);
+            
+            // Step 2: Anonymize critical business records
+            $this->anonymizeCriticalRecords($model, $role, $userId, $userName);
+            
+            // Step 3: Delete the user record
+            $model->delete();
+            
+            \DB::commit();
             
             return response()->json([
                 'success' => true,
-                'message' => 'User deleted successfully.'
+                'message' => 'User deleted successfully. Personal content removed and business records anonymized.'
             ]);
         } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('User deletion failed: ' . $e->getMessage(), [
+                'role' => $role,
+                'id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete user.',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+    
+    /**
+     * Get user name for anonymization
+     */
+    private function getUserName($model, $role)
+    {
+        return match($role) {
+            'consumer' => trim(($model->fname ?? '') . ' ' . ($model->lname ?? '')),
+            'establishment' => $model->business_name ?? trim(($model->owner_fname ?? '') . ' ' . ($model->owner_lname ?? '')),
+            'foodbank' => $model->organization_name ?? $model->contact_person ?? 'Foodbank',
+            default => 'User'
+        };
+    }
+    
+    /**
+     * Delete personal content (reviews, food listings)
+     */
+    private function deletePersonalContent($model, $role)
+    {
+        if ($role === 'consumer') {
+            // Delete reviews written by consumer
+            Review::where('consumer_id', $model->consumer_id)->delete();
+        } elseif ($role === 'establishment') {
+            // Delete food listings created by establishment
+            FoodListing::where('establishment_id', $model->establishment_id)->delete();
+            
+            // Delete reviews about this establishment (personal opinions)
+            Review::where('establishment_id', $model->establishment_id)->delete();
+        } elseif ($role === 'foodbank') {
+            // Foodbanks don't have personal content to delete
+        }
+    }
+    
+    /**
+     * Anonymize critical business records (orders, donations, transactions)
+     */
+    private function anonymizeCriticalRecords($model, $role, $userId, $userName)
+    {
+        if ($role === 'consumer') {
+            // Anonymize orders
+            Order::where('consumer_id', $userId)
+                ->update([
+                    'consumer_id' => null,
+                    'customer_name' => 'Deleted User',
+                    'customer_phone' => null,
+                ]);
+        } elseif ($role === 'establishment') {
+            // Anonymize orders
+            Order::where('establishment_id', $userId)
+                ->update([
+                    'establishment_id' => null,
+                ]);
+            
+            // Anonymize donations
+            Donation::where('establishment_id', $userId)
+                ->update([
+                    'establishment_id' => null,
+                    'establishment_notes' => 'Donation from deleted account',
+                ]);
+        } elseif ($role === 'foodbank') {
+            // Anonymize donations
+            Donation::where('foodbank_id', $userId)
+                ->update([
+                    'foodbank_id' => null,
+                    'foodbank_notes' => 'Donation to deleted account',
+                ]);
+            
+            // Anonymize donation requests
+            DonationRequest::where('foodbank_id', $userId)
+                ->update([
+                    'foodbank_id' => null,
+                    'contact_name' => 'Deleted Account',
+                    'email' => 'deleted@account.local',
+                    'phone_number' => null,
+                ]);
         }
     }
 
@@ -2129,15 +2226,34 @@ class DashboardController extends Controller
                 return response()->json(['success' => false, 'message' => 'Cannot cancel a completed order.'], 400);
             }
             
-            $order->status = 'cancelled';
-            $order->cancelled_at = now();
-            $order->cancellation_reason = 'Admin Force Cancel: ' . $request->reason;
-            $order->save();
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Order cancelled successfully.'
-            ]);
+            DB::beginTransaction();
+            try {
+                // Restore stock using StockService (idempotent)
+                $stockService = new \App\Services\StockService();
+                $stockResult = $stockService->restoreStock($order, 'Admin Force Cancel: ' . $request->reason);
+                
+                if (!$stockResult['success']) {
+                    throw new \Exception($stockResult['message']);
+                }
+                
+                $order->status = 'cancelled';
+                $order->cancelled_at = now();
+                $order->cancellation_reason = 'Admin Force Cancel: ' . $request->reason;
+                $order->save();
+                
+                DB::commit();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Order cancelled and stock restored successfully.'
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to cancel order: ' . $e->getMessage()
+                ], 500);
+            }
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

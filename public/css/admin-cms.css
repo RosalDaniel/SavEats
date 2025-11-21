@@ -8,7 +8,7 @@
 /* Statistics Grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(5, 1fr);
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -62,6 +62,11 @@
 
 .stat-icon.privacy {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
+.stat-icon.announcements {
+    background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
     color: white;
 }
 
@@ -527,7 +532,89 @@
     border: 1px solid #e5e7eb;
 }
 
+/* Badge Styles */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.badge-all {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.badge-consumer {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-establishment {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-foodbank {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-archived {
+    background: #e5e7eb;
+    color: #6b7280;
+}
+
+.no-date {
+    color: #9ca3af;
+    font-style: italic;
+}
+
 /* Responsive */
+@media (max-width: 1400px) {
+    .stats-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+        min-height: 100px;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .stat-icon svg {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .stat-number {
+        font-size: 1.75rem;
+    }
+}
+
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
 @media (max-width: 768px) {
     .cms-management-page {
         padding: 1rem;

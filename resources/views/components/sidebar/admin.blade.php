@@ -1,6 +1,6 @@
 @php use Illuminate\Support\Facades\Storage; @endphp
 <!-- Admin Sidebar -->
-<nav class="sidebar" id="sidebar">
+<nav class="sidebar admin-sidebar" id="sidebar">
     <div class="user-profile" onclick="window.location.href='{{ route('profile') }}'" style="cursor: pointer;">
         <div class="user-avatar">
             {{ substr(session('user_name', 'Admin'), 0, 2) }}
@@ -22,8 +22,8 @@
         </li>
         <li class="nav-item">
             <a href="{{ route('admin.cms') }}" class="nav-link {{ request()->routeIs('admin.cms*') ? 'active' : '' }}">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 640 640">
+                    <path fill="#000000" d="M384 224L480 224L480 160L384 160L384 224zM96 224L96 144C96 117.5 117.5 96 144 96L496 96C522.5 96 544 117.5 544 144L544 240C544 266.5 522.5 288 496 288L144 288C117.5 288 96 266.5 96 240L96 224zM256 480L480 480L480 416L256 416L256 480zM96 480L96 400C96 373.5 117.5 352 144 352L496 352C522.5 352 544 373.5 544 400L544 496C544 522.5 522.5 544 496 544L144 544C117.5 544 96 522.5 96 496L96 480z"/>
                 </svg>
                 Content Management
             </a>
@@ -36,34 +36,55 @@
                 User Management
             </a>
         </li>
-        <li class="nav-item">
-            <a href="{{ route('admin.establishments') }}" class="nav-link {{ request()->routeIs('admin.establishments') ? 'active' : '' }}">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        <li class="nav-item nav-item-has-children {{ request()->routeIs('admin.establishments') || request()->routeIs('admin.food-listings') || request()->routeIs('admin.orders') ? 'expanded' : '' }}">
+            <a href="#" class="nav-link nav-link-parent {{ request()->routeIs('admin.establishments') || request()->routeIs('admin.food-listings') || request()->routeIs('admin.orders') ? 'active' : '' }}" onclick="toggleSubmenu(event, this)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 640 640">
+                    <path fill="#000000" d="M94.7 136.3C101.6 112.4 123.5 96 148.4 96L492.4 96C517.3 96 539.2 112.4 546.2 136.3L569.6 216.5C582.4 260.2 549.5 304 504 304C477.7 304 454.6 289.1 443.2 266.9C431.6 288.8 408.6 304 381.8 304C355.2 304 332.1 289 320.5 267C308.9 289 285.8 304 259.2 304C232.4 304 209.4 288.9 197.8 266.9C186.4 289 163.3 304 137 304C91.4 304 58.6 260.3 71.4 216.5L94.7 136.3zM160.4 416L480.4 416L480.4 349.6C488 351.2 495.9 352 503.9 352C518.2 352 531.9 349.4 544.4 344.8L544.4 496C544.4 522.5 522.9 544 496.4 544L144.4 544C117.9 544 96.4 522.5 96.4 496L96.4 344.8C108.9 349.4 122.5 352 136.9 352C145 352 152.8 351.2 160.4 349.6L160.4 416z"/>
                 </svg>
-                Establishments
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="{{ route('admin.food-listings') }}" class="nav-link {{ request()->routeIs('admin.food-listings') ? 'active' : '' }}">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M8.1 13.34l2.83-2.83L3.91 3.5c-1.56 1.56-1.56 4.09 0 5.66l4.19 4.18zm6.78-1.81c1.53.71 3.68.21 5.27-1.38 1.91-1.91 2.28-4.65.81-6.12-1.46-1.46-4.2-1.1-6.12.81-1.59 1.59-2.09 3.74-1.38 5.27L3.7 19.87l1.41 1.41L12 14.41l6.88 6.88 1.41-1.41L13.41 13l1.47-1.47z"/>
+                <span>Establishments</span>
+                <svg class="nav-arrow" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
                 </svg>
-                Food Listings
             </a>
+            <ul class="nav-submenu {{ request()->routeIs('admin.establishments') || request()->routeIs('admin.food-listings') || request()->routeIs('admin.orders') ? 'expanded' : '' }}">
+                <li class="nav-subitem">
+                    <a href="{{ route('admin.establishments') }}" class="nav-link nav-link-child {{ request()->routeIs('admin.establishments') ? 'active' : '' }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 640 640">
+                            <path fill="#000000" d="M94.7 136.3C101.6 112.4 123.5 96 148.4 96L492.4 96C517.3 96 539.2 112.4 546.2 136.3L569.6 216.5C582.4 260.2 549.5 304 504 304C477.7 304 454.6 289.1 443.2 266.9C431.6 288.8 408.6 304 381.8 304C355.2 304 332.1 289 320.5 267C308.9 289 285.8 304 259.2 304C232.4 304 209.4 288.9 197.8 266.9C186.4 289 163.3 304 137 304C91.4 304 58.6 260.3 71.4 216.5L94.7 136.3zM160.4 416L480.4 416L480.4 349.6C488 351.2 495.9 352 503.9 352C518.2 352 531.9 349.4 544.4 344.8L544.4 496C544.4 522.5 522.9 544 496.4 544L144.4 544C117.9 544 96.4 522.5 96.4 496L96.4 344.8C108.9 349.4 122.5 352 136.9 352C145 352 152.8 351.2 160.4 349.6L160.4 416z"/>
+                        </svg>
+                        Manage Establishments
+                    </a>
+                </li>
+                <li class="nav-subitem">
+                    <a href="{{ route('admin.food-listings') }}" class="nav-link nav-link-child {{ request()->routeIs('admin.food-listings') ? 'active' : '' }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 640 640">
+                            <path fill="#000000" d="M104 112C90.7 112 80 122.7 80 136L80 184C80 197.3 90.7 208 104 208L152 208C165.3 208 176 197.3 176 184L176 136C176 122.7 165.3 112 152 112L104 112zM256 128C238.3 128 224 142.3 224 160C224 177.7 238.3 192 256 192L544 192C561.7 192 576 177.7 576 160C576 142.3 561.7 128 544 128L256 128zM256 288C238.3 288 224 302.3 224 320C224 337.7 238.3 352 256 352L544 352C561.7 352 576 337.7 576 320C576 302.3 561.7 288 544 288L256 288zM256 448C238.3 448 224 462.3 224 480C224 497.7 238.3 512 256 512L544 512C561.7 512 576 497.7 576 480C576 462.3 561.7 448 544 448L256 448zM80 296L80 344C80 357.3 90.7 368 104 368L152 368C165.3 368 176 357.3 176 344L176 296C176 282.7 165.3 272 152 272L104 272C90.7 272 80 282.7 80 296zM104 432C90.7 432 80 442.7 80 456L80 504C80 517.3 90.7 528 104 528L152 528C165.3 528 176 517.3 176 504L176 456C176 442.7 165.3 432 152 432L104 432z"/>
+                        </svg>
+                        Food Listings
+                    </a>
+                </li>
+            </ul>
         </li>
         <li class="nav-item">
             <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders') ? 'active' : '' }}">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M7 18c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 640 640">
+                    <path fill="#000000" d="M24 48C10.7 48 0 58.7 0 72C0 85.3 10.7 96 24 96L69.3 96C73.2 96 76.5 98.8 77.2 102.6L129.3 388.9C135.5 423.1 165.3 448 200.1 448L456 448C469.3 448 480 437.3 480 424C480 410.7 469.3 400 456 400L200.1 400C188.5 400 178.6 391.7 176.5 380.3L171.4 352L475 352C505.8 352 532.2 330.1 537.9 299.8L568.9 133.9C572.6 114.2 557.5 96 537.4 96L124.7 96L124.3 94C119.5 67.4 96.3 48 69.2 48L24 48zM208 576C234.5 576 256 554.5 256 528C256 501.5 234.5 480 208 480C181.5 480 160 501.5 160 528C160 554.5 181.5 576 208 576zM432 576C458.5 576 480 554.5 480 528C480 501.5 458.5 480 432 480C405.5 480 384 501.5 384 528C384 554.5 405.5 576 432 576z"/>
                 </svg>
                 Orders
             </a>
         </li>
         <li class="nav-item">
+            <a href="{{ route('admin.reviews') }}" class="nav-link {{ request()->routeIs('admin.reviews*') ? 'active' : '' }}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 640 640">
+                <path fill="#000000" d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
+                </svg>
+                Review Management
+            </a>
+        </li>
+        <li class="nav-item">
             <a href="{{ route('admin.donations') }}" class="nav-link {{ request()->routeIs('admin.donations') ? 'active' : '' }}">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 640 640">
+                    <path fill="#000000" d="M311.6 95C297.5 75.5 274.9 64 250.9 64C209.5 64 176 97.5 176 138.9L176 141.3C176 205.7 258 274.7 298.2 304.6C311.2 314.3 328.7 314.3 341.7 304.6C381.9 274.6 463.9 205.7 463.9 141.3L463.9 138.9C463.9 97.5 430.4 64 389 64C365 64 342.4 75.5 328.3 95L320 106.7L311.6 95zM141.3 405.5L98.7 448L64 448C46.3 448 32 462.3 32 480L32 544C32 561.7 46.3 576 64 576L384.5 576C413.5 576 441.8 566.7 465.2 549.5L591.8 456.2C609.6 443.1 613.4 418.1 600.3 400.3C587.2 382.5 562.2 378.7 544.4 391.8L424.6 480L312 480C298.7 480 288 469.3 288 456C288 442.7 298.7 432 312 432L384 432C401.7 432 416 417.7 416 400C416 382.3 401.7 368 384 368L231.8 368C197.9 368 165.3 381.5 141.3 405.5z"/>
                 </svg>
                 Donation Hub
             </a>
@@ -77,25 +98,9 @@
             </a>
         </li>
         <li class="nav-item">
-            <a href="{{ route('admin.announcements') }}" class="nav-link {{ request()->routeIs('admin.announcements') ? 'active' : '' }}">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-                Announcements
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="{{ route('admin.reviews') }}" class="nav-link {{ request()->routeIs('admin.reviews*') ? 'active' : '' }}">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                Review Management
-            </a>
-        </li>
-        <li class="nav-item">
             <a href="{{ route('admin.system-logs') }}" class="nav-link {{ request()->routeIs('admin.system-logs*') ? 'active' : '' }}">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
                 </svg>
                 System Logs
             </a>
