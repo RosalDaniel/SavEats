@@ -8,6 +8,8 @@ use App\Models\Establishment;
 use App\Models\Order;
 use App\Models\Review;
 use App\Models\Announcement;
+use App\Models\HelpCenterArticle;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use App\Models\Consumer;
 use Illuminate\Support\Facades\Storage;
@@ -20,7 +22,21 @@ class FoodListingController extends Controller
      */
     public function help()
     {
-        return view('consumer.help');
+        // Get published help articles
+        $articles = HelpCenterArticle::published()
+            ->orderBy('display_order', 'asc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Get unique categories
+        $categories = HelpCenterArticle::published()
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->toArray();
+        
+        return view('consumer.help', compact('articles', 'categories'));
     }
 
     /**
@@ -670,6 +686,17 @@ class FoodListingController extends Controller
                 }
 
                 DB::commit();
+                
+                // Reload order with relationships for notification
+                $order->load(['establishment', 'foodListing', 'consumer']);
+                
+                // Send notification to establishment
+                try {
+                    NotificationService::notifyOrderPlaced($order);
+                } catch (\Exception $e) {
+                    // Log error but don't fail the order
+                    \Log::error('Failed to create notification for order: ' . $e->getMessage());
+                }
             } catch (\Exception $e) {
                 DB::rollBack();
                 // If order creation fails, quantity is automatically restored by rollback
@@ -959,8 +986,14 @@ class FoodListingController extends Controller
             $order->cancelled_at = now();
             $order->cancellation_reason = $request->input('reason', 'Cancelled by customer');
             $order->save();
+            
+            // Reload order with relationships for notification
+            $order->load(['establishment', 'consumer']);
 
             DB::commit();
+            
+            // Send notification to establishment
+            NotificationService::notifyOrderCancelled($order, 'consumer');
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([

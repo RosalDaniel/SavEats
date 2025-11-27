@@ -11,6 +11,7 @@ use App\Models\Consumer;
 use App\Models\Establishment;
 use App\Models\Foodbank;
 use App\Models\User;
+use App\Services\AdminNotificationService;
 
 class AuthController extends Controller
 {
@@ -115,6 +116,21 @@ class AuthController extends Controller
                     \Log::info('Creating consumer with data:', $consumerData);
                     
                     $user = Consumer::create($consumerData);
+                    
+                    // Notify admin about new consumer registration
+                    try {
+                        AdminNotificationService::notifyUserRegistered(
+                            'consumer',
+                            $user->consumer_id,
+                            [
+                                'name' => $user->fname . ' ' . $user->lname,
+                                'email' => $user->email,
+                                'username' => $user->username,
+                            ]
+                        );
+                    } catch (\Exception $e) {
+                        \Log::error('Failed to create admin notification for consumer registration: ' . $e->getMessage());
+                    }
                     break;
 
             case 'establishment':
@@ -156,6 +172,22 @@ class AuthController extends Controller
                 }
 
                 $user = Establishment::create(array_merge($userData, $establishmentData));
+                
+                // Notify admin about new establishment registration
+                try {
+                    AdminNotificationService::notifyUserRegistered(
+                        'establishment',
+                        $user->establishment_id,
+                        [
+                            'name' => $user->business_name,
+                            'email' => $user->email,
+                            'username' => $user->username,
+                            'owner' => $user->owner_fname . ' ' . $user->owner_lname,
+                        ]
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create admin notification for establishment registration: ' . $e->getMessage());
+                }
                 break;
 
             case 'foodbank':
@@ -174,6 +206,22 @@ class AuthController extends Controller
                     'address' => $request->address,
                     'registration_number' => $request->registration_number,
                 ]));
+                
+                // Notify admin about new foodbank registration
+                try {
+                    AdminNotificationService::notifyUserRegistered(
+                        'foodbank',
+                        $user->foodbank_id,
+                        [
+                            'name' => $user->organization_name,
+                            'email' => $user->email,
+                            'username' => $user->username,
+                            'contact_person' => $user->contact_person,
+                        ]
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create admin notification for foodbank registration: ' . $e->getMessage());
+                }
                 break;
             }
         } catch (\Exception $e) {

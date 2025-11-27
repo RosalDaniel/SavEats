@@ -1,0 +1,260 @@
+/* CMS Content Pages Styles */
+.cms-content-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.content-header {
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+.content-header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 10px 0;
+}
+
+.content-version {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 5px 0;
+}
+
+.content-date {
+    font-size: 14px;
+    color: #9ca3af;
+    margin: 5px 0;
+}
+
+.content-body {
+    line-height: 1.8;
+    color: #374151;
+}
+
+.cms-content {
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+.cms-content p {
+    margin-bottom: 16px;
+}
+
+.cms-content ul,
+.cms-content ol {
+    margin: 16px 0;
+    padding-left: 30px;
+}
+
+.cms-content li {
+    margin-bottom: 8px;
+}
+
+.cms-content h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 30px 0 16px 0;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.cms-content h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #374151;
+    margin: 24px 0 12px 0;
+}
+
+.cms-content strong {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.no-content {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+}
+
+.no-content p {
+    font-size: 18px;
+}
+
+/* Help Center Article Styles */
+.article-content {
+    line-height: 1.8;
+    color: #374151;
+}
+
+.article-category {
+    display: inline-block;
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 10px;
+}
+
+.article-tags {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.article-tags .tag {
+    display: inline-block;
+    background: #f3f4f6;
+    color: #6b7280;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+}
+
+/* Legal Links Section */
+.legal-links-section {
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 2px solid #e5e7eb;
+}
+
+.legal-links-section .section-title {
+    text-align: left;
+}
+
+.legal-links {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.legal-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #374151;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.legal-link:hover {
+    background: #f3f4f6;
+    border-color: #347928;
+    color: #347928;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.legal-link svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Search Results */
+.search-results {
+    margin: 30px 0;
+    padding: 20px;
+    background: #f9fafb;
+    border-radius: 8px;
+    display: none;
+}
+
+.search-results.active {
+    display: block;
+}
+
+.search-results h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 20px;
+}
+
+.search-result-item {
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #e5e7eb;
+}
+
+.search-result-item:hover {
+    border-color: #347928;
+    box-shadow: 0 2px 8px rgba(52, 121, 40, 0.1);
+    transform: translateX(5px);
+}
+
+.search-result-item h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 8px 0;
+}
+
+.search-result-item p {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0 0 8px 0;
+}
+
+.result-category {
+    display: inline-block;
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.no-results h4 {
+    font-size: 18px;
+    color: #1f2937;
+    margin-bottom: 10px;
+}
+
+.no-results p {
+    color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .cms-content-page {
+        padding: 20px 15px;
+    }
+    
+    .content-header h1 {
+        font-size: 24px;
+    }
+    
+    .legal-links {
+        flex-direction: column;
+    }
+    
+    .legal-link {
+        width: 100%;
+    }
+}
+

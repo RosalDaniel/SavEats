@@ -329,7 +329,7 @@ class ProfileController extends Controller
         }
 
         try {
-            DB::table('account_deletion_requests')->insert([
+            $deletionRequestId = DB::table('account_deletion_requests')->insertGetId([
                 'user_id' => $userId,
                 'user_type' => $userType,
                 'reason' => $request->input('reason'),
@@ -337,6 +337,32 @@ class ProfileController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            // Get user name based on type
+            $userName = 'User';
+            if ($userType === 'consumer') {
+                $user = \App\Models\Consumer::find($userId);
+                $userName = $user ? ($user->fname . ' ' . $user->lname) : 'Consumer';
+            } elseif ($userType === 'establishment') {
+                $user = \App\Models\Establishment::find($userId);
+                $userName = $user ? $user->business_name : 'Establishment';
+            } elseif ($userType === 'foodbank') {
+                $user = \App\Models\Foodbank::find($userId);
+                $userName = $user ? $user->organization_name : 'Foodbank';
+            }
+
+            // Notify admin about account deletion request
+            try {
+                \App\Services\AdminNotificationService::notifyAccountDeletionRequest(
+                    $deletionRequestId,
+                    $userType,
+                    $userId,
+                    $userName,
+                    $request->input('reason')
+                );
+            } catch (\Exception $e) {
+                \Log::error('Failed to create admin notification for deletion request: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => true,

@@ -217,11 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 
-    // Notification bell functionality
-    const notificationBtn = document.getElementById('notificationBtn');
-    notificationBtn?.addEventListener('click', () => {
-        showNotification('No new notifications', 'info');
-    });
+    // Notification bell functionality is now handled by notifications.js
 
     // Responsive handling
     function handleResize() {

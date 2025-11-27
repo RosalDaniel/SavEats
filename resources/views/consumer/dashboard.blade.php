@@ -73,35 +73,63 @@
             <!-- Upcoming Order -->
             <div class="sidebar-card">
                 <h3 class="section-title">Upcoming Order</h3>
-                <div class="order-item">
-                    <div class="order-header">
-                        <div class="order-name">Banana Bread</div>
-                        <div class="order-price">₱ 187.00</div>
+                @if($upcomingOrder && $upcomingOrder->foodListing)
+                    <div class="order-item">
+                        <div class="order-header">
+                            <div class="order-name">{{ $upcomingOrder->foodListing->name }}</div>
+                            <div class="order-price">₱ {{ number_format($upcomingOrder->total_price, 2) }}</div>
+                        </div>
+                        <div class="order-quantity">{{ $upcomingOrder->quantity }} pcs.</div>
+                        <div class="order-details">
+                            <strong>Order ID:</strong> {{ $upcomingOrder->order_number }}<br>
+                            <strong>Store:</strong> {{ $upcomingOrder->establishment->business_name ?? 'N/A' }}<br>
+                            <strong>Delivery Method:</strong> {{ ucfirst($upcomingOrder->delivery_method) }}<br>
+                            <strong>Status:</strong> <span class="order-status status-{{ $upcomingOrder->status }}">{{ ucfirst($upcomingOrder->status) }}</span>
+                        </div>
                     </div>
-                    <div class="order-quantity">10 pcs.</div>
-                    <div class="order-details">
-                        <strong>Order ID:</strong> ID#12323<br>
-                        <strong>Store:</strong> Joy Share Grocery<br>
-                        <strong>Delivery Method:</strong> Pick-Up
+                    <a href="{{ route('my.orders') }}" class="order-action-btn">→ Go to Order History</a>
+                @else
+                    <div class="no-upcoming-order">
+                        <p>No upcoming orders</p>
+                        <a href="{{ route('food.listing') }}" class="order-action-btn">Browse Food Listings</a>
                     </div>
-                </div>
-                <button class="order-action-btn">→ Go to Order History</button>
+                @endif
             </div>
 
             <!-- Badges Collected -->
             <div class="sidebar-card">
                 <h3 class="section-title">Badges Collected</h3>
-                <div class="badge-container">
-                    <div class="badge-icon">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
+                @if($badgeData)
+                    <div class="badge-container">
+                        <div class="badge-icon {{ $badgeData['status'] === 'completed' ? 'completed' : '' }}">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                        </div>
+                        <div class="badge-progress">{{ $badgeData['progress'] }}%</div>
+                        <div class="badge-title">
+                            @if($badgeData['current'])
+                                {{ $badgeData['current']['name'] }}
+                            @else
+                                {{ $badgeData['next']['name'] }}
+                            @endif
+                        </div>
+                        <div class="badge-subtitle">
+                            @if($badgeData['status'] === 'completed')
+                                {{ $badgeData['current']['description'] }}
+                            @else
+                                {{ $badgeData['meals_saved'] }} / {{ $badgeData['next_requirement'] }} meals saved
+                            @endif
+                        </div>
+                        <div class="badge-status {{ $badgeData['status'] === 'completed' ? 'completed' : 'in-progress' }}">
+                            {{ $badgeData['status'] === 'completed' ? 'Completed' : 'In Progress' }}
+                        </div>
                     </div>
-                    <div class="badge-progress">100%</div>
-                    <div class="badge-title">Meal Rescuer</div>
-                    <div class="badge-subtitle">Saved 5 meals</div>
-                    <div class="badge-status">Completed</div>
-                </div>
+                @else
+                    <div class="no-badge-data">
+                        <p>Start ordering to earn badges!</p>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

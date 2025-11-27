@@ -93,172 +93,66 @@
         </div>
     </div>
 
-    <!-- FAQ Section -->
-    <div class="faq-section">
-        <h3 class="section-title">Frequently Asked Questions</h3>
-        <div class="faq-list">
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <h4>How do I receive food donations from establishments?</h4>
-                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
+    <!-- Help Articles Section (Dynamic from CMS) -->
+    <div class="faq-section" id="helpArticlesSection">
+        <h3 class="section-title">Help Articles</h3>
+        <div id="articlesContainer" class="faq-list">
+            @if(isset($articles) && $articles->count() > 0)
+                @foreach($articles as $article)
+                <div class="faq-item" data-category="{{ $article->category ?? '' }}" data-article-id="{{ $article->id }}">
+                    <div class="faq-question" onclick="toggleFAQ(this)">
+                        <h4>{{ $article->title }}</h4>
+                        @if($article->category)
+                            <span class="article-category">{{ $article->category }}</span>
+                        @endif
+                        <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="article-content">
+                            {!! nl2br(e($article->content)) !!}
+                        </div>
+                        @if($article->tags)
+                            <div class="article-tags">
+                                @php
+                                    $tags = is_string($article->tags) ? explode(',', $article->tags) : (is_array($article->tags) ? $article->tags : []);
+                                @endphp
+                                @foreach($tags as $tag)
+                                    <span class="tag">{{ trim($tag) }}</span>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                 </div>
-                <div class="faq-answer">
-                    <p>To receive food donations:</p>
-                    <ol>
-                        <li>Establishments will list surplus food items for donation</li>
-                        <li>You'll receive notifications about available donations</li>
-                        <li>Review donation details and claim items you need</li>
-                        <li>Coordinate pickup with the establishment</li>
-                        <li>Collect the donated food items</li>
-                        <li>Distribute to communities in need</li>
-                    </ol>
+                @endforeach
+            @else
+                <div class="no-articles">
+                    <p>No help articles available at the moment. Please check back later.</p>
                 </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <h4>How do I manage my donation collections?</h4>
-                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
-                </div>
-                <div class="faq-answer">
-                    <p>Manage collections through the dashboard:</p>
-                    <ul>
-                        <li>View all available donations in your area</li>
-                        <li>Filter by food type, quantity, and location</li>
-                        <li>Claim donations that match your needs</li>
-                        <li>Track collection status and schedules</li>
-                        <li>Communicate with donating establishments</li>
-                        <li>Update collection status after pickup</li>
-                    </ul>
-                </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <h4>How do I track the impact of our foodbank?</h4>
-                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
-                </div>
-                <div class="faq-answer">
-                    <p>Track your impact through various metrics:</p>
-                    <ul>
-                        <li>Number of donations received</li>
-                        <li>Quantity of food distributed</li>
-                        <li>Number of people served</li>
-                        <li>Geographic reach of your services</li>
-                        <li>Partnerships with establishments</li>
-                        <li>Monthly and yearly impact reports</li>
-                    </ul>
-                </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <h4>How do I partner with local establishments?</h4>
-                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
-                </div>
-                <div class="faq-answer">
-                    <p>Build partnerships with establishments:</p>
-                    <ol>
-                        <li>Create a compelling foodbank profile</li>
-                        <li>Reach out to local restaurants and food businesses</li>
-                        <li>Explain the benefits of donating surplus food</li>
-                        <li>Set up regular donation schedules</li>
-                        <li>Provide impact reports to partners</li>
-                        <li>Maintain ongoing communication and relationships</li>
-                    </ol>
-                </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <h4>What types of food can I receive as donations?</h4>
-                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
-                </div>
-                <div class="faq-answer">
-                    <p>You can receive various types of food donations:</p>
-                    <ul>
-                        <li>Fresh produce and vegetables</li>
-                        <li>Prepared meals and leftovers</li>
-                        <li>Baked goods and bread</li>
-                        <li>Dairy products</li>
-                        <li>Non-perishable food items</li>
-                        <li>Beverages and drinks</li>
-                        <li>Frozen foods (if properly stored)</li>
-                    </ul>
-                </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <h4>How do I update my foodbank profile?</h4>
-                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
-                </div>
-                <div class="faq-answer">
-                    <p>To update your foodbank profile:</p>
-                    <ol>
-                        <li>Click on your profile picture/name in the sidebar</li>
-                        <li>Go to the "Account Profile" page</li>
-                        <li>Update your organization information</li>
-                        <li>Add or update your service areas</li>
-                        <li>Upload your organization's logo</li>
-                        <li>Save your changes</li>
-                    </ol>
-                </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <h4>How do I generate impact reports?</h4>
-                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
-                </div>
-                <div class="faq-answer">
-                    <p>Generate comprehensive impact reports:</p>
-                    <ul>
-                        <li>Access the "Reports" section in your dashboard</li>
-                        <li>Select date ranges for your report</li>
-                        <li>Choose specific metrics to include</li>
-                        <li>Export reports in PDF or Excel format</li>
-                        <li>Share reports with partners and stakeholders</li>
-                        <li>Use data to improve your services</li>
-                    </ul>
-                </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <h4>How do I contact customer support?</h4>
-                    <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
-                </div>
-                <div class="faq-answer">
-                    <p>You can reach our support team through:</p>
-                    <ul>
-                        <li>Email: support@saveats.com</li>
-                        <li>Phone: +63 2 1234 5678</li>
-                        <li>Live Chat: Available 24/7 on the platform</li>
-                        <li>Help Center: Search our knowledge base</li>
-                        <li>Social Media: @SaveatsOfficial</li>
-                    </ul>
-                </div>
-            </div>
+            @endif
         </div>
     </div>
-
+    
+    <!-- Links to Terms & Privacy -->
+    <div class="legal-links-section">
+        <h3 class="section-title">Legal & Policies</h3>
+        <div class="legal-links">
+            <a href="{{ route('foodbank.terms') }}" class="legal-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                </svg>
+                Terms & Conditions
+            </a>
+            <a href="{{ route('foodbank.privacy') }}" class="legal-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                </svg>
+                Privacy Policy
+            </a>
+        </div>
+    </div>
+    
     <!-- Contact Support Section -->
     <div class="contact-section">
         <h3 class="section-title">Still Need Help?</h3>

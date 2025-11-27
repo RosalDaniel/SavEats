@@ -133,6 +133,7 @@
                 </div>
                 <div class="donation-card-actions">
                     <button class="btn-action btn-view" onclick="viewEstablishmentDonationDetails('{{ $donation['id'] }}')">View Details</button>
+                    <button class="btn-action btn-contact" onclick="contactEstablishment('{{ $donation['establishment_id'] }}')">Contact</button>
                     <button class="btn-action btn-accept" onclick="acceptDonation('{{ $donation['id'] }}')">Accept</button>
                     <button class="btn-action btn-decline" onclick="declineDonation('{{ $donation['id'] }}')">Decline</button>
                 </div>
@@ -491,8 +492,25 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" id="closeEstablishmentDonationModalBtn">Close</button>
+            <button class="btn btn-contact" id="modalContactEstablishmentBtn">Contact Establishment</button>
             <button class="btn btn-decline" id="modalDeclineBtn">Decline</button>
             <button class="btn btn-accept" id="modalAcceptBtn">Accept</button>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Establishment Modal -->
+<div class="modal-overlay" id="contactEstablishmentModal">
+    <div class="modal modal-contact-establishment">
+        <div class="modal-header">
+            <h2 id="contactEstablishmentModalTitle">Contact Establishment</h2>
+            <button class="modal-close" id="closeContactEstablishmentModal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body" id="contactEstablishmentModalBody">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="closeContactEstablishmentModalBtn">Close</button>
         </div>
     </div>
 </div>

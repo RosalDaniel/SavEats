@@ -49,6 +49,9 @@ class DonationRequest extends Model
         'email',
         'status',
         'matches',
+        'fulfilled_by_establishment_id',
+        'fulfilled_at',
+        'donation_id',
     ];
 
     /**
@@ -64,6 +67,7 @@ class DonationRequest extends Model
             'end_time' => 'datetime',
             'quantity' => 'integer',
             'matches' => 'integer',
+            'fulfilled_at' => 'datetime',
         ];
     }
 
@@ -73,6 +77,22 @@ class DonationRequest extends Model
     public function foodbank(): BelongsTo
     {
         return $this->belongsTo(Foodbank::class, 'foodbank_id', 'foodbank_id');
+    }
+
+    /**
+     * Get the establishment that fulfilled this request.
+     */
+    public function fulfilledBy(): BelongsTo
+    {
+        return $this->belongsTo(Establishment::class, 'fulfilled_by_establishment_id', 'establishment_id');
+    }
+
+    /**
+     * Get the donation that fulfilled this request.
+     */
+    public function donation(): BelongsTo
+    {
+        return $this->belongsTo(Donation::class, 'donation_id', 'donation_id');
     }
 
     /**

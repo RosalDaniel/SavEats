@@ -63,6 +63,7 @@ body {
 /* Admin sidebar user profile border */
 .sidebar.admin-sidebar .user-profile {
     border-bottom: 1px solid #e5e7eb;
+    cursor: default;
 }
 
 .user-avatar {
@@ -152,7 +153,7 @@ body {
 .sidebar.admin-sidebar .nav-link:hover,
 .sidebar.admin-sidebar .nav-link.active {
     background: #f3f4f6;
-    border-left-color: #667eea;
+    border-left-color: #347928;
 }
 
 .nav-icon {

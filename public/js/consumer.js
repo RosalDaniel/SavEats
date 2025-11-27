@@ -64,19 +64,7 @@ navLinks.forEach(link => {
     });
 });
 
-// Notification functionality
-const notificationBtn = document.getElementById('notificationBtn');
-if (notificationBtn) {
-    notificationBtn.addEventListener('click', () => {
-        showNotification('No new notifications', 'info');
-    });
-}
-
-// Show notification
-function showNotification(message, type = 'info') {
-    // Simple notification - in a real app, you might use a toast library
-    alert(message);
-}
+// Notification functionality is now handled by notifications.js
 
 // Add hover effects and interactions
 document.addEventListener('DOMContentLoaded', () => {

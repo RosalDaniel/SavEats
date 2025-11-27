@@ -45,56 +45,21 @@ function searchHelp() {
 }
 
 function performSearch(searchTerm) {
-    // Sample search data - in a real app, this would come from a database
-    const helpData = [
-        {
-            title: 'How to add food listings',
-            content: 'Learn how to create and manage your food listings on SavEats platform.',
-            category: 'food-listing'
-        },
-        {
-            title: 'Managing orders',
-            content: 'Understand how to accept, process, and complete customer orders.',
-            category: 'orders'
-        },
-        {
-            title: 'Earnings tracking',
-            content: 'Track your earnings, view reports, and understand payment processing.',
-            category: 'earnings'
-        },
-        {
-            title: 'Account settings',
-            content: 'Update your business information, profile, and account preferences.',
-            category: 'account'
-        },
-        {
-            title: 'Getting started guide',
-            content: 'Complete guide for new establishments joining SavEats platform.',
-            category: 'getting-started'
-        },
-        {
-            title: 'Payment methods',
-            content: 'Supported payment methods and how to process payments.',
-            category: 'orders'
-        },
-        {
-            title: 'Profile management',
-            content: 'How to update your business profile and contact information.',
-            category: 'account'
-        },
-        {
-            title: 'Troubleshooting common issues',
-            content: 'Solutions for common problems and technical issues.',
-            category: 'troubleshooting'
-        }
-    ];
-    
-    const results = helpData.filter(item => 
-        item.title.toLowerCase().includes(searchTerm) || 
-        item.content.toLowerCase().includes(searchTerm)
-    );
-    
-    displaySearchResults(results, searchTerm);
+    // Fetch articles from CMS API
+    fetch(`/cms/articles?search=${encodeURIComponent(searchTerm)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                const articles = Array.isArray(data.data) ? data.data : (data.data.data || []);
+                displaySearchResults(articles, searchTerm);
+            } else {
+                displaySearchResults([], searchTerm);
+            }
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            displaySearchResults([], searchTerm);
+        });
 }
 
 function displaySearchResults(results, searchTerm) {
@@ -115,11 +80,12 @@ function displaySearchResults(results, searchTerm) {
         `;
     } else {
         container.innerHTML = `
-            <h3>Search Results for "${searchTerm}"</h3>
+            <h3>Search Results for "${searchTerm}" (${results.length} found)</h3>
             ${results.map(result => `
-                <div class="search-result-item">
+                <div class="search-result-item" onclick="scrollToArticle(${result.id})">
                     <h4>${highlightSearchTerm(result.title, searchTerm)}</h4>
-                    <p>${highlightSearchTerm(result.content, searchTerm)}</p>
+                    <p>${highlightSearchTerm(result.content.substring(0, 150) + '...', searchTerm)}</p>
+                    ${result.category ? `<span class="result-category">${result.category}</span>` : ''}
                 </div>
             `).join('')}
         `;
@@ -127,6 +93,17 @@ function displaySearchResults(results, searchTerm) {
     
     container.classList.add('active');
     container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function scrollToArticle(articleId) {
+    const article = document.querySelector(`.faq-item[data-article-id="${articleId}"]`);
+    if (article) {
+        article.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        article.classList.add('active');
+        setTimeout(() => {
+            article.classList.remove('active');
+        }, 2000);
+    }
 }
 
 function createSearchResultsContainer() {
@@ -210,22 +187,25 @@ function showCategory(categoryType) {
 function filterFAQsByCategory(categoryType) {
     const faqItems = document.querySelectorAll('.faq-item');
     
-    // For demo purposes, we'll show all FAQs
-    // In a real app, you would filter based on category
+    // Filter FAQs based on category data attribute
     faqItems.forEach(item => {
-        item.style.display = 'block';
+        const itemCategory = item.getAttribute('data-category') || '';
+        if (categoryType === 'all' || itemCategory.toLowerCase() === categoryType.toLowerCase()) {
+            item.style.display = 'block';
+            item.style.borderLeft = '4px solid #2d5016';
+        } else {
+            item.style.display = 'none';
+        }
     });
     
-    // Highlight relevant FAQs (demo)
-    setTimeout(() => {
-        faqItems.forEach((item, index) => {
-            if (index < 3) { // Show first 3 FAQs as relevant
-                item.style.borderLeft = '4px solid #2d5016';
-            } else {
-                item.style.borderLeft = '4px solid transparent';
-            }
+    // If no items match, show all
+    const visibleItems = Array.from(faqItems).filter(item => item.style.display !== 'none');
+    if (visibleItems.length === 0) {
+        faqItems.forEach(item => {
+            item.style.display = 'block';
+            item.style.borderLeft = '4px solid transparent';
         });
-    }, 100);
+    }
 }
 
 // Contact functionality

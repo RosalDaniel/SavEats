@@ -64,13 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Notification functionality
-    const notificationBtn = document.getElementById('notificationBtn');
-    if (notificationBtn) {
-        notificationBtn.addEventListener('click', () => {
-            showNotification('No new notifications', 'info');
-        });
-    }
+    // Notification functionality is now handled by notifications.js
 
     // Handle window resize with error handling and debouncing
     let resizeTimeout;

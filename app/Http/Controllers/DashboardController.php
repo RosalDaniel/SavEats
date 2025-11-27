@@ -13,6 +13,8 @@ use App\Models\Review;
 use App\Models\DonationRequest;
 use App\Models\Donation;
 use App\Models\Announcement;
+use App\Models\HelpCenterArticle;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
@@ -97,6 +99,105 @@ class DashboardController extends Controller
                 ->count('order_id');
         }
         
+        // Get upcoming order (pending or accepted status)
+        $upcomingOrder = null;
+        if ($consumerId) {
+            $upcomingOrder = Order::with(['foodListing', 'establishment'])
+                ->where('consumer_id', $consumerId)
+                ->whereIn('status', ['pending', 'accepted'])
+                ->orderBy('created_at', 'desc')
+                ->first();
+        }
+        
+        // Calculate badge progress based on meals saved (completed orders quantity)
+        $badgeData = null;
+        if ($consumerId) {
+            $mealsSaved = $foodRescued; // Total quantity from completed orders
+            
+            // Define badges with their requirements
+            $badges = [
+                [
+                    'name' => 'Meal Rescuer',
+                    'requirement' => 5,
+                    'description' => 'Saved 5 meals',
+                ],
+                [
+                    'name' => 'Food Hero',
+                    'requirement' => 10,
+                    'description' => 'Saved 10 meals',
+                ],
+                [
+                    'name' => 'Eco Starter',
+                    'requirement' => 20,
+                    'description' => 'Saved 20 meals',
+                ],
+                [
+                    'name' => 'Super Saver',
+                    'requirement' => 30,
+                    'description' => 'Saved 30 meals',
+                ],
+            ];
+            
+            // Find the current badge (highest completed badge)
+            $currentBadge = null;
+            $nextBadge = null;
+            
+            foreach ($badges as $index => $badge) {
+                if ($mealsSaved >= $badge['requirement']) {
+                    $currentBadge = $badge;
+                    // Get next badge if exists
+                    if (isset($badges[$index + 1])) {
+                        $nextBadge = $badges[$index + 1];
+                    }
+                } else {
+                    if (!$currentBadge) {
+                        $nextBadge = $badge;
+                    }
+                    break;
+                }
+            }
+            
+            // If no badge completed yet, show first badge as next
+            if (!$currentBadge && !$nextBadge) {
+                $nextBadge = $badges[0];
+            }
+            
+            // Calculate progress for display
+            if ($currentBadge && $nextBadge) {
+                // Show progress to next badge
+                $progress = min(100, ($mealsSaved / $nextBadge['requirement']) * 100);
+                $badgeData = [
+                    'current' => $currentBadge,
+                    'next' => $nextBadge,
+                    'progress' => round($progress, 0),
+                    'meals_saved' => $mealsSaved,
+                    'next_requirement' => $nextBadge['requirement'],
+                    'status' => 'in_progress',
+                ];
+            } elseif ($currentBadge && !$nextBadge) {
+                // All badges completed
+                $badgeData = [
+                    'current' => $currentBadge,
+                    'next' => null,
+                    'progress' => 100,
+                    'meals_saved' => $mealsSaved,
+                    'next_requirement' => null,
+                    'status' => 'completed',
+                ];
+            } else {
+                // No badge completed, show first badge progress
+                $progress = min(100, ($mealsSaved / $nextBadge['requirement']) * 100);
+                $badgeData = [
+                    'current' => null,
+                    'next' => $nextBadge,
+                    'progress' => round($progress, 0),
+                    'meals_saved' => $mealsSaved,
+                    'next_requirement' => $nextBadge['requirement'],
+                    'status' => 'in_progress',
+                ];
+            }
+        }
+        
         // Get random food listings with discounts (best deals)
         // Prioritize items with higher discount percentages
         $bestDeals = FoodListing::where('status', 'active')
@@ -136,7 +237,9 @@ class DashboardController extends Controller
             'totalSavings',
             'ordersCount',
             'foodRescued',
-            'ratedOrdersCount'
+            'ratedOrdersCount',
+            'upcomingOrder',
+            'badgeData'
         ));
     }
 
@@ -268,7 +371,21 @@ class DashboardController extends Controller
      */
     public function foodbankHelp()
     {
-        return view('foodbank.help');
+        // Get published help articles
+        $articles = HelpCenterArticle::published()
+            ->orderBy('display_order', 'asc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Get unique categories
+        $categories = HelpCenterArticle::published()
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->toArray();
+
+        return view('foodbank.help', compact('articles', 'categories'));
     }
 
     /**
@@ -459,6 +576,12 @@ class DashboardController extends Controller
             // Update status to ready_for_collection
             $donation->status = 'ready_for_collection';
             $donation->save();
+            
+            // Reload donation with relationships for notification
+            $donation->load(['foodbank', 'establishment']);
+            
+            // Send notification to establishment
+            NotificationService::notifyDonationApproved($donation);
 
             return response()->json([
                 'success' => true,
@@ -472,6 +595,51 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to accept donation. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get establishment contact details
+     */
+    public function getEstablishmentContact($establishmentId)
+    {
+        // Verify user is a foodbank
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        try {
+            $establishment = Establishment::where('establishment_id', $establishmentId)->first();
+
+            if (!$establishment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Establishment not found.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $establishment->establishment_id,
+                    'business_name' => $establishment->business_name,
+                    'email' => $establishment->email,
+                    'phone_no' => $establishment->phone_no ?? 'Not provided',
+                    'address' => $establishment->address ?? 'Not provided',
+                    'owner_name' => $establishment->owner_name ?? 'Not provided',
+                    'business_type' => $establishment->business_type ?? 'Not provided',
+                    'is_verified' => $establishment->is_verified ?? false,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve establishment details.',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -3037,10 +3205,19 @@ class DashboardController extends Controller
         }
         
         try {
-            $review = Review::findOrFail($id);
+            $review = Review::with(['consumer', 'establishment'])->findOrFail($id);
             $review->flagged = !$review->flagged;
             $review->flagged_at = $review->flagged ? now() : null;
             $review->save();
+            
+            // Notify admin when review is flagged (not when unflagged)
+            if ($review->flagged) {
+                try {
+                    \App\Services\AdminNotificationService::notifyReviewFlagged($review);
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create admin notification for flagged review: ' . $e->getMessage());
+                }
+            }
             
             return response()->json([
                 'success' => true,

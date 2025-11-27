@@ -806,6 +806,7 @@ window.viewEstablishmentDonationDetails = function(id) {
     // Set up modal button actions
     const acceptBtn = document.getElementById('modalAcceptBtn');
     const declineBtn = document.getElementById('modalDeclineBtn');
+    const contactBtn = document.getElementById('modalContactEstablishmentBtn');
     
     if (acceptBtn) {
         acceptBtn.onclick = () => {
@@ -816,6 +817,13 @@ window.viewEstablishmentDonationDetails = function(id) {
     if (declineBtn) {
         declineBtn.onclick = () => {
             declineDonation(id);
+        };
+    }
+    
+    if (contactBtn && donation.establishment_id) {
+        contactBtn.onclick = () => {
+            closeModal('establishmentDonationModal');
+            contactEstablishment(donation.establishment_id);
         };
     }
 
@@ -922,6 +930,166 @@ window.declineDonation = function(id) {
     .catch(error => {
         console.error('Error:', error);
         showToast('Failed to decline donation. Please try again.', 'error');
+    });
+};
+
+// Contact Establishment
+window.contactEstablishment = function(establishmentId) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    
+    fetch(`/foodbank/establishment/contact/${establishmentId}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const establishment = data.data;
+            const modal = document.getElementById('contactEstablishmentModal');
+            const modalBody = document.getElementById('contactEstablishmentModalBody');
+            const modalTitle = document.getElementById('contactEstablishmentModalTitle');
+            
+            if (!modal || !modalBody || !modalTitle) return;
+            
+            modalTitle.textContent = `Contact ${establishment.business_name || 'Establishment'}`;
+            
+            const escapeHtml = (text) => {
+                if (!text) return 'N/A';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            };
+            
+            const formatPhoneForLink = (phone) => {
+                if (!phone || phone === 'Not provided') return null;
+                const cleaned = phone.replace(/\D/g, '');
+                return cleaned.length > 0 ? `tel:${cleaned}` : null;
+            };
+            
+            const formatEmailForLink = (email) => {
+                if (!email || email === 'Not provided') return null;
+                return `mailto:${email}`;
+            };
+            
+            const phoneLink = formatPhoneForLink(establishment.phone_no);
+            const emailLink = formatEmailForLink(establishment.email);
+            
+            modalBody.innerHTML = `
+                <div class="contact-establishment-content">
+                    <div class="contact-section">
+                        <h3>Contact Information</h3>
+                        <div class="contact-grid">
+                            ${establishment.owner_name && establishment.owner_name !== 'Not provided' ? `
+                            <div class="contact-item">
+                                <span class="contact-label">Owner Name:</span>
+                                <span class="contact-value">${escapeHtml(establishment.owner_name)}</span>
+                            </div>
+                            ` : ''}
+                            ${phoneLink ? `
+                            <div class="contact-item">
+                                <span class="contact-label">Phone Number:</span>
+                                <a href="${phoneLink}" class="contact-link">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
+                                        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                                    </svg>
+                                    ${escapeHtml(establishment.phone_no)}
+                                </a>
+                            </div>
+                            ` : establishment.phone_no && establishment.phone_no !== 'Not provided' ? `
+                            <div class="contact-item">
+                                <span class="contact-label">Phone Number:</span>
+                                <span class="contact-value">${escapeHtml(establishment.phone_no)}</span>
+                            </div>
+                            ` : ''}
+                            ${emailLink ? `
+                            <div class="contact-item">
+                                <span class="contact-label">Email:</span>
+                                <a href="${emailLink}" class="contact-link">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
+                                        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                                    </svg>
+                                    ${escapeHtml(establishment.email)}
+                                </a>
+                            </div>
+                            ` : establishment.email ? `
+                            <div class="contact-item">
+                                <span class="contact-label">Email:</span>
+                                <span class="contact-value">${escapeHtml(establishment.email)}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="contact-section">
+                        <h3>Business Information</h3>
+                        <div class="contact-grid">
+                            <div class="contact-item">
+                                <span class="contact-label">Business Name:</span>
+                                <span class="contact-value">${escapeHtml(establishment.business_name)}</span>
+                            </div>
+                            ${establishment.business_type && establishment.business_type !== 'Not provided' ? `
+                            <div class="contact-item">
+                                <span class="contact-label">Business Type:</span>
+                                <span class="contact-value">${escapeHtml(establishment.business_type)}</span>
+                            </div>
+                            ` : ''}
+                            ${establishment.address && establishment.address !== 'Not provided' ? `
+                            <div class="contact-item">
+                                <span class="contact-label">Address:</span>
+                                <span class="contact-value">${escapeHtml(establishment.address)}</span>
+                            </div>
+                            ` : ''}
+                            ${establishment.is_verified ? `
+                            <div class="contact-item">
+                                <span class="contact-label">Verification:</span>
+                                <span class="contact-value verified-badge">✓ Verified</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Initialize modal close handlers
+            const closeBtn = document.getElementById('closeContactEstablishmentModal');
+            const closeBtn2 = document.getElementById('closeContactEstablishmentModalBtn');
+            
+            const closeModal = () => {
+                if (modal) {
+                    modal.classList.remove('show');
+                    document.body.style.overflow = '';
+                }
+            };
+            
+            if (closeBtn) {
+                closeBtn.onclick = closeModal;
+            }
+            
+            if (closeBtn2) {
+                closeBtn2.onclick = closeModal;
+            }
+            
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeModal();
+                    }
+                });
+            }
+            
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        } else {
+            showToast(data.message || 'Failed to retrieve establishment details.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Failed to retrieve establishment details. Please try again.', 'error');
     });
 };
 

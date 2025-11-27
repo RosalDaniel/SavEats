@@ -1,7 +1,7 @@
 @php use Illuminate\Support\Facades\Storage; @endphp
 <!-- Admin Sidebar -->
 <nav class="sidebar admin-sidebar" id="sidebar">
-    <div class="user-profile" onclick="window.location.href='{{ route('profile') }}'" style="cursor: pointer;">
+    <div class="user-profile">
         <div class="user-avatar">
             {{ substr(session('user_name', 'Admin'), 0, 2) }}
         </div>

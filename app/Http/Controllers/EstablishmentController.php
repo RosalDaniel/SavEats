@@ -10,6 +10,8 @@ use App\Models\DonationRequest;
 use App\Models\Foodbank;
 use App\Models\Review;
 use App\Models\Announcement;
+use App\Models\HelpCenterArticle;
+use App\Services\NotificationService;
  use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
@@ -542,8 +544,14 @@ class EstablishmentController extends Controller
             $order->status = 'accepted';
             $order->accepted_at = now();
             $order->save();
+            
+            // Reload order with relationships for notification
+            $order->load(['consumer', 'establishment', 'foodListing']);
 
             DB::commit();
+            
+            // Send notification to consumer
+            NotificationService::notifyOrderAccepted($order);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -592,8 +600,14 @@ class EstablishmentController extends Controller
             $order->cancelled_at = now();
             $order->cancellation_reason = $request->input('reason', 'Cancelled by establishment');
             $order->save();
+            
+            // Reload order with relationships for notification
+            $order->load(['consumer', 'establishment']);
 
             DB::commit();
+            
+            // Send notification to consumer
+            NotificationService::notifyOrderCancelled($order, 'establishment');
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -634,8 +648,14 @@ class EstablishmentController extends Controller
             $order->status = 'completed';
             $order->completed_at = now();
             $order->save();
+            
+            // Reload order with relationships for notification
+            $order->load(['consumer', 'establishment']);
 
             DB::commit();
+            
+            // Send notification to consumer
+            NotificationService::notifyOrderCompleted($order);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -880,6 +900,141 @@ class EstablishmentController extends Controller
     }
 
     /**
+     * Fulfill a donation request (when establishment donates to fulfill a foodbank's request)
+     */
+    public function fulfillDonationRequest(Request $request, $requestId)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as an establishment.'
+            ], 403);
+        }
+
+        $establishmentId = Session::get('user_id');
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $requestId)
+                ->whereIn('status', ['pending', 'active'])
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found or already fulfilled.'
+                ], 404);
+            }
+
+            // Validate the donation details
+            $validated = $request->validate([
+                'item_name' => 'required|string|max:255',
+                'quantity' => 'required|integer|min:1',
+                'unit' => 'required|string|max:20',
+                'category' => 'required|string',
+                'description' => 'nullable|string',
+                'expiry_date' => 'nullable|date|after_or_equal:today',
+                'scheduled_date' => 'required|date|after_or_equal:today',
+                'scheduled_time' => 'nullable|date_format:H:i',
+                'pickup_method' => 'required|in:pickup,delivery',
+                'establishment_notes' => 'nullable|string',
+            ]);
+
+            // Create the donation linked to this request
+            $donation = Donation::create([
+                'foodbank_id' => $donationRequest->foodbank_id,
+                'establishment_id' => $establishmentId,
+                'donation_request_id' => $donationRequest->donation_request_id,
+                'item_name' => $validated['item_name'],
+                'item_category' => $validated['category'],
+                'quantity' => $validated['quantity'],
+                'unit' => $validated['unit'],
+                'description' => $validated['description'] ?? null,
+                'expiry_date' => $validated['expiry_date'] ?? null,
+                'status' => 'pending_pickup',
+                'pickup_method' => $validated['pickup_method'],
+                'scheduled_date' => $validated['scheduled_date'],
+                'scheduled_time' => $validated['scheduled_time'] ?? null,
+                'establishment_notes' => $validated['establishment_notes'] ?? null,
+                'is_urgent' => false,
+                'is_nearing_expiry' => false,
+            ]);
+
+            // Update the donation request
+            $donationRequest->fulfilled_by_establishment_id = $establishmentId;
+            $donationRequest->fulfilled_at = now();
+            $donationRequest->donation_id = $donation->donation_id;
+            $donationRequest->status = 'completed';
+            $donationRequest->matches = ($donationRequest->matches ?? 0) + 1;
+            $donationRequest->save();
+
+            // Reload donation with relationships for notification
+            $donation->load(['foodbank', 'establishment']);
+            
+            // Send notification to foodbank
+            NotificationService::notifyDonationCreated($donation);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Donation request fulfilled successfully! The foodbank will be notified.',
+                'data' => [
+                    'id' => $donation->donation_id,
+                    'donation_number' => $donation->donation_number,
+                ]
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fulfill donation request. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get foodbank contact details
+     */
+    public function getFoodbankContact($foodbankId)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as an establishment.'
+            ], 403);
+        }
+
+        try {
+            $foodbank = Foodbank::where('foodbank_id', $foodbankId)->first();
+
+            if (!$foodbank) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Foodbank not found.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $foodbank->foodbank_id,
+                    'organization_name' => $foodbank->organization_name,
+                    'email' => $foodbank->email,
+                    'phone_no' => $foodbank->phone_no ?? 'Not provided',
+                    'address' => $foodbank->address ?? 'Not provided',
+                    'contact_person' => $foodbank->contact_person ?? 'Not provided',
+                    'registration_number' => $foodbank->registration_number ?? 'Not provided',
+                    'is_verified' => $foodbank->is_verified ?? false,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve foodbank details.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Store a donation request from establishment
      */
     public function storeDonationRequest(Request $request)
@@ -928,6 +1083,12 @@ class EstablishmentController extends Controller
                 'is_urgent' => false,
                 'is_nearing_expiry' => false,
             ]);
+            
+            // Reload donation with relationships for notification
+            $donation->load(['foodbank', 'establishment']);
+            
+            // Send notification to foodbank
+            NotificationService::notifyDonationCreated($donation);
 
             return response()->json([
                 'success' => true,
@@ -1095,7 +1256,21 @@ class EstablishmentController extends Controller
             return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
         }
 
-        return view('establishment.help');
+        // Get published help articles
+        $articles = HelpCenterArticle::published()
+            ->orderBy('display_order', 'asc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Get unique categories
+        $categories = HelpCenterArticle::published()
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->toArray();
+
+        return view('establishment.help', compact('articles', 'categories'));
     }
 
     /**

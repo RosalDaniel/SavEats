@@ -198,8 +198,9 @@
                 </div>
             </div>
 
-            <!-- Action Button -->
+            <!-- Action Buttons -->
             <div class="request-details-actions">
+                <button class="btn-contact-outline" id="modalContactFoodbankBtn" onclick="contactFoodbankFromRequest()">Contact Foodbank</button>
                 <button class="btn-donate-now" id="modalDonateNowBtn">Donate Now</button>
             </div>
 

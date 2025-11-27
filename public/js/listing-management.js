@@ -197,6 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const originalPriceInput = document.getElementById('itemOriginalPrice');
     const discountSelect = document.getElementById('itemDiscount');
     const imageInput = document.getElementById('itemImage');
+    const itemForm = document.getElementById('itemForm');
     
     if (originalPriceInput) {
         originalPriceInput.addEventListener('input', calculateDiscountedPrice);
@@ -209,6 +210,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Image preview functionality
     if (imageInput) {
         imageInput.addEventListener('change', handleImagePreview);
+    }
+    
+    // Prevent form submission on Enter key or accidental submits
+    // Only allow submission via saveItem() function
+    if (itemForm) {
+        itemForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Form should only be submitted via saveItem() function
+            return false;
+        });
     }
 });
 
@@ -268,6 +280,7 @@ function handleImagePreview(event) {
                 `;
                 
                 const changeBtn = document.createElement('button');
+                changeBtn.type = 'button'; // Prevent form submission
                 changeBtn.textContent = 'Change Image';
                 changeBtn.style.cssText = `
                     background: white;
@@ -294,7 +307,8 @@ function handleImagePreview(event) {
                 
                 // Click to change image
                 changeBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
+                    e.preventDefault(); // Prevent any default behavior
+                    e.stopPropagation(); // Stop event bubbling
                     const imageInput = document.getElementById('itemImage');
                     if (imageInput) {
                         imageInput.click();
@@ -386,6 +400,7 @@ function loadExistingImage(imageUrl) {
         `;
         
         const changeBtn = document.createElement('button');
+        changeBtn.type = 'button'; // Prevent form submission
         changeBtn.textContent = 'Change Image';
         changeBtn.style.cssText = `
             background: white;
@@ -412,7 +427,8 @@ function loadExistingImage(imageUrl) {
         
         // Click to change image
         changeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
+            e.preventDefault(); // Prevent any default behavior
+            e.stopPropagation(); // Stop event bubbling
             const imageInput = document.getElementById('itemImage');
             if (imageInput) {
                 imageInput.click();
@@ -842,10 +858,7 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// Notification bell functionality
-document.getElementById('notificationBtn')?.addEventListener('click', () => {
-    showNotification('No new notifications', 'info');
-});
+// Notification bell functionality is now handled by notifications.js
 
 // Form validation enhancement
 function validateForm() {

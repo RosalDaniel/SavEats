@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{{ asset('css/sidebar.css') }}">
     <link rel="stylesheet" href="{{ asset('css/foodbank.css') }}">
     <link rel="stylesheet" href="{{ asset('css/foodbank-dashboard.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/notifications.css') }}">
     @yield('styles')
 </head>
 <body>
@@ -25,11 +26,26 @@
                     <h1>@yield('header', 'Foodbank Dashboard')</h1>
                 </div>
                 <div class="header-actions">
-                    <button class="notification-btn" id="notificationBtn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
-                        </svg>
-                    </button>
+                    <div class="notification-container">
+                        <button class="notification-btn" id="notificationBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                            </svg>
+                            <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                        </button>
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-dropdown-header">
+                                <h3>Notifications</h3>
+                                <button class="mark-all-read-btn" id="markAllReadBtn">Mark all as read</button>
+                            </div>
+                            <div class="notification-list" id="notificationList">
+                                <div class="notification-loading">Loading notifications...</div>
+                            </div>
+                            <div class="notification-dropdown-footer">
+                                <a href="#" class="view-all-link" id="viewAllNotifications">View all notifications</a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -40,6 +56,7 @@
     </div>
 
     <script src="{{ asset('js/foodbank.js') }}"></script>
+    <script src="{{ asset('js/notifications.js') }}"></script>
     @yield('scripts')
 </body>
 </html>

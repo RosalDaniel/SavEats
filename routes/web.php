@@ -85,6 +85,10 @@ Route::middleware('custom.auth')->group(function () {
         Route::get('/announcements', [FoodListingController::class, 'announcements'])->name('announcements');
         Route::get('/help', [FoodListingController::class, 'help'])->name('help');
         Route::get('/settings', [FoodListingController::class, 'settings'])->name('settings');
+        
+        // Terms & Privacy
+        Route::get('/terms', [\App\Http\Controllers\CmsController::class, 'termsPage'])->name('terms');
+        Route::get('/privacy', [\App\Http\Controllers\CmsController::class, 'privacyPage'])->name('privacy');
     });
     
     // ========================================================================
@@ -114,6 +118,8 @@ Route::middleware('custom.auth')->group(function () {
         Route::get('/impact-reports', [EstablishmentController::class, 'impactReports'])->name('impact-reports');
         Route::get('/donation-hub', [EstablishmentController::class, 'donationHub'])->name('donation-hub');
         Route::post('/donation-request', [EstablishmentController::class, 'storeDonationRequest'])->name('donation-request.store');
+        Route::post('/donation-request/fulfill/{requestId}', [EstablishmentController::class, 'fulfillDonationRequest'])->name('donation-request.fulfill');
+        Route::get('/foodbank/contact/{foodbankId}', [EstablishmentController::class, 'getFoodbankContact'])->name('foodbank.contact');
         Route::get('/donation-history', [EstablishmentController::class, 'donationHistory'])->name('donation-history');
         Route::get('/donation-history/export/{type}', [EstablishmentController::class, 'exportDonationHistory'])->name('donation-history.export');
         
@@ -121,6 +127,10 @@ Route::middleware('custom.auth')->group(function () {
         Route::get('/announcements', [EstablishmentController::class, 'announcements'])->name('announcements');
         Route::get('/settings', [EstablishmentController::class, 'settings'])->name('settings');
         Route::get('/help', [EstablishmentController::class, 'help'])->name('help');
+        
+        // Terms & Privacy
+        Route::get('/terms', [\App\Http\Controllers\CmsController::class, 'termsPage'])->name('terms');
+        Route::get('/privacy', [\App\Http\Controllers\CmsController::class, 'privacyPage'])->name('privacy');
     });
     
     // ========================================================================
@@ -136,6 +146,7 @@ Route::middleware('custom.auth')->group(function () {
         Route::post('/donation-request', [DashboardController::class, 'storeDonationRequest'])->name('donation-request.store');
         Route::post('/donation-request/accept/{donationId}', [DashboardController::class, 'acceptDonation'])->name('donation-request.accept');
         Route::post('/donation-request/decline/{donationId}', [DashboardController::class, 'declineDonation'])->name('donation-request.decline');
+        Route::get('/establishment/contact/{establishmentId}', [DashboardController::class, 'getEstablishmentContact'])->name('establishment.contact');
         
         // Partner Network
         Route::get('/partner-network', [DashboardController::class, 'partnerNetwork'])->name('partner-network');
@@ -151,6 +162,10 @@ Route::middleware('custom.auth')->group(function () {
         Route::get('/announcements', [DashboardController::class, 'foodbankAnnouncements'])->name('announcements');
         Route::get('/help', [DashboardController::class, 'foodbankHelp'])->name('help');
         Route::get('/settings', [DashboardController::class, 'foodbankSettings'])->name('settings');
+        
+        // Terms & Privacy
+        Route::get('/terms', [\App\Http\Controllers\CmsController::class, 'termsPage'])->name('terms');
+        Route::get('/privacy', [\App\Http\Controllers\CmsController::class, 'privacyPage'])->name('privacy');
     });
     
     // ========================================================================
@@ -242,7 +257,43 @@ Route::middleware('custom.auth')->group(function () {
         
         // System Settings
         Route::get('/settings', [DashboardController::class, 'adminSettings'])->name('settings');
+        
+        // Admin Notifications
+        Route::get('/notifications', [\App\Http\Controllers\AdminNotificationController::class, 'viewAll'])->name('notifications.view-all');
+        Route::get('/api/notifications', [\App\Http\Controllers\AdminNotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/api/notifications/unread-count', [\App\Http\Controllers\AdminNotificationController::class, 'unreadCount'])->name('notifications.unread-count');
+        Route::get('/api/notifications/{id}', [\App\Http\Controllers\AdminNotificationController::class, 'show'])->name('notifications.show');
+        Route::post('/api/notifications/{id}/read', [\App\Http\Controllers\AdminNotificationController::class, 'markAsRead'])->name('notifications.mark-read');
+        Route::post('/api/notifications/{id}/unread', [\App\Http\Controllers\AdminNotificationController::class, 'markAsUnread'])->name('notifications.mark-unread');
+        Route::post('/api/notifications/mark-all-read', [\App\Http\Controllers\AdminNotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+        Route::delete('/api/notifications/{id}', [\App\Http\Controllers\AdminNotificationController::class, 'destroy'])->name('notifications.delete');
     });
+    
+    // ========================================================================
+    // CMS FRONTEND ROUTES (Accessible to all authenticated users)
+    // ========================================================================
+    // Help Articles API
+    Route::get('/cms/articles', [\App\Http\Controllers\CmsController::class, 'getArticles'])->name('cms.articles.public');
+    Route::get('/cms/articles/{identifier}', [\App\Http\Controllers\CmsController::class, 'getArticle'])->name('cms.article.show');
+    Route::get('/cms/categories', [\App\Http\Controllers\CmsController::class, 'getCategories'])->name('cms.categories');
+    
+    // Terms & Conditions
+    Route::get('/cms/terms', [\App\Http\Controllers\CmsController::class, 'getTerms'])->name('cms.terms.public');
+    Route::get('/terms', [\App\Http\Controllers\CmsController::class, 'termsPage'])->name('terms');
+    
+    // Privacy Policy
+    Route::get('/cms/privacy', [\App\Http\Controllers\CmsController::class, 'getPrivacy'])->name('cms.privacy.public');
+    Route::get('/privacy', [\App\Http\Controllers\CmsController::class, 'privacyPage'])->name('privacy');
+    
+    // ========================================================================
+    // NOTIFICATION ROUTES (Accessible to all authenticated users)
+    // ========================================================================
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread-count', [\App\Http\Controllers\NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
+    Route::get('/notifications/{id}', [\App\Http\Controllers\NotificationController::class, 'show'])->name('notifications.show');
+    Route::post('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
+    Route::post('/notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    Route::delete('/notifications/{id}', [\App\Http\Controllers\NotificationController::class, 'destroy'])->name('notifications.delete');
     
     // ========================================================================
     // LEGACY ROUTE ALIASES (Backward Compatibility)
