@@ -65,6 +65,35 @@
                 </li>
             </ul>
         </li>
+        <li class="nav-item nav-item-has-children {{ request()->routeIs('admin.foodbanks') || request()->routeIs('admin.foodbanks.details') || request()->routeIs('admin.donations') ? 'expanded' : '' }}">
+            <a href="#" class="nav-link nav-link-parent {{ request()->routeIs('admin.foodbanks') || request()->routeIs('admin.foodbanks.details') || request()->routeIs('admin.donations') ? 'active' : '' }}" onclick="toggleSubmenu(event, this)">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <span>Food Bank</span>
+                <svg class="nav-arrow" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                </svg>
+            </a>
+            <ul class="nav-submenu {{ request()->routeIs('admin.foodbanks') || request()->routeIs('admin.foodbanks.details') || request()->routeIs('admin.donations') ? 'expanded' : '' }}">
+                <li class="nav-subitem">
+                    <a href="{{ route('admin.foodbanks') }}" class="nav-link nav-link-child {{ request()->routeIs('admin.foodbanks') || request()->routeIs('admin.foodbanks.details') ? 'active' : '' }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        Manage Food Bank
+                    </a>
+                </li>
+                <li class="nav-subitem">
+                    <a href="{{ route('admin.donations') }}" class="nav-link nav-link-child {{ request()->routeIs('admin.donations') ? 'active' : '' }}">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                        </svg>
+                        Donation Hub
+                    </a>
+                </li>
+            </ul>
+        </li>
         <li class="nav-item">
             <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders') ? 'active' : '' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 640 640">
@@ -79,14 +108,6 @@
                 <path fill="#000000" d="M480 272C480 317.9 465.1 360.3 440 394.7L566.6 521.4C579.1 533.9 579.1 554.2 566.6 566.7C554.1 579.2 533.8 579.2 521.3 566.7L394.7 440C360.3 465.1 317.9 480 272 480C157.1 480 64 386.9 64 272C64 157.1 157.1 64 272 64C386.9 64 480 157.1 480 272zM272 416C351.5 416 416 351.5 416 272C416 192.5 351.5 128 272 128C192.5 128 128 192.5 128 272C128 351.5 192.5 416 272 416z"/>
                 </svg>
                 Review Management
-            </a>
-        </li>
-        <li class="nav-item">
-            <a href="{{ route('admin.donations') }}" class="nav-link {{ request()->routeIs('admin.donations') ? 'active' : '' }}">
-                <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" viewBox="0 0 640 640">
-                    <path fill="#000000" d="M311.6 95C297.5 75.5 274.9 64 250.9 64C209.5 64 176 97.5 176 138.9L176 141.3C176 205.7 258 274.7 298.2 304.6C311.2 314.3 328.7 314.3 341.7 304.6C381.9 274.6 463.9 205.7 463.9 141.3L463.9 138.9C463.9 97.5 430.4 64 389 64C365 64 342.4 75.5 328.3 95L320 106.7L311.6 95zM141.3 405.5L98.7 448L64 448C46.3 448 32 462.3 32 480L32 544C32 561.7 46.3 576 64 576L384.5 576C413.5 576 441.8 566.7 465.2 549.5L591.8 456.2C609.6 443.1 613.4 418.1 600.3 400.3C587.2 382.5 562.2 378.7 544.4 391.8L424.6 480L312 480C298.7 480 288 469.3 288 456C288 442.7 298.7 432 312 432L384 432C401.7 432 416 417.7 416 400C416 382.3 401.7 368 384 368L231.8 368C197.9 368 165.3 381.5 141.3 405.5z"/>
-                </svg>
-                Donation Hub
             </a>
         </li>
         <li class="nav-item">

@@ -41,12 +41,6 @@ function switchTab(tabName) {
 
 function loadTabData(tabName) {
     switch(tabName) {
-        case 'banners':
-            loadBanners();
-            break;
-        case 'articles':
-            loadArticles();
-            break;
         case 'terms':
             loadTerms();
             break;
@@ -58,398 +52,6 @@ function loadTabData(tabName) {
             break;
     }
 }
-
-// ============================================================================
-// BANNERS
-// ============================================================================
-
-let currentBannerPage = 1;
-
-function loadBanners(page = 1) {
-    currentBannerPage = page;
-    const search = document.getElementById('bannerSearch')?.value || '';
-    const status = document.getElementById('bannerStatusFilter')?.value || '';
-    
-    const params = new URLSearchParams({
-        page: page,
-        ...(search && { search }),
-        ...(status && { status })
-    });
-    
-    fetch(`${CMS_ROUTES.banners.list}?${params}`, {
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderBannersTable(data.data);
-            renderPagination('bannersPagination', data.data, loadBanners);
-        }
-    })
-    .catch(error => {
-        console.error('Error loading banners:', error);
-        showNotification('Error loading banners', 'error');
-    });
-}
-
-function renderBannersTable(data) {
-    const tbody = document.getElementById('bannersTableBody');
-    if (!tbody) return;
-    
-    if (data.data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">No banners found</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = data.data.map(banner => `
-        <tr>
-            <td>${banner.display_order || 0}</td>
-            <td><strong>${escapeHtml(banner.title)}</strong></td>
-            <td>${banner.image_url ? `<img src="${escapeHtml(banner.image_url)}" class="image-preview" alt="Banner">` : '-'}</td>
-            <td>${banner.link_url ? `<a href="${escapeHtml(banner.link_url)}" target="_blank" style="color: #667eea;">View Link</a>` : '-'}</td>
-            <td><span class="status-badge ${banner.status}">${banner.status}</span></td>
-            <td>${formatDateRange(banner.start_date, banner.end_date)}</td>
-            <td>
-                <div class="action-buttons">
-                    <button class="btn-icon btn-edit" onclick="editBanner(${banner.id})" title="Edit">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon btn-delete" onclick="deleteBanner(${banner.id})" title="Delete">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                        </svg>
-                    </button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function openBannerModal(id = null) {
-    const modal = document.getElementById('bannerModal');
-    const form = document.getElementById('bannerForm');
-    const title = document.getElementById('bannerModalTitle');
-    
-    if (id) {
-        title.textContent = 'Edit Banner';
-        fetch(`${CMS_ROUTES.banners.list}?id=${id}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.data.data) {
-                    const banner = data.data.data.find(b => b.id === id) || data.data.data[0];
-                    fillBannerForm(banner);
-                }
-            });
-    } else {
-        title.textContent = 'Add Banner';
-        form.reset();
-        document.getElementById('bannerId').value = '';
-    }
-    
-    modal.classList.add('active');
-}
-
-function closeBannerModal() {
-    document.getElementById('bannerModal').classList.remove('active');
-    document.getElementById('bannerForm').reset();
-    document.getElementById('bannerId').value = '';
-}
-
-function fillBannerForm(banner) {
-    document.getElementById('bannerId').value = banner.id;
-    document.getElementById('bannerTitle').value = banner.title || '';
-    document.getElementById('bannerDescription').value = banner.description || '';
-    document.getElementById('bannerImageUrl').value = banner.image_url || '';
-    document.getElementById('bannerLinkUrl').value = banner.link_url || '';
-    document.getElementById('bannerDisplayOrder').value = banner.display_order || 0;
-    document.getElementById('bannerStatus').value = banner.status || 'active';
-    document.getElementById('bannerStartDate').value = banner.start_date ? formatDateTimeLocal(banner.start_date) : '';
-    document.getElementById('bannerEndDate').value = banner.end_date ? formatDateTimeLocal(banner.end_date) : '';
-}
-
-function saveBanner(event) {
-    event.preventDefault();
-    const form = event.target;
-    const formData = new FormData(form);
-    const id = document.getElementById('bannerId').value;
-    const url = id 
-        ? CMS_ROUTES.banners.update(id)
-        : CMS_ROUTES.banners.store;
-    const method = id ? 'POST' : 'POST';
-    
-    fetch(url, {
-        method: method,
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(Object.fromEntries(formData))
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            closeBannerModal();
-            loadBanners(currentBannerPage);
-        } else {
-            showNotification(data.message || 'Error saving banner', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error saving banner:', error);
-        showNotification('Error saving banner', 'error');
-    });
-}
-
-function editBanner(id) {
-    fetch(`${CMS_ROUTES.banners.list}?id=${id}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.data.data) {
-                const banner = data.data.data.find(b => b.id === id) || data.data.data[0];
-                fillBannerForm(banner);
-                openBannerModal(id);
-            }
-        });
-}
-
-function deleteBanner(id) {
-    if (!confirm('Are you sure you want to delete this banner?')) return;
-    
-    fetch(CMS_ROUTES.banners.delete(id), {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            loadBanners(currentBannerPage);
-        } else {
-            showNotification(data.message || 'Error deleting banner', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error deleting banner:', error);
-        showNotification('Error deleting banner', 'error');
-    });
-}
-
-// Initialize banner filters
-document.addEventListener('DOMContentLoaded', function() {
-    const bannerSearch = document.getElementById('bannerSearch');
-    const bannerStatusFilter = document.getElementById('bannerStatusFilter');
-    
-    if (bannerSearch) {
-        let searchTimeout;
-        bannerSearch.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => loadBanners(1), 300);
-        });
-    }
-    
-    if (bannerStatusFilter) {
-        bannerStatusFilter.addEventListener('change', () => loadBanners(1));
-    }
-});
-
-// ============================================================================
-// ARTICLES
-// ============================================================================
-
-let currentArticlePage = 1;
-
-function loadArticles(page = 1) {
-    currentArticlePage = page;
-    const search = document.getElementById('articleSearch')?.value || '';
-    const status = document.getElementById('articleStatusFilter')?.value || '';
-    const category = document.getElementById('articleCategoryFilter')?.value || '';
-    
-    const params = new URLSearchParams({
-        page: page,
-        ...(search && { search }),
-        ...(status && { status }),
-        ...(category && { category })
-    });
-    
-    fetch(`${CMS_ROUTES.articles.list}?${params}`, {
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderArticlesTable(data.data);
-            renderPagination('articlesPagination', data.data, loadArticles);
-        }
-    })
-    .catch(error => {
-        console.error('Error loading articles:', error);
-        showNotification('Error loading articles', 'error');
-    });
-}
-
-function renderArticlesTable(data) {
-    const tbody = document.getElementById('articlesTableBody');
-    if (!tbody) return;
-    
-    if (data.data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">No articles found</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = data.data.map(article => `
-        <tr>
-            <td>${article.display_order || 0}</td>
-            <td><strong>${escapeHtml(article.title)}</strong></td>
-            <td>${article.category || '-'}</td>
-            <td><span class="status-badge ${article.status}">${article.status}</span></td>
-            <td>${article.view_count || 0}</td>
-            <td>${formatDate(article.created_at)}</td>
-            <td>
-                <div class="action-buttons">
-                    <button class="btn-icon btn-edit" onclick="editArticle(${article.id})" title="Edit">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon btn-delete" onclick="deleteArticle(${article.id})" title="Delete">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                        </svg>
-                    </button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function openArticleModal(id = null) {
-    const modal = document.getElementById('articleModal');
-    const form = document.getElementById('articleForm');
-    const title = document.getElementById('articleModalTitle');
-    
-    if (id) {
-        title.textContent = 'Edit Article';
-    } else {
-        title.textContent = 'Add Article';
-        form.reset();
-        document.getElementById('articleId').value = '';
-    }
-    
-    modal.classList.add('active');
-}
-
-function closeArticleModal() {
-    document.getElementById('articleModal').classList.remove('active');
-    document.getElementById('articleForm').reset();
-    document.getElementById('articleId').value = '';
-}
-
-function saveArticle(event) {
-    event.preventDefault();
-    const form = event.target;
-    const formData = new FormData(form);
-    const id = document.getElementById('articleId').value;
-    const url = id 
-        ? CMS_ROUTES.articles.update(id)
-        : CMS_ROUTES.articles.store;
-    
-    fetch(url, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(Object.fromEntries(formData))
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            closeArticleModal();
-            loadArticles(currentArticlePage);
-        } else {
-            showNotification(data.message || 'Error saving article', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error saving article:', error);
-        showNotification('Error saving article', 'error');
-    });
-}
-
-function editArticle(id) {
-    fetch(`${CMS_ROUTES.articles.list}?id=${id}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.data.data) {
-                const article = data.data.data.find(a => a.id === id) || data.data.data[0];
-                document.getElementById('articleId').value = article.id;
-                document.getElementById('articleTitle').value = article.title || '';
-                document.getElementById('articleContent').value = article.content || '';
-                document.getElementById('articleCategory').value = article.category || '';
-                document.getElementById('articleTags').value = article.tags || '';
-                document.getElementById('articleDisplayOrder').value = article.display_order || 0;
-                document.getElementById('articleStatus').value = article.status || 'draft';
-                openArticleModal(id);
-            }
-        });
-}
-
-function deleteArticle(id) {
-    if (!confirm('Are you sure you want to delete this article?')) return;
-    
-    fetch(CMS_ROUTES.articles.delete(id), {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(data.message, 'success');
-            loadArticles(currentArticlePage);
-        } else {
-            showNotification(data.message || 'Error deleting article', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error deleting article:', error);
-        showNotification('Error deleting article', 'error');
-    });
-}
-
-// Initialize article filters
-document.addEventListener('DOMContentLoaded', function() {
-    const articleSearch = document.getElementById('articleSearch');
-    const articleStatusFilter = document.getElementById('articleStatusFilter');
-    const articleCategoryFilter = document.getElementById('articleCategoryFilter');
-    
-    if (articleSearch) {
-        let searchTimeout;
-        articleSearch.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => loadArticles(1), 300);
-        });
-    }
-    
-    if (articleStatusFilter) {
-        articleStatusFilter.addEventListener('change', () => loadArticles(1));
-    }
-    
-    if (articleCategoryFilter) {
-        articleCategoryFilter.addEventListener('change', () => loadArticles(1));
-    }
-});
 
 // ============================================================================
 // TERMS & CONDITIONS
@@ -499,7 +101,7 @@ function renderTermsTable(data) {
         <tr>
             <td><strong>${escapeHtml(term.version)}</strong></td>
             <td><span class="status-badge ${term.status}">${term.status}</span></td>
-            <td>${term.published_at ? formatDate(term.published_at) : '-'}</td>
+            <td>${term.updated_at ? formatDate(term.updated_at) : '-'}</td>
             <td>${formatDate(term.created_at)}</td>
             <td>
                 <div class="action-buttons">
@@ -680,7 +282,7 @@ function renderPrivacyTable(data) {
         <tr>
             <td><strong>${escapeHtml(policy.version)}</strong></td>
             <td><span class="status-badge ${policy.status}">${policy.status}</span></td>
-            <td>${policy.published_at ? formatDate(policy.published_at) : '-'}</td>
+            <td>${policy.updated_at ? formatDate(policy.updated_at) : '-'}</td>
             <td>${formatDate(policy.created_at)}</td>
             <td>
                 <div class="action-buttons">
@@ -861,7 +463,7 @@ function renderAnnouncementsTable(data) {
     
     let html = '';
     data.data.forEach(announcement => {
-        const publishedAt = announcement.published_at ? formatDate(announcement.published_at) + '<br><small>' + new Date(announcement.published_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + '</small>' : '<span class="no-date">Not published</span>';
+        const updatedAt = announcement.updated_at ? formatDate(announcement.updated_at) + '<br><small>' + new Date(announcement.updated_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + '</small>' : '-';
         const expiresAt = announcement.expires_at ? formatDate(announcement.expires_at) + '<br><small>' + new Date(announcement.expires_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + '</small>' : '<span class="no-date">No expiry</span>';
         const createdAt = formatDate(announcement.created_at) + '<br><small>' + new Date(announcement.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + '</small>';
         const messagePreview = announcement.message.length > 100 ? announcement.message.substring(0, 100) + '...' : announcement.message;
@@ -871,7 +473,7 @@ function renderAnnouncementsTable(data) {
             <td>${escapeHtml(messagePreview)}</td>
             <td><span class="badge badge-${announcement.target_audience}">${escapeHtml(announcement.target_audience.charAt(0).toUpperCase() + announcement.target_audience.slice(1))}</span></td>
             <td><span class="badge badge-${announcement.status}">${escapeHtml(announcement.status.charAt(0).toUpperCase() + announcement.status.slice(1))}</span></td>
-            <td>${publishedAt}</td>
+            <td>${updatedAt}</td>
             <td>${expiresAt}</td>
             <td>${createdAt}</td>
             <td>

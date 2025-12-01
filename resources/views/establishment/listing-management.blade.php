@@ -40,18 +40,6 @@
                                 </svg>
                                 List Food
                             </button>
-                            <button class="btn btn-secondary" id="filterBtn">
-                                <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
-                                </svg>
-                                Filter
-                            </button>
-                            <button class="btn btn-secondary" id="sortBtn">
-                                <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/>
-                                </svg>
-                                Sort
-                            </button>
                         </div>
                     </div>
 
@@ -61,7 +49,6 @@
                             <span id="selectedCount">0</span> items selected
                         </div>
                         <button class="btn btn-secondary" id="bulkEditBtn">Edit Selected</button>
-                        <button class="btn btn-secondary" id="bulkDonateBtn">Mark for Donation</button>
                         <button class="btn btn-secondary" id="bulkDeleteBtn" style="color: #dc3545; border-color: #dc3545;">Delete Selected</button>
                     </div>
 
@@ -113,6 +100,7 @@
                          data-name="{{ $item['name'] }}"
                          data-description="{{ $item['description'] ?? '' }}"
                          data-category="{{ $item['category'] }}"
+                         data-status="{{ strtolower($item['status']) }}"
                          data-quantity="{{ $item['quantity'] }}"
                          data-original-price="{{ $item['price'] }}"
                          data-discount-percentage="{{ $item['discount'] ?? 0 }}"
@@ -156,8 +144,6 @@
                                 <div class="actions-menu" id="menu-{{ $item['id'] }}">
                                     <button type="button" onclick="viewItem({{ $item['id'] }})">View Details</button>
                                     <button type="button" onclick="editItem({{ $item['id'] }})">Edit</button>
-                                    <button type="button" onclick="duplicateItem({{ $item['id'] }})">Duplicate</button>
-                                    <button type="button" onclick="donateItem({{ $item['id'] }})">Mark for Donation</button>
                                     <button type="button" class="delete" onclick="deleteItem({{ $item['id'] }})">Delete</button>
                                 </div>
                             </div>
@@ -407,24 +393,10 @@
         <!-- Reviews Section -->
         <div class="reviews-section">
             <div class="rating-summary">
-                <div class="stars">
-                    <svg class="star filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    <svg class="star filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    <svg class="star filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    <svg class="star filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    <svg class="star half" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
+                <div class="stars" id="viewRatingStars">
+                    <!-- Stars will be dynamically generated -->
                 </div>
-                <span class="rating-text" id="viewRatingText">4.6 out 5</span>
+                <span class="rating-text" id="viewRatingText">No ratings yet</span>
             </div>
             
             <div class="rating-filters">
@@ -437,65 +409,12 @@
             </div>
 
             <div class="reviews-list" id="viewReviewsList">
-                <div class="review-item">
-                    <div class="review-avatar">
-                        <div class="review-avatar-initials">JD</div>
-                    </div>
-                    <div class="review-content">
-                        <div class="review-header">
-                            <span class="reviewer-name">John Doe</span>
-                            <div class="review-stars">
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <p class="review-text">Supporting line text lorem ipsum dolor sit amet, consectetur.</p>
-                    </div>
-                </div>
-                <div class="review-item">
-                    <div class="review-avatar">
-                        <div class="review-avatar-initials">JD</div>
-                    </div>
-                    <div class="review-content">
-                        <div class="review-header">
-                            <span class="reviewer-name">John Doe</span>
-                            <div class="review-stars">
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                                <svg class="star filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <p class="review-text">Supporting line text lorem ipsum dolor sit amet, consectetur.</p>
-                    </div>
+                <div class="no-reviews" id="viewNoReviews" style="display: none;">
+                    <p>No reviews yet. Be the first to review this product!</p>
                 </div>
             </div>
 
-            <button class="show-more-btn" id="viewShowMoreBtn">Show more (20)</button>
+            <button class="show-more-btn" id="viewShowMoreBtn" style="display: none;">Show more</button>
         </div>
     </div>
 </div>

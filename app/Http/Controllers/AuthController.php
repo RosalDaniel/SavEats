@@ -91,7 +91,7 @@ class AuthController extends Controller
                             'fname' => 'required|string|max:255',
                             'lname' => 'required|string|max:255',
                             'mname' => 'nullable|string|max:255',
-                            'phone_no' => 'nullable|string|max:20',
+                            'phone_no' => 'nullable|string|regex:/^0\d{10}$/',
                             'address' => 'nullable|string',
                         ]);
                     } catch (\Illuminate\Validation\ValidationException $e) {
@@ -138,7 +138,7 @@ class AuthController extends Controller
                     'business_name' => 'required|string|max:255',
                     'owner_fname' => 'required|string|max:255',
                     'owner_lname' => 'required|string|max:255',
-                    'phone_no' => 'nullable|string|max:20',
+                    'phone_no' => 'nullable|string|regex:/^0\d{10}$/',
                     'address' => 'nullable|string',
                     'business_type' => 'nullable|string|max:255',
                     'birCertificate' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
@@ -194,7 +194,7 @@ class AuthController extends Controller
                 $request->validate([
                     'organization_name' => 'required|string|max:255',
                     'contact_person' => 'required|string|max:255',
-                    'phone_no' => 'nullable|string|max:20',
+                    'phone_no' => 'nullable|string|regex:/^0\d{10}$/',
                     'address' => 'nullable|string',
                     'registration_number' => 'nullable|string|max:255',
                 ]);
@@ -251,8 +251,9 @@ class AuthController extends Controller
         }
 
         if ($user) {
-            // Log the user in
-            $this->loginUser($user, $request->role);
+            // Send email verification (non-admin only)
+            $passwordRecoveryController = new \App\Http\Controllers\PasswordRecoveryController();
+            $passwordRecoveryController->sendVerificationEmail($user, $request->role);
             
             // Debug: Log successful creation
             \Log::info('User created successfully', [
@@ -265,14 +266,14 @@ class AuthController extends Controller
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Registration successful! Welcome to SavEats!',
-                    'redirect' => route('dashboard.' . $request->role)
+                    'message' => 'Registration successful! Please check your email to verify your account, then login.',
+                    'redirect' => route('login')
                 ]);
             }
             
-            // Redirect to appropriate dashboard
-            return redirect()->route('dashboard.' . $request->role)
-                ->with('success', 'Registration successful! Welcome to SavEats!');
+            // Redirect to login page with success message
+            return redirect()->route('login')
+                ->with('success', 'Registration successful! Please check your email to verify your account, then login with your credentials.');
         }
 
         \Log::error('User creation failed - user object is null', [
@@ -313,8 +314,23 @@ class AuthController extends Controller
             $user = $model::where($loginField, $request->login)->first();
             
             if ($user && Hash::check($request->password, $user->password)) {
+                // Check if email is verified (non-admin users only)
+                if (property_exists($user, 'email_verified_at') && !$user->email_verified_at) {
+                    throw ValidationException::withMessages([
+                        'login' => ['Please verify your email address before logging in. <a href="' . route('password-recovery.resend-verification.show') . '" style="color: #347928; text-decoration: underline;">Resend verification email</a>'],
+                    ]);
+                }
+                
                 $this->loginUser($user, $type);
-                return redirect()->route('dashboard.' . $type)
+                
+                // Redirect to the appropriate dashboard route
+                $dashboardRoutes = [
+                    'consumer' => 'dashboard.consumer',
+                    'establishment' => 'establishment.dashboard',
+                    'foodbank' => 'foodbank.dashboard',
+                ];
+                
+                return redirect()->route($dashboardRoutes[$type] ?? 'dashboard.' . $type)
                     ->with('success', 'Welcome back!');
             }
         }

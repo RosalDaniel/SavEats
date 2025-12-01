@@ -26,6 +26,10 @@ function initializeFilters() {
     const statusFilter = document.getElementById('statusFilter');
     const dateFrom = document.getElementById('dateFrom');
     const dateTo = document.getElementById('dateTo');
+    const foodbankIdFilter = document.getElementById('foodbankIdFilter');
+    const establishmentIdFilter = document.getElementById('establishmentIdFilter');
+    const donationIdFilter = document.getElementById('donationIdFilter');
+    const donationRequestIdFilter = document.getElementById('donationRequestIdFilter');
     
     let searchTimeout;
     if (searchInput) {
@@ -58,6 +62,38 @@ function initializeFilters() {
     if (dateTo) {
         dateTo.addEventListener('change', () => loadLogs(1));
     }
+    
+    if (foodbankIdFilter) {
+        let foodbankTimeout;
+        foodbankIdFilter.addEventListener('input', function() {
+            clearTimeout(foodbankTimeout);
+            foodbankTimeout = setTimeout(() => loadLogs(1), 500);
+        });
+    }
+    
+    if (establishmentIdFilter) {
+        let establishmentTimeout;
+        establishmentIdFilter.addEventListener('input', function() {
+            clearTimeout(establishmentTimeout);
+            establishmentTimeout = setTimeout(() => loadLogs(1), 500);
+        });
+    }
+    
+    if (donationIdFilter) {
+        let donationTimeout;
+        donationIdFilter.addEventListener('input', function() {
+            clearTimeout(donationTimeout);
+            donationTimeout = setTimeout(() => loadLogs(1), 500);
+        });
+    }
+    
+    if (donationRequestIdFilter) {
+        let requestTimeout;
+        donationRequestIdFilter.addEventListener('input', function() {
+            clearTimeout(requestTimeout);
+            requestTimeout = setTimeout(() => loadLogs(1), 500);
+        });
+    }
 }
 
 function loadLogs(page = 1) {
@@ -70,6 +106,11 @@ function loadLogs(page = 1) {
     const status = document.getElementById('statusFilter')?.value || '';
     const dateFrom = document.getElementById('dateFrom')?.value || '';
     const dateTo = document.getElementById('dateTo')?.value || '';
+    const foodbankId = document.getElementById('foodbankIdFilter')?.value || '';
+    const establishmentId = document.getElementById('establishmentIdFilter')?.value || '';
+    const donationId = document.getElementById('donationIdFilter')?.value || '';
+    const donationRequestId = document.getElementById('donationRequestIdFilter')?.value || '';
+    const donationEventsOnly = document.getElementById('donationEventsOnly')?.checked || false;
     
     const params = new URLSearchParams({
         page: page,
@@ -79,7 +120,12 @@ function loadLogs(page = 1) {
         ...(userType && { user_type: userType }),
         ...(status && { status }),
         ...(dateFrom && { date_from: dateFrom }),
-        ...(dateTo && { date_to: dateTo })
+        ...(dateTo && { date_to: dateTo }),
+        ...(foodbankId && { foodbank_id: foodbankId }),
+        ...(establishmentId && { establishment_id: establishmentId }),
+        ...(donationId && { donation_id: donationId }),
+        ...(donationRequestId && { donation_request_id: donationRequestId }),
+        ...(donationEventsOnly && { donation_events_only: '1' })
     });
     
     fetch(`${SYSTEM_LOGS_ROUTES.data}?${params}`, {
@@ -175,7 +221,67 @@ function clearFilters() {
     document.getElementById('statusFilter').value = '';
     document.getElementById('dateFrom').value = '';
     document.getElementById('dateTo').value = '';
+    const foodbankIdFilter = document.getElementById('foodbankIdFilter');
+    const establishmentIdFilter = document.getElementById('establishmentIdFilter');
+    const donationIdFilter = document.getElementById('donationIdFilter');
+    const donationRequestIdFilter = document.getElementById('donationRequestIdFilter');
+    if (foodbankIdFilter) foodbankIdFilter.value = '';
+    if (establishmentIdFilter) establishmentIdFilter.value = '';
+    if (donationIdFilter) donationIdFilter.value = '';
+    if (donationRequestIdFilter) donationRequestIdFilter.value = '';
     loadLogs(1);
+}
+
+function filterDonationEvents() {
+    // Set event type filter to show donation events
+    const eventTypeFilter = document.getElementById('eventTypeFilter');
+    if (eventTypeFilter) {
+        // Clear other filters and set to show donation events
+        document.getElementById('logSearch').value = '';
+        eventTypeFilter.value = '';
+        document.getElementById('severityFilter').value = '';
+        document.getElementById('userTypeFilter').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('dateFrom').value = '';
+        document.getElementById('dateTo').value = '';
+        const foodbankIdFilter = document.getElementById('foodbankIdFilter');
+        const establishmentIdFilter = document.getElementById('establishmentIdFilter');
+        const donationIdFilter = document.getElementById('donationIdFilter');
+        const donationRequestIdFilter = document.getElementById('donationRequestIdFilter');
+        if (foodbankIdFilter) foodbankIdFilter.value = '';
+        if (establishmentIdFilter) establishmentIdFilter.value = '';
+        if (donationIdFilter) donationIdFilter.value = '';
+        if (donationRequestIdFilter) donationRequestIdFilter.value = '';
+        
+        // Load logs with donation_events_only flag
+        loadLogsWithDonationFilter();
+    }
+}
+
+function loadLogsWithDonationFilter() {
+    currentPage = 1;
+    
+    const params = new URLSearchParams({
+        page: 1,
+        donation_events_only: '1'
+    });
+    
+    fetch(`${SYSTEM_LOGS_ROUTES.data}?${params}`, {
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            renderLogsTable(data.data);
+            renderPagination(data.data);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading donation logs:', error);
+        showNotification('Error loading donation logs', 'error');
+    });
 }
 
 function toggleExportMenu() {
@@ -193,6 +299,10 @@ function exportLogs(format) {
     const status = document.getElementById('statusFilter')?.value || '';
     const dateFrom = document.getElementById('dateFrom')?.value || '';
     const dateTo = document.getElementById('dateTo')?.value || '';
+    const foodbankId = document.getElementById('foodbankIdFilter')?.value || '';
+    const establishmentId = document.getElementById('establishmentIdFilter')?.value || '';
+    const donationId = document.getElementById('donationIdFilter')?.value || '';
+    const donationRequestId = document.getElementById('donationRequestIdFilter')?.value || '';
     
     const params = new URLSearchParams({
         ...(search && { search }),
@@ -201,7 +311,11 @@ function exportLogs(format) {
         ...(userType && { user_type: userType }),
         ...(status && { status }),
         ...(dateFrom && { date_from: dateFrom }),
-        ...(dateTo && { date_to: dateTo })
+        ...(dateTo && { date_to: dateTo }),
+        ...(foodbankId && { foodbank_id: foodbankId }),
+        ...(establishmentId && { establishment_id: establishmentId }),
+        ...(donationId && { donation_id: donationId }),
+        ...(donationRequestId && { donation_request_id: donationRequestId })
     });
     
     let route;

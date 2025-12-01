@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Hash;
 use App\Models\Consumer;
 use App\Models\Establishment;
 use App\Models\Foodbank;
@@ -68,6 +69,16 @@ class ProfileController extends Controller
                           !$request->has('first_name') && 
                           !$request->has('profile_picture');
         
+        // Check if this is a contact info only update
+        $isContactInfoOnly = $request->has('phone') && 
+                            $request->has('email') && 
+                            $request->has('address') &&
+                            !$request->has('first_name') && 
+                            !$request->has('last_name') &&
+                            !$request->has('username') &&
+                            !$request->hasFile('profile_picture') &&
+                            !$request->hasFile('bir_file');
+        
         if ($isProfilePictureOnly) {
             \Log::info('Using profile picture only validation');
             // Only validate profile picture for image-only uploads
@@ -80,6 +91,14 @@ class ProfileController extends Controller
             $validator = Validator::make($request->all(), [
                 'bir_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:2048'
             ]);
+        } elseif ($isContactInfoOnly) {
+            \Log::info('Using contact info only validation');
+            // Validate only contact information fields
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|email|max:255',
+                'phone' => 'required|string|regex:/^0\d{10}$/',
+                'address' => 'required|string|max:500',
+            ]);
         } else {
             \Log::info('Using full profile validation');
             // Validate all fields for full profile updates
@@ -88,7 +107,7 @@ class ProfileController extends Controller
                 'last_name' => 'required|string|max:255',
                 'middle_name' => 'nullable|string|max:255',
                 'email' => 'required|email|max:255',
-                'phone' => 'required|string|max:20',
+                'phone' => 'required|string|regex:/^0\d{10}$/',
                 'address' => 'required|string|max:500',
                 'username' => 'required|string|max:255',
                 'password' => 'nullable|string|min:8|confirmed',
@@ -181,9 +200,67 @@ class ProfileController extends Controller
                         'message' => 'Failed to upload BIR file: ' . $e->getMessage()
                     ], 500);
                 }
+            } elseif ($isContactInfoOnly) {
+                // Handle contact information update only
+                $data = [];
+                
+                // Map 'phone' to 'phone_no' for database
+                if ($request->has('phone')) {
+                    $data['phone_no'] = $request->phone;
+                }
+                if ($request->has('email')) {
+                    $data['email'] = $request->email;
+                }
+                if ($request->has('address')) {
+                    $data['address'] = $request->address;
+                }
+                
+                $user->update($data);
+                
+                // Update session data
+                if (isset($data['email'])) {
+                    Session::put('user_email', $data['email']);
+                }
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Contact information updated successfully',
+                    'data' => $user
+                ]);
             } else {
-                // Handle full profile update
+                // Handle full profile update or contact info update
                 $data = $request->all();
+                
+                // Map 'phone' to 'phone_no' for database
+                if (isset($data['phone'])) {
+                    $data['phone_no'] = $data['phone'];
+                    unset($data['phone']);
+                }
+                
+                // Map field names based on user type
+                if ($userType === 'consumer') {
+                    if (isset($data['first_name'])) {
+                        $data['fname'] = $data['first_name'];
+                        unset($data['first_name']);
+                    }
+                    if (isset($data['last_name'])) {
+                        $data['lname'] = $data['last_name'];
+                        unset($data['last_name']);
+                    }
+                    if (isset($data['middle_name'])) {
+                        $data['mname'] = $data['middle_name'];
+                        unset($data['middle_name']);
+                    }
+                } elseif ($userType === 'establishment') {
+                    if (isset($data['first_name'])) {
+                        $data['owner_fname'] = $data['first_name'];
+                        unset($data['first_name']);
+                    }
+                    if (isset($data['last_name'])) {
+                        $data['owner_lname'] = $data['last_name'];
+                        unset($data['last_name']);
+                    }
+                }
                 
                 // Handle profile picture upload
                 if ($request->hasFile('profile_picture')) {
@@ -234,9 +311,11 @@ class ProfileController extends Controller
                     $data['password'] = bcrypt($data['password']);
                 }
 
-                // Remove password_confirmation
+                // Remove password_confirmation and other non-database fields
                 unset($data['password_confirmation']);
                 unset($data['profile_picture']); // Remove the file object
+                unset($data['username']); // Username shouldn't be updated via profile
+                unset($data['_token']); // Remove CSRF token
 
                 $user->update($data);
 
@@ -291,7 +370,8 @@ class ProfileController extends Controller
             'bir_file' => $user->bir_file ?? '',
             'organization_name' => $user->organization_name ?? '',
             'email' => $user->email,
-            'phone' => $user->phone ?? $user->phone_number ?? $user->contact_number ?? '',
+            'phone' => $user->phone_no ?? $user->phone ?? $user->phone_number ?? $user->contact_number ?? '',
+            'phone_no' => $user->phone_no ?? $user->phone ?? $user->phone_number ?? $user->contact_number ?? '',
             'address' => $user->address ?? $user->location ?? '',
             'username' => $user->username,
             'profile_picture' => $user->profile_image ?? $user->avatar ?? null,
@@ -373,6 +453,93 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to submit deletion request: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Change user password
+     */
+    public function changePassword(Request $request)
+    {
+        $userId = Session::get('user_id');
+        $userType = Session::get('user_type');
+        
+        if (!$userId || !$userType) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        // Validate input
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:8',
+            'confirm_password' => 'required|string|same:new_password'
+        ], [
+            'current_password.required' => 'Current password is required',
+            'new_password.required' => 'New password is required',
+            'new_password.min' => 'New password must be at least 8 characters',
+            'confirm_password.required' => 'Please confirm your new password',
+            'confirm_password.same' => 'New passwords do not match'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $user = $this->getUserModel($userType, $userId);
+            
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            // Verify current password
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Current password is incorrect'
+                ], 400);
+            }
+
+            // Check if new password is same as current password
+            if (Hash::check($request->new_password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'New password must be different from current password'
+                ], 400);
+            }
+
+            // Update password
+            $user->update([
+                'password' => Hash::make($request->new_password)
+            ]);
+
+            // Log the password change
+            \Log::info('Password changed', [
+                'user_id' => $userId,
+                'user_type' => $userType
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Password changed successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Password change failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to change password. Please try again.'
             ], 500);
         }
     }

@@ -69,21 +69,6 @@
     background: rgba(255, 255, 255, 0.3);
 }
 
-/* Flash Sale Banner */
-.flash-sale {
-    background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
-    padding: 15px 20px;
-    border-radius: 10px;
-    margin-bottom: 30px;
-    text-align: center;
-    border: 2px solid #81c784;
-}
-
-.flash-sale-text {
-    color: #2e7d32;
-    font-weight: 600;
-    font-size: 16px;
-}
 
 /* Responsive Design */
 @media (max-width: 1024px) {

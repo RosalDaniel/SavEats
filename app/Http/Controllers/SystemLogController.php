@@ -42,6 +42,8 @@ class SystemLogController extends Controller
                 ->where('status', 'failed')
                 ->whereDate('created_at', '>=', Carbon::now()->subDays(7))
                 ->count(),
+            'donation_events' => SystemLog::donationEvents()->count(),
+            'donation_events_today' => SystemLog::donationEvents()->whereDate('created_at', today())->count(),
         ];
 
         return view('admin.system-logs', compact('user', 'stats'));
@@ -56,6 +58,80 @@ class SystemLogController extends Controller
             return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
         }
 
+        $query = $this->buildFilterQuery($request);
+
+        // Order by created_at desc
+        $logs = $query->orderBy('created_at', 'desc')->paginate(20);
+
+        return response()->json(['success' => true, 'data' => $logs]);
+    }
+
+    /**
+     * Get real-time donation activity (for admin monitoring)
+     */
+    public function getDonationActivity(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+
+        $hours = $request->input('hours', 24); // Default last 24 hours
+        $since = Carbon::now()->subHours($hours);
+
+        $query = SystemLog::donationEvents()
+            ->where('created_at', '>=', $since)
+            ->orderBy('created_at', 'desc');
+
+        // Apply additional filters if provided
+        if ($request->has('foodbank_id') && $request->foodbank_id) {
+            $query->foodbankId($request->foodbank_id);
+        }
+
+        if ($request->has('establishment_id') && $request->establishment_id) {
+            $query->establishmentId($request->establishment_id);
+        }
+
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+
+        $logs = $query->limit(100)->get();
+
+        // Format for frontend
+        $activity = $logs->map(function($log) {
+            return [
+                'id' => $log->id,
+                'event_type' => $log->event_type,
+                'action' => $log->action,
+                'description' => $log->description,
+                'severity' => $log->severity,
+                'status' => $log->status,
+                'user_type' => $log->user_type,
+                'user_id' => $log->user_id,
+                'foodbank_id' => $log->foodbank_id ?? null,
+                'foodbank_name' => $log->foodbank_name ?? null,
+                'establishment_id' => $log->establishment_id ?? null,
+                'establishment_name' => $log->establishment_name ?? null,
+                'donation_id' => $log->donation_id ?? null,
+                'donation_request_id' => $log->donation_request_id ?? null,
+                'created_at' => $log->created_at->format('Y-m-d H:i:s'),
+                'created_at_human' => $log->created_at->diffForHumans(),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $activity,
+            'count' => $activity->count(),
+            'since' => $since->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /**
+     * Build filter query for logs
+     */
+    private function buildFilterQuery(Request $request)
+    {
         $query = SystemLog::query();
 
         // Search
@@ -99,10 +175,32 @@ class SystemLogController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        // Order by created_at desc
-        $logs = $query->orderBy('created_at', 'desc')->paginate(20);
+        // Filter by foodbank ID (from metadata)
+        if ($request->has('foodbank_id') && $request->foodbank_id) {
+            $query->foodbankId($request->foodbank_id);
+        }
 
-        return response()->json(['success' => true, 'data' => $logs]);
+        // Filter by establishment ID (from metadata)
+        if ($request->has('establishment_id') && $request->establishment_id) {
+            $query->establishmentId($request->establishment_id);
+        }
+
+        // Filter by donation ID (from metadata)
+        if ($request->has('donation_id') && $request->donation_id) {
+            $query->donationId($request->donation_id);
+        }
+
+        // Filter by donation request ID (from metadata)
+        if ($request->has('donation_request_id') && $request->donation_request_id) {
+            $query->donationRequestId($request->donation_request_id);
+        }
+
+        // Filter donation-related events only
+        if ($request->has('donation_events_only') && $request->donation_events_only) {
+            $query->donationEvents();
+        }
+
+        return $query;
     }
 
     /**
@@ -140,6 +238,10 @@ class SystemLogController extends Controller
                 'Action',
                 'Status',
                 'Description',
+                'Foodbank ID',
+                'Establishment ID',
+                'Donation ID',
+                'Donation Request ID',
                 'Created At'
             ]);
 
@@ -156,6 +258,10 @@ class SystemLogController extends Controller
                     $log->action ?? 'N/A',
                     $log->status,
                     $log->description ?? 'N/A',
+                    $log->foodbank_id ?? 'N/A',
+                    $log->establishment_id ?? 'N/A',
+                    $log->donation_id ?? 'N/A',
+                    $log->donation_request_id ?? 'N/A',
                     $log->created_at->format('Y-m-d H:i:s')
                 ]);
             }
@@ -227,6 +333,10 @@ class SystemLogController extends Controller
                 'Action',
                 'Status',
                 'Description',
+                'Foodbank ID',
+                'Establishment ID',
+                'Donation ID',
+                'Donation Request ID',
                 'Created At'
             ]);
 
@@ -243,6 +353,10 @@ class SystemLogController extends Controller
                     $log->action ?? 'N/A',
                     $log->status,
                     $log->description ?? 'N/A',
+                    $log->foodbank_id ?? 'N/A',
+                    $log->establishment_id ?? 'N/A',
+                    $log->donation_id ?? 'N/A',
+                    $log->donation_request_id ?? 'N/A',
                     $log->created_at->format('Y-m-d H:i:s')
                 ]);
             }
@@ -251,57 +365,6 @@ class SystemLogController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
-    }
-
-    /**
-     * Build filtered query based on request parameters
-     */
-    private function buildFilterQuery(Request $request)
-    {
-        $query = SystemLog::query();
-
-        // Search
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('event_type', 'like', '%' . $search . '%')
-                  ->orWhere('action', 'like', '%' . $search . '%')
-                  ->orWhere('description', 'like', '%' . $search . '%')
-                  ->orWhere('user_email', 'like', '%' . $search . '%')
-                  ->orWhere('ip_address', 'like', '%' . $search . '%');
-            });
-        }
-
-        // Filter by event type
-        if ($request->has('event_type') && $request->event_type) {
-            $query->where('event_type', $request->event_type);
-        }
-
-        // Filter by severity
-        if ($request->has('severity') && $request->severity) {
-            $query->where('severity', $request->severity);
-        }
-
-        // Filter by user type
-        if ($request->has('user_type') && $request->user_type) {
-            $query->where('user_type', $request->user_type);
-        }
-
-        // Filter by status
-        if ($request->has('status') && $request->status) {
-            $query->where('status', $request->status);
-        }
-
-        // Date range filter
-        if ($request->has('date_from') && $request->date_from) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-
-        if ($request->has('date_to') && $request->date_to) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        return $query;
     }
 
     /**

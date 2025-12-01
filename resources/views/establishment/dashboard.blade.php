@@ -12,12 +12,20 @@
 <!-- Stats Grid -->
 @php
     // Safely get dashboardStats with fallback
-    $stats = isset($dashboardStats) && is_array($dashboardStats) ? $dashboardStats : [
+    // Ensure all required keys exist with default values
+    $stats = isset($dashboardStats) && is_array($dashboardStats) ? $dashboardStats : [];
+    $stats = array_merge([
         'active_listings' => 0,
         'today_earnings' => 0,
         'food_donated' => 0,
         'food_saved' => 0,
-    ];
+    ], $stats);
+    
+    // Ensure all values are properly set (handle null/undefined)
+    $stats['active_listings'] = (int) ($stats['active_listings'] ?? 0);
+    $stats['today_earnings'] = (float) ($stats['today_earnings'] ?? 0);
+    $stats['food_donated'] = (int) ($stats['food_donated'] ?? 0);
+    $stats['food_saved'] = (int) ($stats['food_saved'] ?? 0);
 @endphp
 <div class="stats-grid">
     <div class="stat-card active-listings">
@@ -36,11 +44,6 @@
         <div class="stat-label">Food Saved</div>
         <div class="stat-value">{{ $stats['food_saved'] ?? 0 }} pcs.</div>
     </div>
-</div>
-
-<!-- Flash Sale Banner -->
-<div class="flash-sale">
-    <div class="flash-sale-text">🎉 Flash Sale: Everything 30% off until midnight! 🎉</div>
 </div>
 
 <!-- Expiring Soon Section (Mobile Top) -->
@@ -111,29 +114,39 @@
         <div class="section-card inventory-health-section">
             <h3 class="section-title">Inventory Health</h3>
             
+            @php
+                // Safely get inventoryHealth with fallback
+                $inventory = isset($inventoryHealth) && is_array($inventoryHealth) ? $inventoryHealth : [];
+                $inventory = array_merge([
+                    'fresh_stock_percent' => 0,
+                    'expiring_stock_percent' => 0,
+                    'expired_stock_percent' => 0,
+                ], $inventory);
+            @endphp
+            
             <div class="inventory-chart">
                 <div class="chart-bar">
                     <div class="bar-label">Fresh Stock</div>
                     <div class="bar-container">
-                        <div class="bar-fill fresh" style="width: {{ $inventoryHealth['fresh_stock_percent'] ?? 0 }}%"></div>
+                        <div class="bar-fill fresh" style="width: {{ $inventory['fresh_stock_percent'] }}%"></div>
                     </div>
-                    <div class="bar-percentage">{{ $inventoryHealth['fresh_stock_percent'] ?? 0 }}%</div>
+                    <div class="bar-percentage">{{ $inventory['fresh_stock_percent'] }}%</div>
                 </div>
                 
                 <div class="chart-bar">
                     <div class="bar-label">Expiring Stock</div>
                     <div class="bar-container">
-                        <div class="bar-fill expiring" style="width: {{ $inventoryHealth['expiring_stock_percent'] ?? 0 }}%"></div>
+                        <div class="bar-fill expiring" style="width: {{ $inventory['expiring_stock_percent'] }}%"></div>
                     </div>
-                    <div class="bar-percentage">{{ $inventoryHealth['expiring_stock_percent'] ?? 0 }}%</div>
+                    <div class="bar-percentage">{{ $inventory['expiring_stock_percent'] }}%</div>
                 </div>
                 
                 <div class="chart-bar">
                     <div class="bar-label">Expired Stock</div>
                     <div class="bar-container">
-                        <div class="bar-fill expired" style="width: {{ $inventoryHealth['expired_stock_percent'] ?? 0 }}%"></div>
+                        <div class="bar-fill expired" style="width: {{ $inventory['expired_stock_percent'] }}%"></div>
                     </div>
-                    <div class="bar-percentage">{{ $inventoryHealth['expired_stock_percent'] ?? 0 }}%</div>
+                    <div class="bar-percentage">{{ $inventory['expired_stock_percent'] }}%</div>
                 </div>
             </div>
         </div>

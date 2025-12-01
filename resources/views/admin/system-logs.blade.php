@@ -59,6 +59,21 @@
                 <p class="stat-number">{{ number_format($stats['failed_logins'] ?? 0) }}</p>
             </div>
         </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon donations">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <h3>Donation Events</h3>
+                <p class="stat-number">{{ number_format($stats['donation_events'] ?? 0) }}</p>
+                <div class="stat-breakdown">
+                    <span>Today: {{ number_format($stats['donation_events_today'] ?? 0) }}</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Filters and Actions -->
@@ -78,6 +93,8 @@
                     <option value="account_deletion">Account Deletion</option>
                     <option value="data_access">Data Access</option>
                     <option value="system_change">System Change</option>
+                    <option value="donation">Donation</option>
+                    <option value="donation_request">Donation Request</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -114,8 +131,26 @@
             <div class="filter-group">
                 <input type="date" class="filter-input" id="dateTo" placeholder="To Date">
             </div>
+            <div class="filter-group">
+                <input type="text" class="filter-input" id="foodbankIdFilter" placeholder="Foodbank ID">
+            </div>
+            <div class="filter-group">
+                <input type="text" class="filter-input" id="establishmentIdFilter" placeholder="Establishment ID">
+            </div>
+            <div class="filter-group">
+                <input type="text" class="filter-input" id="donationIdFilter" placeholder="Donation ID">
+            </div>
+            <div class="filter-group">
+                <input type="text" class="filter-input" id="donationRequestIdFilter" placeholder="Request ID">
+            </div>
             <div class="filter-actions">
                 <button class="btn-secondary" onclick="clearFilters()">Clear Filters</button>
+                <button class="btn-primary" onclick="filterDonationEvents()" title="Show only donation-related events">
+                    <svg viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px; margin-right: 5px;">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    Donation Events
+                </button>
                 <div class="export-dropdown">
                     <button class="btn-primary" onclick="toggleExportMenu()">
                         <svg viewBox="0 0 24 24" fill="currentColor">

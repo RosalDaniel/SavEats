@@ -245,5 +245,136 @@ class NotificationService
             ]
         );
     }
+
+    /**
+     * Notify when donation request is accepted
+     */
+    public static function notifyDonationRequestAccepted(DonationRequest $donationRequest)
+    {
+        $foodbankName = $donationRequest->foodbank ? $donationRequest->foodbank->organization_name : 'the foodbank';
+        $establishmentName = $donationRequest->establishment ? $donationRequest->establishment->business_name : 'an establishment';
+        
+        // Notify establishment
+        Notification::createNotification(
+            'establishment',
+            $donationRequest->establishment_id,
+            'donation_request_accepted',
+            'Donation Request Accepted',
+            "Your donation request for {$donationRequest->item_name} has been accepted by {$foodbankName}.",
+            [
+                'donation_request_id' => $donationRequest->donation_request_id,
+                'data' => [
+                    'item_name' => $donationRequest->item_name,
+                    'quantity' => $donationRequest->quantity,
+                    'pickup_method' => $donationRequest->pickup_method ?? $donationRequest->delivery_option ?? 'pickup',
+                ]
+            ]
+        );
+        
+        // Notify foodbank (confirmation)
+        Notification::createNotification(
+            'foodbank',
+            $donationRequest->foodbank_id,
+            'donation_request_accepted',
+            'Donation Request Accepted',
+            "You have accepted the donation request for {$donationRequest->item_name} from {$establishmentName}.",
+            [
+                'donation_request_id' => $donationRequest->donation_request_id,
+                'data' => [
+                    'item_name' => $donationRequest->item_name,
+                    'quantity' => $donationRequest->quantity,
+                    'establishment_name' => $establishmentName,
+                ]
+            ]
+        );
+    }
+
+    /**
+     * Notify when donation request is declined
+     */
+    public static function notifyDonationRequestDeclined(DonationRequest $donationRequest)
+    {
+        $establishmentName = $donationRequest->establishment ? $donationRequest->establishment->business_name : 'an establishment';
+        
+        // Notify establishment
+        Notification::createNotification(
+            'establishment',
+            $donationRequest->establishment_id,
+            'donation_request_declined',
+            'Donation Request Declined',
+            "Your donation request for {$donationRequest->item_name} has been declined.",
+            [
+                'donation_request_id' => $donationRequest->donation_request_id,
+                'data' => [
+                    'item_name' => $donationRequest->item_name,
+                    'quantity' => $donationRequest->quantity,
+                ]
+            ]
+        );
+        
+        // Notify foodbank (confirmation)
+        Notification::createNotification(
+            'foodbank',
+            $donationRequest->foodbank_id,
+            'donation_request_declined',
+            'Donation Request Declined',
+            "You have declined the donation request for {$donationRequest->item_name} from {$establishmentName}.",
+            [
+                'donation_request_id' => $donationRequest->donation_request_id,
+                'data' => [
+                    'item_name' => $donationRequest->item_name,
+                    'quantity' => $donationRequest->quantity,
+                    'establishment_name' => $establishmentName,
+                ]
+            ]
+        );
+    }
+
+    /**
+     * Notify when donation request is completed
+     */
+    public static function notifyDonationRequestCompleted(DonationRequest $donationRequest, Donation $donation)
+    {
+        $foodbankName = $donationRequest->foodbank ? $donationRequest->foodbank->organization_name : 'the foodbank';
+        $establishmentName = $donationRequest->establishment ? $donationRequest->establishment->business_name : 'an establishment';
+        $method = $donationRequest->pickup_method ?? $donationRequest->delivery_option ?? 'pickup';
+        
+        // Notify establishment
+        Notification::createNotification(
+            'establishment',
+            $donationRequest->establishment_id,
+            'donation_request_completed',
+            'Donation Request Completed',
+            "Your donation request for {$donationRequest->item_name} has been completed. The {$method} was successful!",
+            [
+                'donation_request_id' => $donationRequest->donation_request_id,
+                'donation_id' => $donation->donation_id,
+                'data' => [
+                    'item_name' => $donationRequest->item_name,
+                    'quantity' => $donationRequest->quantity,
+                    'donation_number' => $donation->donation_number,
+                ]
+            ]
+        );
+        
+        // Notify foodbank
+        Notification::createNotification(
+            'foodbank',
+            $donationRequest->foodbank_id,
+            'donation_request_completed',
+            'Donation Request Completed',
+            "You have successfully completed the donation request for {$donationRequest->item_name} from {$establishmentName}.",
+            [
+                'donation_request_id' => $donationRequest->donation_request_id,
+                'donation_id' => $donation->donation_id,
+                'data' => [
+                    'item_name' => $donationRequest->item_name,
+                    'quantity' => $donationRequest->quantity,
+                    'donation_number' => $donation->donation_number,
+                    'establishment_name' => $establishmentName,
+                ]
+            ]
+        );
+    }
 }
 

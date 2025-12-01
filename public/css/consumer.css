@@ -75,13 +75,6 @@
     100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
 }
 
-.flash-sale-text {
-    color: #2e7d32;
-    font-weight: 700;
-    font-size: 18px;
-    position: relative;
-    z-index: 1;
-}
 
 /* Main Content Grid Layout */
 .main-content-grid {
@@ -328,16 +321,6 @@
         font-size: 24px;
     }
     
-    /* Flash Sale Banner */
-    .flash-sale {
-        margin-bottom: 20px;
-        padding: 12px;
-        border-radius: 10px;
-    }
-    
-    .flash-sale-text {
-        font-size: 14px;
-    }
     
     .main-content-grid {
         grid-template-columns: 1fr;
@@ -500,14 +483,6 @@
         font-size: 20px;
     }
     
-    .flash-sale {
-        padding: 10px;
-        margin-bottom: 15px;
-    }
-    
-    .flash-sale-text {
-        font-size: 13px;
-    }
     
     .deals-section {
         padding: 12px;

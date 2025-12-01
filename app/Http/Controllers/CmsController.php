@@ -139,8 +139,15 @@ class CmsController extends Controller
     public function termsPage()
     {
         $terms = TermsCondition::getActive();
+        
+        // Always use public view for public access (accessible without login)
+        // Check if user is authenticated, if not use public view
+        if (!session('authenticated') || !session('user_type')) {
+            return view('cms.terms-public', compact('terms'));
+        }
+        
+        // For authenticated users, use the role-specific view
         $userType = session('user_type', 'consumer');
-
         return view('cms.terms', compact('terms', 'userType'));
     }
 
@@ -150,8 +157,15 @@ class CmsController extends Controller
     public function privacyPage()
     {
         $privacy = PrivacyPolicy::getActive();
+        
+        // Always use public view for public access (accessible without login)
+        // Check if user is authenticated, if not use public view
+        if (!session('authenticated') || !session('user_type')) {
+            return view('cms.privacy-public', compact('privacy'));
+        }
+        
+        // For authenticated users, use the role-specific view
         $userType = session('user_type', 'consumer');
-
         return view('cms.privacy', compact('privacy', 'userType'));
     }
 }

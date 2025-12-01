@@ -28,6 +28,11 @@ function initializeProfile() {
         email: emailEl ? emailEl.value : '',
         username: usernameEl ? usernameEl.value : ''
     };
+    
+    // Remove middleName if it doesn't exist (for consumers)
+    if (!middleNameEl) {
+        delete originalData.middleName;
+    }
 }
 
 function setupEventListeners() {
@@ -77,6 +82,13 @@ function setupEventListeners() {
                 clearFieldError(input);
             });
         });
+    } else {
+        // Account modal doesn't exist (e.g., for consumers)
+        // Remove account-related functions or make them no-ops
+        window.openAccountModal = function() {};
+        window.closeAccountModal = function() {};
+        window.saveAccountInfo = function() {};
+        window.validateAccountModal = function() { return true; };
     }
     
     if (editProfileModal) {
@@ -94,7 +106,7 @@ function setupEventListeners() {
             if (contactModal && contactModal.classList.contains('active')) {
                 closeContactModal();
             }
-            if (accountModal && accountModal.classList.contains('active')) {
+            if (accountModal && accountModal.classList.contains('active') && typeof closeAccountModal === 'function') {
                 closeAccountModal();
             }
             if (editProfileModal && editProfileModal.style.display === 'flex') {
@@ -340,9 +352,12 @@ function getSectionInputs(section) {
         case 'personal':
             inputs.push(
                 document.getElementById('firstName'),
-                document.getElementById('lastName'),
-                document.getElementById('middleName')
+                document.getElementById('lastName')
             );
+            const middleNameEl = document.getElementById('middleName');
+            if (middleNameEl) {
+                inputs.push(middleNameEl);
+            }
             break;
         case 'contact':
             inputs.push(
@@ -352,11 +367,14 @@ function getSectionInputs(section) {
             );
             break;
         case 'account':
-            inputs.push(
-                document.getElementById('username'),
-                document.getElementById('password'),
-                document.getElementById('passwordConfirmation')
-            );
+            const accountSection = document.querySelector('.profile-section:has(#username)');
+            if (accountSection) {
+                inputs.push(
+                    document.getElementById('username'),
+                    document.getElementById('password') ? document.getElementById('password') : null,
+                    document.getElementById('passwordConfirmation') ? document.getElementById('passwordConfirmation') : null
+                );
+            }
             break;
     }
     
@@ -388,9 +406,11 @@ function cancelEdit() {
         }
     });
 
-    // Reset password fields
-    document.getElementById('password').value = '';
-    document.getElementById('passwordConfirmation').value = '';
+    // Reset password fields (if they exist)
+    const passwordEl = document.getElementById('password');
+    const passwordConfirmationEl = document.getElementById('passwordConfirmation');
+    if (passwordEl) passwordEl.value = '';
+    if (passwordConfirmationEl) passwordConfirmationEl.value = '';
 
     // Reset profile picture if changed
     const profilePictureInput = document.getElementById('profilePictureInput');
@@ -508,11 +528,22 @@ function validateContactModal() {
         isValid = false;
     }
 
-    // Validate phone
+    // Validate phone (format: 09123456789 - exactly 11 digits)
     const phone = document.getElementById('modalPhone');
-    if (phone && phone.value && !isValidPhone(phone.value)) {
+    if (phone && phone.value) {
+        const cleaned = phone.value.replace(/\D/g, '');
+        if (cleaned.length < 11 || cleaned.length > 12) {
+            phone.classList.add('error');
+            showFieldError(phone, 'Please enter a valid phone number (11 digits, format: 09123456789)');
+            isValid = false;
+        } else if (!isValidPhone(phone.value)) {
+            phone.classList.add('error');
+            showFieldError(phone, 'Please enter a valid phone number (format: 09123456789)');
+            isValid = false;
+        }
+    } else if (phone && !phone.value.trim()) {
         phone.classList.add('error');
-        showFieldError(phone, 'Please enter a valid phone number');
+        showFieldError(phone, 'Phone number is required');
         isValid = false;
     }
 
@@ -628,8 +659,13 @@ function validateForm() {
     // Clear previous errors
     clearFieldErrors();
     
-    // Validate required fields
-    const requiredFields = ['firstName', 'lastName', 'address', 'phone', 'email', 'username'];
+    // Validate required fields (username only if account section exists)
+    const requiredFields = ['firstName', 'lastName', 'address', 'phone', 'email'];
+    const usernameEl = document.getElementById('username');
+    if (usernameEl) {
+        requiredFields.push('username');
+    }
+    
     requiredFields.forEach(fieldId => {
         const input = document.getElementById(fieldId);
         if (input && !input.value.trim()) {
@@ -647,12 +683,19 @@ function validateForm() {
         isValid = false;
     }
 
-    // Validate phone
+    // Validate phone (exactly 11 digits)
     const phone = document.getElementById('phone');
-    if (phone && phone.value && !isValidPhone(phone.value)) {
-        phone.classList.add('error');
-        showFieldError(phone, 'Please enter a valid phone number');
-        isValid = false;
+    if (phone && phone.value) {
+        const cleaned = phone.value.replace(/\D/g, '');
+        if (cleaned.length < 11 || cleaned.length > 12) {
+            phone.classList.add('error');
+            showFieldError(phone, 'Please enter a valid phone number (11 digits, format: 09123456789)');
+            isValid = false;
+        } else if (!isValidPhone(phone.value)) {
+            phone.classList.add('error');
+            showFieldError(phone, 'Please enter a valid phone number (format: 09123456789)');
+            isValid = false;
+        }
     }
 
     // Validate password if provided
@@ -693,9 +736,15 @@ function validateField(event) {
             }
             break;
         case 'phone':
-            if (input.value && !isValidPhone(input.value)) {
-                input.classList.add('error');
-                showFieldError(input, 'Please enter a valid phone number');
+            if (input.value) {
+                const cleaned = input.value.replace(/\D/g, '');
+                if (cleaned.length < 11 || cleaned.length > 12) {
+                    input.classList.add('error');
+                    showFieldError(input, 'Please enter a valid phone number (11 digits, format: 09123456789)');
+                } else if (!isValidPhone(input.value)) {
+                    input.classList.add('error');
+                    showFieldError(input, 'Please enter a valid phone number (format: 09123456789)');
+                }
             }
             break;
         case 'password':
@@ -720,8 +769,13 @@ function isValidEmail(email) {
 }
 
 function isValidPhone(phone) {
-    const phoneRegex = /^[\+]?[0-9\s\-\(\)]{10,}$/;
-    return phoneRegex.test(phone);
+    // Format: 09123456789 (exactly 11 digits, starting with 0)
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length < 11 || cleaned.length > 12) {
+        return false;
+    }
+    const phoneRegex = /^0\d{10}$/;
+    return phoneRegex.test(cleaned);
 }
 
 function showFieldError(input, message) {

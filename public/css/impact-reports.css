@@ -119,6 +119,68 @@
     height: 16px;
 }
 
+/* Export Dropdown */
+.export-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.export-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+    z-index: 1000;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+}
+
+.export-menu.show {
+    display: block;
+}
+
+.export-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 16px;
+    background: white;
+    border: none;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-family: 'Afacad', sans-serif;
+}
+
+.export-option:first-child {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.export-option:last-child {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.export-option:hover {
+    background: #f9fafb;
+}
+
+.export-option svg {
+    width: 16px;
+    height: 16px;
+    color: #6b7280;
+    flex-shrink: 0;
+}
+
 .chart-tabs {
     display: flex;
     gap: 0;
@@ -319,6 +381,17 @@
     .export-btn {
         width: 100%;
         justify-content: center;
+    }
+    
+    .export-dropdown {
+        width: 100%;
+    }
+    
+    .export-menu {
+        right: 0;
+        left: 0;
+        min-width: auto;
+        width: 100%;
     }
     
     .chart-tabs {

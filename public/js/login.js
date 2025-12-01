@@ -1,123 +1,109 @@
 // Login page specific functionality
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('loginForm');
-    const loginBtn = document.getElementById('loginBtn');
-    const usernameInput = document.getElementById('username');
+    const loginInput = document.getElementById('login');
     const passwordInput = document.getElementById('password');
+    const loginBtn = loginForm.querySelector('button[type="submit"]');
     const successMessage = document.getElementById('successMessage');
 
-    // Form validation
-    function validateField(input, errorId, message) {
-        const errorElement = document.getElementById(errorId);
-        const formGroup = input.closest('.form-group');
-        
-        if (!input.value.trim()) {
-            input.classList.add('error');
-            formGroup.classList.add('has-error');
-            errorElement.textContent = message;
-            return false;
-        } else {
-            input.classList.remove('error');
-            formGroup.classList.remove('has-error');
-            errorElement.textContent = '';
-            return true;
-        }
-    }
-
-    function validateEmail(email) {
-        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return re.test(email);
-    }
-
-    function validateForm() {
-        const isUsernameValid = validateField(
-            usernameInput, 
-            'username-error', 
-            'Username or email is required'
-        );
-
-        const isPasswordValid = validateField(
-            passwordInput, 
-            'password-error', 
-            'Password is required'
-        );
-
-        // Additional email validation if input contains @ symbol
-        if (usernameInput.value.includes('@') && !validateEmail(usernameInput.value)) {
-            usernameInput.classList.add('error');
-            usernameInput.closest('.form-group').classList.add('has-error');
-            document.getElementById('username-error').textContent = 'Please enter a valid email address';
-            return false;
-        }
-
-        return isUsernameValid && isPasswordValid;
-    }
-
-    // Real-time validation
-    usernameInput.addEventListener('blur', function() {
-        if (this.value.trim()) {
-            if (this.value.includes('@') && !validateEmail(this.value)) {
-                validateField(this, 'username-error', 'Please enter a valid email address');
-            } else {
-                this.classList.remove('error');
-                this.closest('.form-group').classList.remove('has-error');
-                document.getElementById('username-error').textContent = '';
-            }
-        }
-    });
-
-    passwordInput.addEventListener('blur', function() {
-        if (this.value.trim()) {
+    // Clear error states on input
+    if (loginInput) {
+        loginInput.addEventListener('input', function() {
             this.classList.remove('error');
-            this.closest('.form-group').classList.remove('has-error');
-            document.getElementById('password-error').textContent = '';
-        }
-    });
+            const formGroup = this.closest('.form-group');
+            if (formGroup) {
+                formGroup.classList.remove('has-error');
+            }
+        });
+    }
 
-    // Form submission
-    loginForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        if (!validateForm()) {
-            return;
-        }
+    if (passwordInput) {
+        passwordInput.addEventListener('input', function() {
+            this.classList.remove('error');
+            const formGroup = this.closest('.form-group');
+            if (formGroup) {
+                formGroup.classList.remove('has-error');
+            }
+        });
+    }
 
-        // Show loading state
-        loginBtn.classList.add('loading');
-        loginBtn.textContent = '';
+    // Form submission - allow normal form submission for backend validation
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+            // Basic client-side validation
+            let hasErrors = false;
 
-        // Simulate API call
-        setTimeout(() => {
-            // Hide loading state
-            loginBtn.classList.remove('loading');
-            loginBtn.textContent = 'Login';
+            // Clear previous error states
+            loginInput?.classList.remove('error');
+            passwordInput?.classList.remove('error');
+            document.querySelectorAll('.form-group').forEach(group => {
+                group.classList.remove('has-error');
+            });
 
-            // Show success message
-            successMessage.classList.add('show');
+            // Validate login field
+            if (!loginInput || !loginInput.value.trim()) {
+                if (loginInput) {
+                    loginInput.classList.add('error');
+                    const formGroup = loginInput.closest('.form-group');
+                    if (formGroup) {
+                        formGroup.classList.add('has-error');
+                    }
+                }
+                hasErrors = true;
+            }
 
-            // Simulate redirect after success
-            setTimeout(() => {
-                // In a real app, this would redirect to the dashboard
-                alert('Login successful! Redirecting to dashboard...');
-                // window.location.href = '/dashboard';
-            }, 1500);
-        }, 2000);
-    });
+            // Validate password field
+            if (!passwordInput || !passwordInput.value.trim()) {
+                if (passwordInput) {
+                    passwordInput.classList.add('error');
+                    const formGroup = passwordInput.closest('.form-group');
+                    if (formGroup) {
+                        formGroup.classList.add('has-error');
+                    }
+                }
+                hasErrors = true;
+            }
 
-    // Keyboard accessibility
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && e.target.matches('.form-input')) {
-            const inputs = Array.from(document.querySelectorAll('.form-input'));
-            const currentIndex = inputs.indexOf(e.target);
-            
-            if (currentIndex < inputs.length - 1) {
-                inputs[currentIndex + 1].focus();
-            } else {
-                loginForm.dispatchEvent(new Event('submit'));
+            // If client-side validation fails, prevent submission
+            if (hasErrors) {
+                e.preventDefault();
+                return false;
+            }
+
+            // Show loading state on button
+            if (loginBtn) {
+                loginBtn.disabled = true;
+                loginBtn.style.opacity = '0.7';
+                loginBtn.style.cursor = 'not-allowed';
+                const originalText = loginBtn.textContent;
+                loginBtn.textContent = 'Logging in...';
+            }
+
+            // Allow form to submit normally - backend will handle authentication
+            // If there are errors, the page will reload with error messages
+        });
+    }
+
+    // If there's a general login error, apply error styling to both fields
+    if (document.querySelector('.login-form > .error-message')) {
+        if (loginInput) {
+            loginInput.classList.add('error');
+            const loginFormGroup = loginInput.closest('.form-group');
+            if (loginFormGroup) {
+                loginFormGroup.classList.add('has-error');
             }
         }
-    });
+        if (passwordInput) {
+            passwordInput.classList.add('error');
+            const passwordFormGroup = passwordInput.closest('.form-group');
+            if (passwordFormGroup) {
+                passwordFormGroup.classList.add('has-error');
+            }
+        }
+    }
 
-    // Auto-focus first input
-    usernameInput.focus();
+    // Auto-focus first input if no errors present
+    if (loginInput && !document.querySelector('.error-message')) {
+        loginInput.focus();
+    }
 });

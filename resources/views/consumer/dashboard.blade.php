@@ -21,11 +21,6 @@
         ]
     ])
 
-    <!-- Flash Sale Banner -->
-    <div class="flash-sale">
-        <div class="flash-sale-text">Flash Sale: Everything 30% off until midnight!</div>
-    </div>
-
     <!-- Main Content Grid -->
     <div class="main-content-grid">
         <!-- Best Deals Section -->

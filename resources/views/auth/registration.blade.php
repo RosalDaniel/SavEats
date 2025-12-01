@@ -167,7 +167,7 @@
                     <div class="checkbox-group">
                         <input type="checkbox" id="terms" name="terms" class="checkbox" required>
                         <label for="terms" class="checkbox-label">
-                            I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a>
+                            I agree to the <a href="{{ route('terms') }}" target="_blank">Terms of Service</a> and <a href="{{ route('privacy') }}" target="_blank">Privacy Policy</a>
                         </label>
                     </div>
 

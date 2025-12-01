@@ -191,10 +191,15 @@ function validateForm() {
         return false;
     }
     
-    // Validate phone number format (basic validation)
-    const phoneRegex = /^[0-9]{10,11}$/;
-    if (!phoneRegex.test(phoneNumber.replace(/\D/g, ''))) {
-        showNotification('Please enter a valid phone number', 'error');
+    // Validate phone number format: 09123456789 (exactly 11 digits, starting with 0)
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    if (cleaned.length < 11 || cleaned.length > 12) {
+        showNotification('Please enter a valid phone number (11 digits, format: 09123456789)', 'error');
+        return false;
+    }
+    const phoneRegex = /^0\d{10}$/;
+    if (!phoneRegex.test(cleaned)) {
+        showNotification('Please enter a valid phone number (format: 09123456789)', 'error');
         return false;
     }
     

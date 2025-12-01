@@ -25,7 +25,10 @@ function setupTabNavigation() {
             
             // Add active class to clicked nav item and corresponding section
             this.classList.add('active');
-            document.getElementById(targetTab).classList.add('active');
+            const targetSection = document.getElementById(targetTab);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
         });
     });
 }
@@ -96,28 +99,61 @@ function closePasswordModal() {
     const modal = document.getElementById('passwordModal');
     modal.classList.remove('active');
     
-    // Clear form
-    document.getElementById('passwordForm').reset();
+    // Clear form and errors
+    const form = document.getElementById('passwordForm');
+    form.reset();
+    
+    // Clear all field errors
+    const inputs = form.querySelectorAll('input');
+    inputs.forEach(input => {
+        clearFieldError(input);
+    });
 }
+
+// Add event listeners to clear errors when user types
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInputs = ['currentPassword', 'newPassword', 'confirmPassword'];
+    
+    passwordInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.addEventListener('input', function() {
+                clearFieldError(this);
+            });
+        }
+    });
+});
 
 function savePassword() {
     const currentPassword = document.getElementById('currentPassword').value;
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
     
+    // Clear previous errors
+    clearFieldError(document.getElementById('currentPassword'));
+    clearFieldError(document.getElementById('newPassword'));
+    clearFieldError(document.getElementById('confirmPassword'));
+    
     // Validate passwords
-    if (newPassword !== confirmPassword) {
-        showNotification('New passwords do not match', 'error');
+    if (!currentPassword) {
+        showFieldError(document.getElementById('currentPassword'), 'Current password is required');
+        return;
+    }
+    
+    if (!newPassword) {
+        showFieldError(document.getElementById('newPassword'), 'New password is required');
         return;
     }
     
     if (newPassword.length < 8) {
-        showNotification('Password must be at least 8 characters long', 'error');
+        showFieldError(document.getElementById('newPassword'), 'Password must be at least 8 characters long');
         return;
     }
     
-    // Simulate API call
-    console.log('Changing password...');
+    if (newPassword !== confirmPassword) {
+        showFieldError(document.getElementById('confirmPassword'), 'New passwords do not match');
+        return;
+    }
     
     // Show loading state
     const saveBtn = document.querySelector('.btn-confirm');
@@ -125,33 +161,66 @@ function savePassword() {
     saveBtn.textContent = 'Saving...';
     saveBtn.disabled = true;
     
-    // Simulate API delay
-    setTimeout(() => {
-        showNotification('Password changed successfully', 'success');
-        closePasswordModal();
-        
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                      document.querySelector('input[name="_token"]')?.value;
+    
+    // Make API call
+    fetch('/profile/change-password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            current_password: currentPassword,
+            new_password: newPassword,
+            confirm_password: confirmPassword
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
         // Reset button
         saveBtn.textContent = originalText;
         saveBtn.disabled = false;
-    }, 1500);
-}
-
-// Other Action Functions
-function downloadData() {
-    showNotification('Data download started. You will receive an email when ready.', 'info');
-    
-    // Simulate download process
-    setTimeout(() => {
-        showNotification('Your data has been prepared and sent to your email', 'success');
-    }, 2000);
-}
-
-function enable2FA() {
-    showNotification('Two-factor authentication setup coming soon', 'info');
-}
-
-function viewSessions() {
-    showNotification('Active sessions view coming soon', 'info');
+        
+        if (data.success) {
+            showNotification(data.message || 'Password changed successfully', 'success');
+            closePasswordModal();
+            
+            // Clear form
+            document.getElementById('passwordForm').reset();
+        } else {
+            // Handle validation errors
+            if (data.errors) {
+                Object.keys(data.errors).forEach(field => {
+                    let inputId;
+                    // Map backend field names to frontend input IDs
+                    if (field === 'current_password') {
+                        inputId = 'currentPassword';
+                    } else if (field === 'new_password') {
+                        inputId = 'newPassword';
+                    } else if (field === 'confirm_password') {
+                        inputId = 'confirmPassword';
+                    }
+                    
+                    const input = document.getElementById(inputId);
+                    if (input && data.errors[field] && data.errors[field].length > 0) {
+                        showFieldError(input, data.errors[field][0]);
+                    }
+                });
+            } else {
+                showNotification(data.message || 'Failed to change password', 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error changing password:', error);
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+        showNotification('An error occurred. Please try again.', 'error');
+    });
 }
 
 // Form Validation

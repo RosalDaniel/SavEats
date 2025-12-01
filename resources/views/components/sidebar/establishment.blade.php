@@ -17,7 +17,7 @@
 
     <ul class="nav-menu">
         <li class="nav-item">
-            <a href="{{ route('establishment.dashboard') }}" class="nav-link {{ request()->routeIs('establishment.dashboard') ? 'active' : '' }}">
+            <a href="{{ route('establishment.dashboard') }}" class="nav-link {{ request()->routeIs('establishment.dashboard') || request()->routeIs('dashboard.establishment') || request()->is('establishment/dashboard') || request()->is('dashboard/establishment') ? 'active' : '' }}">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
                 </svg>
@@ -62,6 +62,14 @@
                 <path fill="#ffffff" d="M311.6 95C297.5 75.5 274.9 64 250.9 64C209.5 64 176 97.5 176 138.9L176 141.3C176 205.7 258 274.7 298.2 304.6C311.2 314.3 328.7 314.3 341.7 304.6C381.9 274.6 463.9 205.7 463.9 141.3L463.9 138.9C463.9 97.5 430.4 64 389 64C365 64 342.4 75.5 328.3 95L320 106.7L311.6 95zM141.3 405.5L98.7 448L64 448C46.3 448 32 462.3 32 480L32 544C32 561.7 46.3 576 64 576L384.5 576C413.5 576 441.8 566.7 465.2 549.5L591.8 456.2C609.6 443.1 613.4 418.1 600.3 400.3C587.2 382.5 562.2 378.7 544.4 391.8L424.6 480L312 480C298.7 480 288 469.3 288 456C288 442.7 298.7 432 312 432L384 432C401.7 432 416 417.7 416 400C416 382.3 401.7 368 384 368L231.8 368C197.9 368 165.3 381.5 141.3 405.5z"/>
             </svg>
                 Donation Hub
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ route('establishment.my-donation-requests') }}" class="nav-link {{ request()->routeIs('establishment.my-donation-requests') ? 'active' : '' }}">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                </svg>
+                My Donation Requests
             </a>
         </li>
         <li class="nav-item">

@@ -51,12 +51,20 @@
             // Escape HTML and handle UUID strings
             const partnerId = typeof p.id === 'string' ? `'${p.id}'` : p.id;
             
+            // Use profile image if available, otherwise fallback to SVG icon
+            const imageHtml = p.profile_image 
+                ? `<img src="${escapeHtml(p.profile_image)}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                   <svg viewBox="0 0 24 24" style="display: none;">
+                       <path d="M18 6h-2c0-2.21-1.79-4-4-4S8 3.79 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2zm6 16H6V8h2v2c0 .55.45 1 1 1s1-.45 1-1V8h4v2c0 .55.45 1 1 1s1-.45 1-1V8h2v12z"/>
+                   </svg>`
+                : `<svg viewBox="0 0 24 24">
+                       <path d="M18 6h-2c0-2.21-1.79-4-4-4S8 3.79 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2zm6 16H6V8h2v2c0 .55.45 1 1 1s1-.45 1-1V8h4v2c0 .55.45 1 1 1s1-.45 1-1V8h2v12z"/>
+                   </svg>`;
+            
             return `
                 <div class="partner-card" onclick="window.showPartnerDetails('${p.id}')">
                     <div class="partner-image">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M18 6h-2c0-2.21-1.79-4-4-4S8 3.79 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2zm6 16H6V8h2v2c0 .55.45 1 1 1s1-.45 1-1V8h4v2c0 .55.45 1 1 1s1-.45 1-1V8h2v12z"/>
-                        </svg>
+                        ${imageHtml}
                         <span class="partner-type-badge ${p.type}">${p.type}</span>
                     </div>
                     <div class="partner-content">
@@ -106,11 +114,19 @@
         
         modalTitle.textContent = partner.name;
         
+        // Use profile image if available, otherwise fallback to SVG icon
+        const detailImageHtml = partner.profile_image 
+            ? `<img src="${escapeHtml(partner.profile_image)}" alt="${escapeHtml(partner.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+               <svg viewBox="0 0 24 24" style="display: none;">
+                   <path d="M18 6h-2c0-2.21-1.79-4-4-4S8 3.79 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2zm6 16H6V8h2v2c0 .55.45 1 1 1s1-.45 1-1V8h4v2c0 .55.45 1 1 1s1-.45 1-1V8h2v12z"/>
+               </svg>`
+            : `<svg viewBox="0 0 24 24">
+                   <path d="M18 6h-2c0-2.21-1.79-4-4-4S8 3.79 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2zm6 16H6V8h2v2c0 .55.45 1 1 1s1-.45 1-1V8h4v2c0 .55.45 1 1 1s1-.45 1-1V8h2v12z"/>
+               </svg>`;
+        
         modalBody.innerHTML = `
             <div class="partner-detail-image">
-                <svg viewBox="0 0 24 24">
-                    <path d="M18 6h-2c0-2.21-1.79-4-4-4S8 3.79 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2zm6 16H6V8h2v2c0 .55.45 1 1 1s1-.45 1-1V8h4v2c0 .55.45 1 1 1s1-.45 1-1V8h2v12z"/>
-                </svg>
+                ${detailImageHtml}
             </div>
             <div class="detail-section">
                 <h3>Business Information</h3>

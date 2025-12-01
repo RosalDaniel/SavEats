@@ -13,9 +13,11 @@ use App\Models\Review;
 use App\Models\DonationRequest;
 use App\Models\Donation;
 use App\Models\Announcement;
-use App\Models\HelpCenterArticle;
 use App\Services\NotificationService;
+use App\Services\DonationRequestService;
+use App\Models\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -371,21 +373,7 @@ class DashboardController extends Controller
      */
     public function foodbankHelp()
     {
-        // Get published help articles
-        $articles = HelpCenterArticle::published()
-            ->orderBy('display_order', 'asc')
-            ->orderBy('created_at', 'desc')
-            ->get();
-        
-        // Get unique categories
-        $categories = HelpCenterArticle::published()
-            ->whereNotNull('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category')
-            ->toArray();
-
-        return view('foodbank.help', compact('articles', 'categories'));
+        return view('foodbank.help');
     }
 
     /**
@@ -410,65 +398,118 @@ class DashboardController extends Controller
         $user = $this->getUserData();
         $foodbankId = session('user_id');
         
-        // Fetch donation requests published by this foodbank
-        $donationRequests = DonationRequest::where('foodbank_id', $foodbankId)
+        // Fetch INCOMING requests (pending - newly submitted by establishments)
+        $incomingRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->whereNotNull('establishment_id')
+            ->where('status', DonationRequestService::STATUS_PENDING)
+            ->with(['establishment'])
             ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($request) {
+                return DonationRequestService::formatRequestData($request);
+            })
+            ->toArray();
+        
+        // Fetch ACCEPTED requests (accepted by foodbank, awaiting pickup/delivery confirmation)
+        $acceptedRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->whereNotNull('establishment_id')
+            ->where('status', DonationRequestService::STATUS_ACCEPTED)
+            ->with(['establishment'])
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function($request) {
+                return DonationRequestService::formatRequestData($request);
+            })
+            ->toArray();
+        
+        // Fetch DECLINED requests
+        $declinedRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->whereNotNull('establishment_id')
+            ->where('status', DonationRequestService::STATUS_DECLINED)
+            ->with(['establishment'])
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function($request) {
+                return DonationRequestService::formatRequestData($request);
+            })
+            ->toArray();
+        
+        // Fetch COMPLETED requests
+        $completedRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->whereNotNull('establishment_id')
+            ->where('status', DonationRequestService::STATUS_COMPLETED)
+            ->with(['establishment', 'donation'])
+            ->orderBy('fulfilled_at', 'desc')
+            ->get()
+            ->map(function($request) {
+                return DonationRequestService::formatRequestData($request);
+            })
+            ->toArray();
+        
+        // Legacy: Fetch foodbank's own donation requests (foodbank requesting donations from establishments)
+        // This is separate from establishment-initiated requests
+        $foodbankDonationRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->whereNull('establishment_id')
+            ->orderBy('created_at', 'desc')
+            ->with(['donation', 'fulfilledBy'])
             ->get()
             ->map(function ($request) {
                 return [
                     'id' => $request->donation_request_id,
                     'foodType' => $request->item_name,
                     'quantity' => $request->quantity,
-                    'matches' => $request->matches,
+                    'matches' => $request->matches ?? 0,
                     'status' => $request->status,
+                    'donation_id' => $request->donation_id,
+                    'fulfilled_at' => $request->fulfilled_at,
+                    'pickup_method' => $request->donation ? $request->donation->pickup_method : null,
+                    'establishment_name' => $request->fulfilledBy ? $request->fulfilledBy->business_name : null,
+                    'establishment_id' => $request->fulfilled_by_establishment_id,
                 ];
             })
             ->toArray();
         
-        // Fetch donation offers from establishments (pending donations)
-        $establishmentDonations = Donation::where('foodbank_id', $foodbankId)
-            ->whereIn('status', ['pending_pickup', 'ready_for_collection'])
-            ->with(['establishment'])
+        return view('foodbank.donation-request', compact(
+            'user', 
+            'incomingRequests', 
+            'acceptedRequests', 
+            'declinedRequests', 
+            'completedRequests',
+            'foodbankDonationRequests'
+        ));
+    }
+
+    /**
+     * Show donation requests list page (foodbank's own published requests)
+     */
+    public function donationRequestsList()
+    {
+        // Verify user is a foodbank
+        if (session('user_type') !== 'foodbank') {
+            return redirect()->route('login')->with('error', 'Access denied. Please login as a foodbank.');
+        }
+        
+        $user = $this->getUserData();
+        $foodbankId = session('user_id');
+        
+        // Fetch foodbank's own donation requests (foodbank requesting donations from establishments)
+        $foodbankDonationRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->whereNull('establishment_id')
             ->orderBy('created_at', 'desc')
+            ->with(['donation', 'fulfilledBy'])
             ->get()
-            ->map(function ($donation) {
-                $establishment = $donation->establishment;
-                
-                // Format scheduled time
-                $timeDisplay = 'N/A';
-                if ($donation->scheduled_time) {
-                    $timeDisplay = is_string($donation->scheduled_time) 
-                        ? substr($donation->scheduled_time, 0, 5) 
-                        : $donation->scheduled_time->format('H:i');
-                }
-                
-                return [
-                    'id' => $donation->donation_id,
-                    'donation_number' => $donation->donation_number,
-                    'establishment_id' => $donation->establishment_id,
-                    'establishment_name' => $establishment->business_name ?? 'Unknown',
-                    'item_name' => $donation->item_name,
-                    'category' => $donation->item_category,
-                    'quantity' => $donation->quantity,
-                    'unit' => $donation->unit,
-                    'description' => $donation->description,
-                    'expiry_date' => $donation->expiry_date ? $donation->expiry_date->format('Y-m-d') : null,
-                    'expiry_date_display' => $donation->expiry_date ? $donation->expiry_date->format('F d, Y') : 'N/A',
-                    'status' => $donation->status,
-                    'status_display' => ucfirst(str_replace('_', ' ', $donation->status)),
-                    'pickup_method' => $donation->pickup_method,
-                    'pickup_method_display' => ucfirst($donation->pickup_method),
-                    'scheduled_date' => $donation->scheduled_date->format('Y-m-d'),
-                    'scheduled_date_display' => $donation->scheduled_date->format('F d, Y'),
-                    'scheduled_time' => $timeDisplay,
-                    'establishment_notes' => $donation->establishment_notes,
-                    'is_urgent' => $donation->is_urgent,
-                    'is_nearing_expiry' => $donation->is_nearing_expiry,
-                ];
+            ->map(function ($request) {
+                $data = DonationRequestService::formatRequestData($request);
+                // Add additional fields for foodbank's own requests
+                $data['foodType'] = $data['item_name'];
+                return $data;
             })
             ->toArray();
         
-        return view('foodbank.donation-request', compact('user', 'donationRequests', 'establishmentDonations'));
+        return view('foodbank.donation-requests-list', compact(
+            'user',
+            'foodbankDonationRequests'
+        ));
     }
 
     /**
@@ -547,6 +588,303 @@ class DashboardController extends Controller
     }
 
     /**
+     * Show a specific donation request (for foodbank's own requests)
+     */
+    public function showDonationRequest($id)
+    {
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        $foodbankId = session('user_id');
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $id)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNull('establishment_id')
+                ->with(['donation', 'fulfilledBy'])
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => DonationRequestService::formatRequestData($donationRequest)
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching donation request: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch donation request details.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Update a donation request (for foodbank's own requests)
+     */
+    public function updateDonationRequest(Request $request, $id)
+    {
+        // Verify user is a foodbank
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        $foodbankId = session('user_id');
+
+        // Validate the request
+        $validated = $request->validate([
+            'itemName' => 'required|string|max:255',
+            'quantity' => 'required|integer|min:1',
+            'category' => 'required|string',
+            'description' => 'nullable|string',
+            'distributionZone' => 'required|string',
+            'dropoffDate' => 'required|date|after_or_equal:today',
+            'timeOption' => 'required|in:allDay,anytime,specific',
+            'startTime' => 'nullable|required_if:timeOption,specific|date_format:H:i',
+            'endTime' => 'nullable|required_if:timeOption,specific|date_format:H:i|after:startTime',
+            'address' => 'required|string',
+            'deliveryOption' => 'required|in:pickup,delivery',
+            'contactName' => 'required|string|max:255',
+            'phoneNumber' => 'required|string',
+            'email' => 'required|email|max:255',
+            'status' => 'nullable|in:pending,active,completed,expired',
+        ]);
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $id)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNull('establishment_id') // Only foodbank's own requests
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found.'
+                ], 404);
+            }
+
+            // Update the donation request
+            $donationRequest->update([
+                'item_name' => $validated['itemName'],
+                'quantity' => $validated['quantity'],
+                'category' => $validated['category'],
+                'description' => $validated['description'] ?? null,
+                'distribution_zone' => $validated['distributionZone'],
+                'dropoff_date' => $validated['dropoffDate'],
+                'time_option' => $validated['timeOption'],
+                'start_time' => $validated['timeOption'] === 'specific' ? $validated['startTime'] : null,
+                'end_time' => $validated['timeOption'] === 'specific' ? $validated['endTime'] : null,
+                'address' => $validated['address'],
+                'delivery_option' => $validated['deliveryOption'],
+                'contact_name' => $validated['contactName'],
+                'phone_number' => $validated['phoneNumber'],
+                'email' => $validated['email'],
+                'status' => $validated['status'] ?? $donationRequest->status,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Request updated successfully!',
+                'data' => [
+                    'id' => $donationRequest->donation_request_id,
+                    'foodType' => $donationRequest->item_name,
+                    'quantity' => $donationRequest->quantity,
+                    'status' => $donationRequest->status,
+                ]
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed. Please check your input.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error updating donation request: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update request. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a donation request (for foodbank's own requests)
+     */
+    public function deleteDonationRequest($id)
+    {
+        // Verify user is a foodbank
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        $foodbankId = session('user_id');
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $id)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNull('establishment_id') // Only foodbank's own requests
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found.'
+                ], 404);
+            }
+
+            // Check if request has been fulfilled (has donation_id)
+            if ($donationRequest->donation_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete a request that has been fulfilled.'
+                ], 400);
+            }
+
+            // Delete the donation request
+            $donationRequest->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Request deleted successfully!'
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error deleting donation request: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete request. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Confirm pickup for foodbank's own donation request
+     */
+    public function confirmFoodbankRequestPickup(Request $request, $requestId)
+    {
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        $foodbankId = session('user_id');
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $requestId)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNull('establishment_id')
+                ->whereIn('status', [
+                    DonationRequestService::STATUS_PENDING,
+                    DonationRequestService::STATUS_ACCEPTED,
+                    DonationRequestService::STATUS_PENDING_CONFIRMATION
+                ])
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found or cannot confirm pickup.'
+                ], 404);
+            }
+
+            $donationRequest->status = DonationRequestService::STATUS_COMPLETED;
+            $donationRequest->fulfilled_at = now();
+            $donationRequest->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pickup confirmed successfully!',
+                'data' => [
+                    'id' => $donationRequest->donation_request_id,
+                    'status' => $donationRequest->status,
+                    'fulfilled_at' => $donationRequest->fulfilled_at->format('F d, Y g:i A'),
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error confirming pickup: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to confirm pickup. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Confirm delivery for foodbank's own donation request
+     */
+    public function confirmFoodbankRequestDelivery(Request $request, $requestId)
+    {
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        $foodbankId = session('user_id');
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $requestId)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNull('establishment_id')
+                ->whereIn('status', [
+                    DonationRequestService::STATUS_PENDING,
+                    DonationRequestService::STATUS_ACCEPTED,
+                    DonationRequestService::STATUS_PENDING_CONFIRMATION
+                ])
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found or cannot confirm delivery.'
+                ], 404);
+            }
+
+            $donationRequest->status = DonationRequestService::STATUS_COMPLETED;
+            $donationRequest->fulfilled_at = now();
+            $donationRequest->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Delivery confirmed successfully!',
+                'data' => [
+                    'id' => $donationRequest->donation_request_id,
+                    'status' => $donationRequest->status,
+                    'fulfilled_at' => $donationRequest->fulfilled_at->format('F d, Y g:i A'),
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error confirming delivery: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to confirm delivery. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
+    }
+
+    /**
      * Accept a donation from an establishment
      */
     public function acceptDonation(Request $request, $donationId)
@@ -564,6 +902,7 @@ class DashboardController extends Controller
         try {
             $donation = Donation::where('donation_id', $donationId)
                 ->where('foodbank_id', $foodbankId)
+                ->with(['establishment'])
                 ->first();
 
             if (!$donation) {
@@ -573,7 +912,93 @@ class DashboardController extends Controller
                 ], 404);
             }
 
-            // Update status to ready_for_collection
+            // Check if a DonationRequest already exists for this donation
+            $existingRequest = DonationRequest::where('donation_id', $donationId)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNotNull('establishment_id')
+                ->first();
+
+            if ($existingRequest) {
+                // Update existing request to accepted
+                $existingRequest->status = 'accepted';
+                $existingRequest->save();
+            } else {
+                // Create a new DonationRequest from the accepted donation
+                // Handle scheduled_time format - convert to time string if it's a datetime
+                $scheduledTime = null;
+                if ($donation->scheduled_time) {
+                    try {
+                        if (is_string($donation->scheduled_time)) {
+                            // Extract time part if it's a datetime string
+                            if (strpos($donation->scheduled_time, ' ') !== false) {
+                                $parts = explode(' ', $donation->scheduled_time);
+                                $scheduledTime = end($parts);
+                            } else {
+                                $scheduledTime = $donation->scheduled_time;
+                            }
+                        } elseif ($donation->scheduled_time instanceof \DateTime || $donation->scheduled_time instanceof \Carbon\Carbon) {
+                            $scheduledTime = $donation->scheduled_time->format('H:i:s');
+                        }
+                    } catch (\Exception $e) {
+                        // If time parsing fails, set to null
+                        $scheduledTime = null;
+                    }
+                }
+                
+                // Ensure scheduled_date is properly formatted
+                $scheduledDate = null;
+                if ($donation->scheduled_date) {
+                    try {
+                        if ($donation->scheduled_date instanceof \DateTime || $donation->scheduled_date instanceof \Carbon\Carbon) {
+                            $scheduledDate = $donation->scheduled_date->format('Y-m-d');
+                        } elseif (is_string($donation->scheduled_date)) {
+                            // Validate it's a valid date string
+                            $scheduledDate = date('Y-m-d', strtotime($donation->scheduled_date));
+                        }
+                    } catch (\Exception $e) {
+                        // If date parsing fails, use tomorrow
+                        $scheduledDate = now()->addDay()->format('Y-m-d');
+                    }
+                } else {
+                    // Default to tomorrow if no date
+                    $scheduledDate = now()->addDay()->format('Y-m-d');
+                }
+                
+                // Get foodbank details for required fields
+                $foodbank = Foodbank::where('foodbank_id', $foodbankId)->first();
+                
+                // Prepare data for DonationRequest creation
+                // Note: Some fields are required by the original schema but not in Donation records
+                $requestData = [
+                    'foodbank_id' => $foodbankId,
+                    'establishment_id' => $donation->establishment_id,
+                    'donation_id' => $donation->donation_id,
+                    'item_name' => $donation->item_name ?? 'Donation Item',
+                    'quantity' => $donation->quantity ?? 1,
+                    'unit' => $donation->unit ?? 'pcs',
+                    'category' => $donation->item_category ?? 'other',
+                    'description' => $donation->description,
+                    'expiry_date' => $donation->expiry_date,
+                    'scheduled_date' => $scheduledDate,
+                    'scheduled_time' => $scheduledTime,
+                    'pickup_method' => $donation->pickup_method ?? 'pickup',
+                    'establishment_notes' => $donation->establishment_notes,
+                    'status' => DonationRequestService::STATUS_ACCEPTED,
+                    // Required fields from original schema (not in Donation model)
+                    'distribution_zone' => 'General', // Default zone
+                    'dropoff_date' => $scheduledDate, // Use scheduled date as dropoff date
+                    'address' => $foodbank->address ?? 'Address not provided',
+                    'contact_name' => $foodbank->contact_person ?? $foodbank->organization_name ?? 'Foodbank Contact',
+                    'phone_number' => $foodbank->phone_no ?? 'Not provided',
+                    'email' => $foodbank->email ?? 'notprovided@example.com',
+                    'time_option' => 'anytime',
+                    'delivery_option' => $donation->pickup_method ?? 'pickup',
+                ];
+                
+                $donationRequest = DonationRequest::create($requestData);
+            }
+
+            // Update donation status to ready_for_collection
             $donation->status = 'ready_for_collection';
             $donation->save();
             
@@ -582,20 +1007,54 @@ class DashboardController extends Controller
             
             // Send notification to establishment
             NotificationService::notifyDonationApproved($donation);
+            
+            // Send notification to foodbank (confirmation of their action)
+            $establishmentName = $donation->establishment ? $donation->establishment->business_name : 'an establishment';
+            Notification::createNotification(
+                'foodbank',
+                $foodbankId,
+                'donation_accepted',
+                'Donation Accepted',
+                "You have accepted the donation offer for {$donation->item_name} from {$establishmentName}. Please confirm pickup or delivery when completed.",
+                [
+                    'donation_id' => $donation->donation_id,
+                    'data' => [
+                        'item_name' => $donation->item_name,
+                        'quantity' => $donation->quantity,
+                        'establishment_name' => $establishmentName,
+                        'pickup_method' => $donation->pickup_method,
+                    ]
+                ]
+            );
+
+            // Dispatch event for automatic logging
+            \App\Events\DonationOfferAccepted::dispatch($donation, $donationRequest, $foodbankId, 'foodbank');
 
             return response()->json([
                 'success' => true,
-                'message' => 'Donation accepted successfully!',
+                'message' => 'Donation accepted successfully! It has been moved to the Accepted section.',
                 'data' => [
                     'id' => $donation->donation_id,
                     'status' => $donation->status,
                 ]
             ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed. Please check your input.',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
+            \Log::error('Error accepting donation: ' . $e->getMessage(), [
+                'donation_id' => $donationId,
+                'foodbank_id' => $foodbankId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to accept donation. Please try again.',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred. Please contact support.'
             ], 500);
         }
     }
@@ -646,6 +1105,233 @@ class DashboardController extends Controller
     }
 
     /**
+     * Accept a donation request from an establishment
+     */
+    public function acceptDonationRequest(Request $request, $requestId)
+    {
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        $foodbankId = session('user_id');
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $requestId)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNotNull('establishment_id')
+                ->where('status', DonationRequestService::STATUS_PENDING)
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found or already processed.'
+                ], 404);
+            }
+
+            if (!DonationRequestService::acceptRequest($donationRequest)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot accept this request. Invalid status transition.'
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Donation request accepted successfully!',
+                'data' => [
+                    'id' => $donationRequest->donation_request_id,
+                    'status' => $donationRequest->status,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error accepting donation request: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to accept donation request. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Decline a donation request from an establishment
+     */
+    public function declineDonationRequest(Request $request, $requestId)
+    {
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        $foodbankId = session('user_id');
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $requestId)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNotNull('establishment_id')
+                ->where('status', DonationRequestService::STATUS_PENDING)
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found or already processed.'
+                ], 404);
+            }
+
+            if (!DonationRequestService::declineRequest($donationRequest)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot decline this request. Invalid status transition.'
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Donation request declined successfully.',
+                'data' => [
+                    'id' => $donationRequest->donation_request_id,
+                    'status' => $donationRequest->status,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error declining donation request: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to decline donation request. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Confirm pickup for an accepted donation request (from establishment)
+     */
+    public function confirmPickup(Request $request, $requestId)
+    {
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        $foodbankId = session('user_id');
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $requestId)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNotNull('establishment_id')
+                ->whereIn('status', [DonationRequestService::STATUS_ACCEPTED, DonationRequestService::STATUS_PENDING_CONFIRMATION])
+                ->where(function($query) {
+                    $query->where('pickup_method', 'pickup')
+                          ->orWhere('delivery_option', 'pickup');
+                })
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found or cannot confirm pickup.'
+                ], 404);
+            }
+
+            $donation = DonationRequestService::confirmCompletion($donationRequest, 'pickup');
+
+            if (!$donation) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot confirm pickup. Invalid status transition.'
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pickup confirmed successfully! Donation request marked as completed.',
+                'data' => [
+                    'id' => $donationRequest->donation_request_id,
+                    'status' => $donationRequest->status,
+                    'donation_id' => $donation->donation_id,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error confirming pickup: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to confirm pickup. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Confirm delivery for an accepted donation request (from establishment)
+     */
+    public function confirmDelivery(Request $request, $requestId)
+    {
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        $foodbankId = session('user_id');
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $requestId)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNotNull('establishment_id')
+                ->whereIn('status', [DonationRequestService::STATUS_ACCEPTED, DonationRequestService::STATUS_PENDING_CONFIRMATION])
+                ->where(function($query) {
+                    $query->where('pickup_method', 'delivery')
+                          ->orWhere('delivery_option', 'delivery');
+                })
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found or cannot confirm delivery.'
+                ], 404);
+            }
+
+            $donation = DonationRequestService::confirmCompletion($donationRequest, 'delivery');
+
+            if (!$donation) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot confirm delivery. Invalid status transition.'
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Delivery confirmed successfully! Donation request marked as completed.',
+                'data' => [
+                    'id' => $donationRequest->donation_request_id,
+                    'status' => $donationRequest->status,
+                    'donation_id' => $donation->donation_id,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error confirming delivery: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to confirm delivery. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
+    }
+
+
+    /**
      * Decline a donation from an establishment
      */
     public function declineDonation(Request $request, $donationId)
@@ -663,6 +1349,7 @@ class DashboardController extends Controller
         try {
             $donation = Donation::where('donation_id', $donationId)
                 ->where('foodbank_id', $foodbankId)
+                ->with(['establishment'])
                 ->first();
 
             if (!$donation) {
@@ -672,9 +1359,73 @@ class DashboardController extends Controller
                 ], 404);
             }
 
-            // Update status to cancelled
+            // Update donation status to cancelled
             $donation->status = 'cancelled';
             $donation->save();
+
+            // Check if a DonationRequest already exists for this donation
+            $donationRequest = DonationRequest::where('donation_id', $donationId)
+                ->where('foodbank_id', $foodbankId)
+                ->whereNotNull('establishment_id')
+                ->first();
+
+            $foodbank = Foodbank::find($foodbankId);
+
+            if ($donationRequest) {
+                // Update existing request to declined
+                $donationRequest->status = 'declined';
+                $donationRequest->save();
+            } else {
+                // Create a new DonationRequest with declined status
+                $scheduledDate = $donation->scheduled_date ? $donation->scheduled_date->format('Y-m-d') : now()->format('Y-m-d');
+                $scheduledTime = $donation->scheduled_time ? (is_string($donation->scheduled_time) ? $donation->scheduled_time : $donation->scheduled_time->format('H:i:s')) : null;
+
+                $donationRequest = DonationRequest::create([
+                    'foodbank_id' => $foodbankId,
+                    'establishment_id' => $donation->establishment_id,
+                    'donation_id' => $donation->donation_id,
+                    'item_name' => $donation->item_name,
+                    'quantity' => $donation->quantity,
+                    'unit' => $donation->unit ?? 'pcs',
+                    'category' => $donation->item_category ?? 'other',
+                    'description' => $donation->description,
+                    'expiry_date' => $donation->expiry_date,
+                    'scheduled_date' => $scheduledDate,
+                    'scheduled_time' => $scheduledTime,
+                    'pickup_method' => $donation->pickup_method ?? 'pickup',
+                    'establishment_notes' => $donation->establishment_notes,
+                    'status' => 'declined',
+                    // Default values for required fields in donation_requests table
+                    'distribution_zone' => $foodbank->distribution_zone ?? 'N/A',
+                    'dropoff_date' => $scheduledDate,
+                    'address' => $foodbank->address ?? 'N/A',
+                    'contact_name' => $foodbank->contact_person ?? 'N/A',
+                    'phone_number' => $foodbank->phone_no ?? 'N/A',
+                    'email' => $foodbank->email ?? 'N/A',
+                ]);
+            }
+
+            // Send notification to establishment
+            if ($donation->establishment_id) {
+                Notification::createNotification(
+                    'establishment',
+                    $donation->establishment_id,
+                    'donation_declined',
+                    'Donation Declined',
+                    "Your donation offer for {$donation->item_name} has been declined by the foodbank.",
+                    [
+                        'donation_id' => $donation->donation_id,
+                        'donation_request_id' => $donationRequest->donation_request_id ?? null,
+                        'data' => [
+                            'item_name' => $donation->item_name,
+                            'quantity' => $donation->quantity,
+                        ]
+                    ]
+                );
+            }
+
+            // Dispatch event for automatic logging
+            \App\Events\DonationOfferDeclined::dispatch($donation, $donationRequest, $foodbankId, 'foodbank');
 
             return response()->json([
                 'success' => true,
@@ -737,6 +1488,9 @@ class DashboardController extends Controller
                 'rating' => $rating,
                 'donations' => $donations,
                 'impact' => $impact,
+                'profile_image' => $establishment->profile_image 
+                    ? asset('storage/' . $establishment->profile_image) 
+                    : null,
                 // Additional fields for modal details
                 'email' => $establishment->email,
                 'phone' => $establishment->phone_no,
@@ -2686,8 +3440,11 @@ class DashboardController extends Controller
             'total_requests' => DonationRequest::count(),
             'pending_donations' => Donation::where('status', 'pending_pickup')->count(),
             'collected_donations' => Donation::where('status', 'collected')->count(),
-            'active_requests' => DonationRequest::whereIn('status', ['pending', 'active'])->count(),
-            'completed_requests' => DonationRequest::where('status', 'completed')->count(),
+            'active_requests' => DonationRequest::whereIn('status', [
+                DonationRequestService::STATUS_PENDING,
+                DonationRequestService::STATUS_ACCEPTED
+            ])->count(),
+            'completed_requests' => DonationRequest::where('status', DonationRequestService::STATUS_COMPLETED)->count(),
         ];
         
         return view('admin.donations', compact(
@@ -3034,19 +3791,6 @@ class DashboardController extends Controller
     }
 
     /**
-     * Admin - Food Banks Management
-     */
-    public function adminFoodbanks()
-    {
-        if (session('user_type') !== 'admin') {
-            return redirect()->route('login')->with('error', 'Access denied.');
-        }
-        
-        $user = $this->getUserData();
-        return view('admin.foodbanks', compact('user'));
-    }
-
-    /**
      * Admin - Reports & Analytics
      */
     public function adminReports()
@@ -3273,5 +4017,441 @@ class DashboardController extends Controller
         $userType = session('user_type', 'consumer');
         
         return view($userType . '.profile', compact('user', 'userType'));
+    }
+
+    /**
+     * Admin - Foodbanks Management
+     */
+    public function adminFoodbanks(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Get filter parameters
+        $searchQuery = $request->get('search', '');
+        $statusFilter = $request->get('status', 'all');
+        $verifiedFilter = $request->get('verified', 'all');
+        
+        // Query with eager loading
+        $foodbanksQuery = Foodbank::withCount([
+            'donationRequests as total_requests_count',
+            'donations as total_donations_count'
+        ]);
+        
+        // Apply search filter
+        if ($searchQuery) {
+            $foodbanksQuery->where(function($query) use ($searchQuery) {
+                $query->where('organization_name', 'like', "%{$searchQuery}%")
+                      ->orWhere('email', 'like', "%{$searchQuery}%")
+                      ->orWhere('username', 'like', "%{$searchQuery}%")
+                      ->orWhere('contact_person', 'like', "%{$searchQuery}%");
+            });
+        }
+        
+        // Apply status filter
+        if ($statusFilter !== 'all') {
+            $foodbanksQuery->where('status', $statusFilter);
+        }
+        
+        // Apply verified filter
+        if ($verifiedFilter !== 'all') {
+            $foodbanksQuery->where('verified', $verifiedFilter === 'verified');
+        }
+        
+        // Get foodbanks
+        $foodbanks = $foodbanksQuery->orderBy('created_at', 'desc')->get();
+        
+        // Format foodbanks data
+        $formattedFoodbanks = $foodbanks->map(function($foodbank) {
+            return [
+                'id' => $foodbank->foodbank_id,
+                'organization_name' => $foodbank->organization_name,
+                'contact_person' => $foodbank->contact_person,
+                'email' => $foodbank->email,
+                'phone_no' => $foodbank->phone_no,
+                'address' => $foodbank->address,
+                'registration_number' => $foodbank->registration_number,
+                'username' => $foodbank->username,
+                'status' => $foodbank->status ?? 'active',
+                'verified' => $foodbank->verified ?? false,
+                'total_requests' => $foodbank->total_requests_count ?? 0,
+                'total_donations' => $foodbank->total_donations_count ?? 0,
+                'registered_at' => $foodbank->created_at,
+                'profile_image' => $foodbank->profile_image,
+            ];
+        });
+        
+        // Statistics
+        $stats = [
+            'total' => Foodbank::count(),
+            'verified' => Foodbank::where('verified', true)->count(),
+            'unverified' => Foodbank::where('verified', false)->count(),
+            'active' => Foodbank::where('status', 'active')->count(),
+            'suspended' => Foodbank::where('status', 'suspended')->count(),
+        ];
+        
+        return view('admin.foodbanks', compact(
+            'user',
+            'formattedFoodbanks',
+            'stats',
+            'searchQuery',
+            'statusFilter',
+            'verifiedFilter'
+        ));
+    }
+
+    /**
+     * Admin - View Foodbank Details
+     */
+    public function viewFoodbankDetails($id)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        $foodbank = Foodbank::withCount([
+            'donationRequests as total_requests_count',
+            'donationRequests as pending_requests_count' => function($query) {
+                $query->where('status', 'pending');
+            },
+            'donationRequests as accepted_requests_count' => function($query) {
+                $query->where('status', 'accepted');
+            },
+            'donationRequests as completed_requests_count' => function($query) {
+                $query->where('status', 'completed');
+            },
+            'donations as total_donations_count'
+        ])->find($id);
+        
+        if (!$foodbank) {
+            return redirect()->route('admin.foodbanks')->with('error', 'Foodbank not found.');
+        }
+        
+        // Get donation requests
+        $donationRequests = $foodbank->donationRequests()
+            ->with(['establishment', 'donation'])
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
+        
+        // Get donations
+        $donations = $foodbank->donations()
+            ->with(['establishment'])
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
+        
+        // Get system logs related to this foodbank
+        $systemLogs = \App\Models\SystemLog::where('metadata->foodbank_id', $foodbank->foodbank_id)
+            ->orWhere(function($query) use ($foodbank) {
+                $query->where('user_type', 'foodbank')
+                      ->where('user_id', $foodbank->foodbank_id);
+            })
+            ->orderBy('created_at', 'desc')
+            ->limit(100)
+            ->get();
+        
+        return view('admin.foodbank-details', compact(
+            'user',
+            'foodbank',
+            'donationRequests',
+            'donations',
+            'systemLogs'
+        ));
+    }
+
+    /**
+     * Admin - Update Foodbank Status
+     */
+    public function updateFoodbankStatus(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'status' => 'required|in:active,suspended,deleted'
+        ]);
+        
+        try {
+            $foodbank = Foodbank::find($id);
+            
+            if (!$foodbank) {
+                return response()->json(['success' => false, 'message' => 'Foodbank not found.'], 404);
+            }
+            
+            $oldStatus = $foodbank->status;
+            $foodbank->status = $request->status;
+            $foodbank->save();
+            
+            $action = match($request->status) {
+                'active' => 'activated',
+                'suspended' => 'suspended',
+                'deleted' => 'deleted',
+                default => 'updated'
+            };
+            
+            // Log action
+            \App\Models\SystemLog::log(
+                'admin_action',
+                'foodbank_status_updated',
+                "Admin {$action} foodbank: {$foodbank->organization_name}",
+                'info',
+                'success',
+                [
+                    'foodbank_id' => $foodbank->foodbank_id,
+                    'foodbank_name' => $foodbank->organization_name,
+                    'old_status' => $oldStatus,
+                    'new_status' => $request->status,
+                    'admin_id' => session('user_id'),
+                    'admin_email' => session('user_email'),
+                ]
+            );
+            
+            // Send notification
+            if ($request->status === 'suspended') {
+                \App\Models\Notification::createNotification(
+                    'foodbank',
+                    $foodbank->foodbank_id,
+                    'account_suspended',
+                    'Account Suspended',
+                    "Your foodbank account has been suspended by an administrator.",
+                    ['foodbank_id' => $foodbank->foodbank_id]
+                );
+            } elseif ($request->status === 'active' && $oldStatus === 'suspended') {
+                \App\Models\Notification::createNotification(
+                    'foodbank',
+                    $foodbank->foodbank_id,
+                    'account_unsuspended',
+                    'Account Unsuspended',
+                    "Your foodbank account has been reactivated.",
+                    ['foodbank_id' => $foodbank->foodbank_id]
+                );
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => "Foodbank {$action} successfully."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update foodbank status.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin - Toggle Foodbank Verification
+     */
+    public function toggleFoodbankVerification(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        $request->validate([
+            'verified' => 'required|boolean'
+        ]);
+        
+        try {
+            $foodbank = Foodbank::find($id);
+            
+            if (!$foodbank) {
+                return response()->json(['success' => false, 'message' => 'Foodbank not found.'], 404);
+            }
+            
+            $foodbank->verified = $request->verified;
+            $foodbank->save();
+            
+            $action = $request->verified ? 'verified' : 'unverified';
+            
+            // Log action
+            \App\Models\SystemLog::log(
+                'admin_action',
+                'foodbank_verification_updated',
+                "Admin {$action} foodbank: {$foodbank->organization_name}",
+                'info',
+                'success',
+                [
+                    'foodbank_id' => $foodbank->foodbank_id,
+                    'foodbank_name' => $foodbank->organization_name,
+                    'verified' => $request->verified,
+                    'admin_id' => session('user_id'),
+                    'admin_email' => session('user_email'),
+                ]
+            );
+            
+            // Send notification
+            if ($request->verified) {
+                \App\Models\Notification::createNotification(
+                    'foodbank',
+                    $foodbank->foodbank_id,
+                    'account_verified',
+                    'Account Verified',
+                    "Your foodbank account has been verified by an administrator.",
+                    ['foodbank_id' => $foodbank->foodbank_id]
+                );
+            } else {
+                \App\Models\Notification::createNotification(
+                    'foodbank',
+                    $foodbank->foodbank_id,
+                    'account_unverified',
+                    'Account Verification Removed',
+                    "Your foodbank account verification has been removed by an administrator.",
+                    ['foodbank_id' => $foodbank->foodbank_id]
+                );
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => "Foodbank {$action} successfully."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update verification status.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin - Delete Foodbank
+     */
+    public function deleteFoodbank($id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        try {
+            $foodbank = Foodbank::find($id);
+            
+            if (!$foodbank) {
+                return response()->json(['success' => false, 'message' => 'Foodbank not found.'], 404);
+            }
+            
+            $foodbankName = $foodbank->organization_name;
+            
+            // Cascade delete: anonymize related data
+            // Anonymize donations
+            \App\Models\Donation::where('foodbank_id', $id)
+                ->update([
+                    'foodbank_id' => null,
+                    'foodbank_notes' => 'Donation to deleted account',
+                ]);
+            
+            // Anonymize donation requests
+            \App\Models\DonationRequest::where('foodbank_id', $id)
+                ->update([
+                    'foodbank_id' => null,
+                    'contact_name' => 'Deleted Account',
+                    'email' => 'deleted@account.local',
+                    'phone_number' => null,
+                ]);
+            
+            // Delete notifications
+            \App\Models\Notification::where('user_type', 'foodbank')
+                ->where('user_id', $id)
+                ->delete();
+            
+            // Log action before deletion
+            \App\Models\SystemLog::log(
+                'admin_action',
+                'foodbank_deleted',
+                "Admin deleted foodbank: {$foodbankName}",
+                'warning',
+                'success',
+                [
+                    'foodbank_id' => $foodbank->foodbank_id,
+                    'foodbank_name' => $foodbankName,
+                    'admin_id' => session('user_id'),
+                    'admin_email' => session('user_email'),
+                ]
+            );
+            
+            // Delete the foodbank
+            $foodbank->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Foodbank deleted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete foodbank.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin - Foodbank Donation Hub
+     */
+    public function adminFoodbankDonationHub(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Get filter parameters
+        $foodbankFilter = $request->get('foodbank', 'all');
+        $statusFilter = $request->get('status', 'all');
+        $typeFilter = $request->get('type', 'all'); // requests or donations
+        
+        // Query donation requests
+        $donationRequestsQuery = \App\Models\DonationRequest::with(['foodbank', 'establishment', 'donation'])
+            ->whereNotNull('foodbank_id');
+        
+        // Query donations
+        $donationsQuery = \App\Models\Donation::with(['foodbank', 'establishment'])
+            ->whereNotNull('foodbank_id');
+        
+        // Apply foodbank filter
+        if ($foodbankFilter !== 'all') {
+            $donationRequestsQuery->where('foodbank_id', $foodbankFilter);
+            $donationsQuery->where('foodbank_id', $foodbankFilter);
+        }
+        
+        // Apply status filter
+        if ($statusFilter !== 'all') {
+            $donationRequestsQuery->where('status', $statusFilter);
+            $donationsQuery->where('status', $statusFilter);
+        }
+        
+        $donationRequests = $donationRequestsQuery->orderBy('created_at', 'desc')->limit(100)->get();
+        $donations = $donationsQuery->orderBy('created_at', 'desc')->limit(100)->get();
+        
+        // Get all foodbanks for filter dropdown
+        $foodbanks = Foodbank::orderBy('organization_name')->get();
+        
+        // Statistics
+        $stats = [
+            'total_requests' => \App\Models\DonationRequest::whereNotNull('foodbank_id')->count(),
+            'pending_requests' => \App\Models\DonationRequest::whereNotNull('foodbank_id')->where('status', 'pending')->count(),
+            'accepted_requests' => \App\Models\DonationRequest::whereNotNull('foodbank_id')->where('status', 'accepted')->count(),
+            'completed_requests' => \App\Models\DonationRequest::whereNotNull('foodbank_id')->where('status', 'completed')->count(),
+            'total_donations' => \App\Models\Donation::whereNotNull('foodbank_id')->count(),
+        ];
+        
+        return view('admin.foodbank-donation-hub', compact(
+            'user',
+            'donationRequests',
+            'donations',
+            'foodbanks',
+            'stats',
+            'foodbankFilter',
+            'statusFilter',
+            'typeFilter'
+        ));
     }
 }

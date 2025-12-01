@@ -119,7 +119,7 @@
             <div class="foodbank-card-actions">
                 <button class="btn-view-details-outline" onclick="viewFoodbankDetails('{{ $foodbank['id'] }}')">View Details</button>
                 <button class="btn-contact" onclick="contactFoodbank('{{ $foodbank['id'] }}')">Contact</button>
-                <button class="btn-request-donate" onclick="requestToDonate('{{ $foodbank['id'] }}')">Request to Donate</button>
+                <button class="btn-request-donate" onclick="openRequestToDonateFoodbankModal('{{ $foodbank['id'] }}')">Request to Donate</button>
             </div>
         </div>
         @empty
@@ -243,7 +243,7 @@
     </div>
 </div>
 
-<!-- Request to Donate Modal -->
+<!-- Request to Donate Modal (for fulfilling existing requests) -->
 <div class="modal-overlay" id="requestToDonateModal">
     <div class="modal modal-request-donate">
         <div class="modal-header">
@@ -253,49 +253,27 @@
         <div class="modal-body">
             <form id="requestToDonateForm">
                 <input type="hidden" id="requestDonateFoodbankId" name="foodbank_id">
+                <input type="hidden" id="donateItemName" name="item_name">
+                <input type="hidden" id="donateQuantity" name="quantity">
+                <input type="hidden" id="donateCategory" name="category">
+                <input type="hidden" id="donateDescription" name="description">
                 
-                <div class="form-group">
-                    <label for="donateItemName">Item Name *</label>
-                    <input type="text" id="donateItemName" name="item_name" class="form-input" required placeholder="Enter item name">
+                <!-- Item Details (Read-only) -->
+                <div class="request-item-section">
+                    <div class="request-item-name" id="displayItemName">-</div>
+                    <div class="request-item-quantity" id="displayQuantity">-</div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="donateQuantity">Quantity *</label>
-                        <input type="number" id="donateQuantity" name="quantity" class="form-input" required min="1" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="donateUnit">Unit *</label>
-                        <select id="donateUnit" name="unit" class="form-input" required>
-                            <option value="pcs">Pieces</option>
-                            <option value="kg">Kilograms</option>
-                            <option value="g">Grams</option>
-                            <option value="L">Liters</option>
-                            <option value="ml">Milliliters</option>
-                            <option value="boxes">Boxes</option>
-                            <option value="packages">Packages</option>
-                        </select>
-                    </div>
+                <!-- Category (Read-only) -->
+                <div class="request-detail-section">
+                    <div class="request-detail-label">Category</div>
+                    <div class="request-detail-value" id="displayCategory">-</div>
                 </div>
 
-                <div class="form-group">
-                    <label for="donateCategory">Category *</label>
-                    <select id="donateCategory" name="category" class="form-input" required>
-                        <option value="">Select category</option>
-                        <option value="fruits-vegetables">Fruits & Vegetables</option>
-                        <option value="baked-goods">Baked Goods</option>
-                        <option value="cooked-meals">Cooked Meals</option>
-                        <option value="packaged-goods">Packaged Goods</option>
-                        <option value="beverages">Beverages</option>
-                        <option value="dairy">Dairy</option>
-                        <option value="meat-seafood">Meat & Seafood</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="donateDescription">Description</label>
-                    <textarea id="donateDescription" name="description" class="form-input" rows="4" placeholder="Enter item description (optional)"></textarea>
+                <!-- Description (Read-only) -->
+                <div class="request-detail-section">
+                    <div class="request-detail-label">Description</div>
+                    <div class="request-detail-value" id="displayDescription">-</div>
                 </div>
 
                 <div class="form-group">
@@ -329,6 +307,122 @@
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" id="cancelRequestDonate">Cancel</button>
                     <button type="submit" class="btn btn-primary">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Request to Donate to Food Bank Modal (Fully Editable - for Foodbanks Section) -->
+<div class="modal-overlay" id="requestToDonateFoodbankModal">
+    <div class="modal modal-request-donate">
+        <div class="modal-header">
+            <h2 id="requestDonateFoodbankModalTitle">Request to Donate</h2>
+            <button class="modal-close" id="closeRequestToDonateFoodbankModal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="requestToDonateFoodbankForm">
+                <input type="hidden" id="requestDonateFoodbankFoodbankId" name="foodbank_id">
+                
+                <!-- Food Basic Information Section -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Food Basic Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="foodbankDonateItemName">Item Name *</label>
+                        <input type="text" id="foodbankDonateItemName" name="item_name" class="form-input" placeholder="Enter item name" required>
+                    </div>
+
+                    <div class="form-row-two">
+                        <div class="form-group">
+                            <label for="foodbankDonateCategory">Category *</label>
+                            <select id="foodbankDonateCategory" name="category" class="form-input" required>
+                                <option value="">Select Category</option>
+                                <option value="fruits-vegetables">Fruits & Vegetables</option>
+                                <option value="baked-goods">Baked Goods</option>
+                                <option value="cooked-meals">Cooked Meals</option>
+                                <option value="packaged-goods">Packaged Goods</option>
+                                <option value="beverages">Beverages</option>
+                                <option value="dairy">Dairy</option>
+                                <option value="meat-seafood">Meat & Seafood</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="foodbankDonateQuantity">Quantity *</label>
+                            <div class="quantity-controls">
+                                <button type="button" class="quantity-btn" id="foodbankDonateDecrementBtn">−</button>
+                                <input type="number" id="foodbankDonateQuantity" name="quantity" value="1" min="1" class="quantity-input" required>
+                                <button type="button" class="quantity-btn" id="foodbankDonateIncrementBtn">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="foodbankDonateUnit">Unit</label>
+                        <select id="foodbankDonateUnit" name="unit" class="form-input">
+                            <option value="pcs">Pieces (pcs)</option>
+                            <option value="kg">Kilograms (kg)</option>
+                            <option value="g">Grams (g)</option>
+                            <option value="lbs">Pounds (lbs)</option>
+                            <option value="oz">Ounces (oz)</option>
+                            <option value="l">Liters (l)</option>
+                            <option value="ml">Milliliters (ml)</option>
+                            <option value="boxes">Boxes</option>
+                            <option value="packages">Packages</option>
+                            <option value="containers">Containers</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="foodbankDonateDescription">Description</label>
+                        <textarea id="foodbankDonateDescription" name="description" class="form-input" rows="3" placeholder="Enter item description (optional)"></textarea>
+                    </div>
+                </div>
+
+                <!-- Expiry & Schedule Section -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Expiry & Schedule</h3>
+                    
+                    <div class="form-group">
+                        <label for="foodbankDonateExpiryDate">Expiry Date</label>
+                        <input type="date" id="foodbankDonateExpiryDate" name="expiry_date" class="form-input" placeholder="Select expiry date (optional)">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="foodbankDonateScheduledDate">Scheduled Pickup/Delivery Date *</label>
+                        <input type="date" id="foodbankDonateScheduledDate" name="scheduled_date" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="foodbankDonateScheduledTime">Scheduled Time</label>
+                        <input type="time" id="foodbankDonateScheduledTime" name="scheduled_time" class="form-input" placeholder="Select time (optional)">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="foodbankDonatePickupMethod">Pickup Method *</label>
+                        <select id="foodbankDonatePickupMethod" name="pickup_method" class="form-input" required>
+                            <option value="">Select Method</option>
+                            <option value="pickup">Pickup</option>
+                            <option value="delivery">Delivery</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Additional Notes Section -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Additional Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="foodbankDonateNotes">Notes</label>
+                        <textarea id="foodbankDonateNotes" name="establishment_notes" class="form-input" rows="3" placeholder="Additional notes for the foodbank (optional)"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelRequestDonateFoodbank">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="submitRequestDonateFoodbank">Submit Request</button>
                 </div>
             </form>
         </div>

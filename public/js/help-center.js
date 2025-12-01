@@ -1,10 +1,10 @@
-// Help Center JavaScript
+// Help Center JavaScript - Static FAQ System
 document.addEventListener('DOMContentLoaded', function() {
     initializeHelpCenter();
 });
 
 function initializeHelpCenter() {
-    // Initialize search functionality
+    // Initialize search functionality (static search through FAQs)
     const searchInput = document.getElementById('helpSearch');
     if (searchInput) {
         searchInput.addEventListener('input', handleSearch);
@@ -15,122 +15,118 @@ function initializeHelpCenter() {
         });
     }
     
-    // Initialize FAQ functionality
+    // Initialize FAQ accordion functionality
     initializeFAQs();
-    
-    // Initialize category functionality
-    initializeCategories();
 }
 
-// Search functionality
+// Search functionality - searches through static FAQ content
 function handleSearch() {
-    const searchTerm = document.getElementById('helpSearch').value.toLowerCase();
-    const searchResults = document.querySelector('.search-results');
+    const searchTerm = document.getElementById('helpSearch').value.toLowerCase().trim();
     
     if (searchTerm.length > 2) {
         performSearch(searchTerm);
     } else {
-        hideSearchResults();
+        // Show all FAQs if search is cleared
+        document.querySelectorAll('.faq-item').forEach(item => {
+            item.style.display = 'block';
+        });
     }
 }
 
 function searchHelp() {
-    const searchTerm = document.getElementById('helpSearch').value.toLowerCase();
+    const searchTerm = document.getElementById('helpSearch').value.toLowerCase().trim();
     
     if (searchTerm.length > 0) {
         performSearch(searchTerm);
     } else {
-        showNotification('Please enter a search term', 'info');
+        // Show all FAQs
+        document.querySelectorAll('.faq-item').forEach(item => {
+            item.style.display = 'block';
+        });
     }
 }
 
 function performSearch(searchTerm) {
-    // Fetch articles from CMS API
-    fetch(`/cms/articles?search=${encodeURIComponent(searchTerm)}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.data) {
-                const articles = Array.isArray(data.data) ? data.data : (data.data.data || []);
-                displaySearchResults(articles, searchTerm);
-            } else {
-                displaySearchResults([], searchTerm);
+    const faqItems = document.querySelectorAll('.faq-item');
+    let foundCount = 0;
+    
+    faqItems.forEach(item => {
+        const question = item.querySelector('.faq-question h4')?.textContent.toLowerCase() || '';
+        const answer = item.querySelector('.faq-answer')?.textContent.toLowerCase() || '';
+        
+        if (question.includes(searchTerm) || answer.includes(searchTerm)) {
+            item.style.display = 'block';
+            foundCount++;
+            
+            // Highlight matching text (optional enhancement)
+            if (question.includes(searchTerm)) {
+                item.style.borderLeft = '4px solid #2d5016';
             }
-        })
-        .catch(error => {
-            console.error('Search error:', error);
-            displaySearchResults([], searchTerm);
-        });
-}
-
-function displaySearchResults(results, searchTerm) {
-    const searchResults = document.querySelector('.search-results');
+        } else {
+            item.style.display = 'none';
+        }
+    });
     
-    if (!searchResults) {
-        createSearchResultsContainer();
-    }
-    
-    const container = document.querySelector('.search-results');
-    
-    if (results.length === 0) {
-        container.innerHTML = `
-            <div class="no-results">
-                <h4>No results found</h4>
-                <p>We couldn't find any help articles matching "${searchTerm}". Try different keywords or browse our categories below.</p>
-            </div>
-        `;
-    } else {
-        container.innerHTML = `
-            <h3>Search Results for "${searchTerm}" (${results.length} found)</h3>
-            ${results.map(result => `
-                <div class="search-result-item" onclick="scrollToArticle(${result.id})">
-                    <h4>${highlightSearchTerm(result.title, searchTerm)}</h4>
-                    <p>${highlightSearchTerm(result.content.substring(0, 150) + '...', searchTerm)}</p>
-                    ${result.category ? `<span class="result-category">${result.category}</span>` : ''}
-                </div>
-            `).join('')}
-        `;
-    }
-    
-    container.classList.add('active');
-    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function scrollToArticle(articleId) {
-    const article = document.querySelector(`.faq-item[data-article-id="${articleId}"]`);
-    if (article) {
-        article.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        article.classList.add('active');
-        setTimeout(() => {
-            article.classList.remove('active');
-        }, 2000);
+    // Scroll to first result if found
+    if (foundCount > 0) {
+        const firstMatch = Array.from(faqItems).find(item => item.style.display !== 'none');
+        if (firstMatch) {
+            firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 }
 
-function createSearchResultsContainer() {
-    const container = document.createElement('div');
-    container.className = 'search-results';
-    document.querySelector('.quick-help-section').insertAdjacentElement('afterend', container);
-}
-
-function highlightSearchTerm(text, searchTerm) {
-    const regex = new RegExp(`(${searchTerm})`, 'gi');
-    return text.replace(regex, '<mark>$1</mark>');
-}
-
-function hideSearchResults() {
-    const searchResults = document.querySelector('.search-results');
-    if (searchResults) {
-        searchResults.classList.remove('active');
-    }
-}
-
-// FAQ functionality
+// FAQ Accordion functionality - only one open at a time
 function initializeFAQs() {
     const faqItems = document.querySelectorAll('.faq-item');
     
+    // Ensure all FAQs start closed on mobile
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        faqItems.forEach(item => {
+            item.classList.remove('active');
+        });
+    }
+    
     faqItems.forEach(item => {
         const question = item.querySelector('.faq-question');
-        question.addEventListener('click', () => toggleFAQ(item));
+        const icon = item.querySelector('.faq-icon');
+        
+        if (question) {
+            // Make the entire question area clickable
+            question.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleFAQ(item);
+            });
+            
+            // Ensure icon is also clickable and provides visual feedback
+            if (icon) {
+                icon.style.cursor = 'pointer';
+                icon.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation(); // Prevent double toggle
+                    toggleFAQ(item);
+                });
+            }
+        }
+    });
+    
+    // Handle window resize to maintain mobile behavior
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            const isMobileNow = window.innerWidth <= 768;
+            if (isMobileNow) {
+                // On mobile, ensure all FAQs are closed by default
+                faqItems.forEach(item => {
+                    if (!item.classList.contains('active')) {
+                        item.classList.remove('active');
+                    }
+                });
+            }
+        }, 250);
     });
 }
 
@@ -139,73 +135,40 @@ function toggleFAQ(faqItem) {
     
     // Close all other FAQ items
     document.querySelectorAll('.faq-item').forEach(item => {
-        item.classList.remove('active');
+        if (item !== faqItem) {
+            item.classList.remove('active');
+        }
     });
     
     // Toggle current item
     if (!isActive) {
         faqItem.classList.add('active');
+    } else {
+        faqItem.classList.remove('active');
     }
 }
 
-// Category functionality
-function initializeCategories() {
-    const categories = document.querySelectorAll('.help-category');
+// Scroll to FAQ and open it when tile is clicked
+function scrollToFAQ(faqId) {
+    const faqItem = document.getElementById(faqId);
+    if (!faqItem) return;
     
-    categories.forEach(category => {
-        category.addEventListener('click', () => {
-            const categoryType = category.getAttribute('onclick').match(/'([^']+)'/)[1];
-            showCategory(categoryType);
-        });
+    // Close all FAQs first
+    document.querySelectorAll('.faq-item').forEach(item => {
+        item.classList.remove('active');
     });
-}
-
-function showCategory(categoryType) {
-    // Hide search results if visible
-    hideSearchResults();
     
-    // Scroll to FAQ section
+    // Scroll to the FAQ section first
     const faqSection = document.querySelector('.faq-section');
-    faqSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    
-    // Filter FAQs based on category
-    filterFAQsByCategory(categoryType);
-    
-    // Show notification
-    const categoryNames = {
-        'getting-started': 'Getting Started',
-        'food-listing': 'Food Listing',
-        'orders': 'Orders & Payments',
-        'earnings': 'Earnings & Reports',
-        'account': 'Account Settings',
-        'troubleshooting': 'Troubleshooting'
-    };
-    
-    showNotification(`Showing help for: ${categoryNames[categoryType] || categoryType}`, 'info');
-}
-
-function filterFAQsByCategory(categoryType) {
-    const faqItems = document.querySelectorAll('.faq-item');
-    
-    // Filter FAQs based on category data attribute
-    faqItems.forEach(item => {
-        const itemCategory = item.getAttribute('data-category') || '';
-        if (categoryType === 'all' || itemCategory.toLowerCase() === categoryType.toLowerCase()) {
-            item.style.display = 'block';
-            item.style.borderLeft = '4px solid #2d5016';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-    
-    // If no items match, show all
-    const visibleItems = Array.from(faqItems).filter(item => item.style.display !== 'none');
-    if (visibleItems.length === 0) {
-        faqItems.forEach(item => {
-            item.style.display = 'block';
-            item.style.borderLeft = '4px solid transparent';
-        });
+    if (faqSection) {
+        faqSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    
+    // Wait for scroll, then open the target FAQ
+    setTimeout(() => {
+        faqItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        faqItem.classList.add('active');
+    }, 300);
 }
 
 // Contact functionality
@@ -215,12 +178,18 @@ function startLiveChat() {
     
     // Simulate opening chat
     setTimeout(() => {
+        // Check if chat window already exists
+        const existingChat = document.querySelector('.chat-window');
+        if (existingChat) {
+            existingChat.remove();
+        }
+        
         const chatWindow = document.createElement('div');
         chatWindow.className = 'chat-window';
         chatWindow.innerHTML = `
             <div class="chat-header">
                 <h4>Live Chat Support</h4>
-                <button onclick="closeChat()" class="close-chat">×</button>
+                <button onclick="closeChat()" class="close-chat" aria-label="Close chat">×</button>
             </div>
             <div class="chat-body">
                 <div class="chat-message support">
@@ -228,33 +197,44 @@ function startLiveChat() {
                 </div>
             </div>
             <div class="chat-input">
-                <input type="text" placeholder="Type your message..." id="chatInput">
-                <button onclick="sendMessage()">Send</button>
+                <input type="text" placeholder="Type your message..." id="chatInput" aria-label="Chat message input">
+                <button onclick="sendMessage()" aria-label="Send message">Send</button>
             </div>
         `;
         
-        chatWindow.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 350px;
-            height: 400px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-        `;
-        
         document.body.appendChild(chatWindow);
+        
+        // Focus on input after animation
+        setTimeout(() => {
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.focus();
+            }
+        }, 350);
+        
+        // Allow Enter key to send message
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput) {
+            chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        }
     }, 500);
 }
 
 function closeChat() {
     const chatWindow = document.querySelector('.chat-window');
     if (chatWindow) {
-        chatWindow.remove();
+        // Add closing animation
+        chatWindow.style.animation = 'slideDown 0.3s ease-out';
+        chatWindow.style.opacity = '0';
+        chatWindow.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            chatWindow.remove();
+        }, 300);
     }
 }
 
@@ -328,7 +308,10 @@ document.addEventListener('keydown', function(e) {
         const searchInput = document.getElementById('helpSearch');
         if (searchInput) {
             searchInput.value = '';
-            hideSearchResults();
+            document.querySelectorAll('.faq-item').forEach(item => {
+                item.style.display = 'block';
+                item.style.borderLeft = '';
+            });
         }
     }
 });

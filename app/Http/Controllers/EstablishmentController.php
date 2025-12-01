@@ -10,13 +10,15 @@ use App\Models\DonationRequest;
 use App\Models\Foodbank;
 use App\Models\Review;
 use App\Models\Announcement;
-use App\Models\HelpCenterArticle;
 use App\Services\NotificationService;
- use Illuminate\Http\Request;
+use App\Services\DonationRequestService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
 class EstablishmentController extends Controller
@@ -121,23 +123,42 @@ class EstablishmentController extends Controller
         ];
         
         // Active Listings: Count items that are not expired and not expiring soon
+        // Also ensure quantity > 0 and expiry_date exists
         $activeListings = $allListings->filter(function ($item) {
+            if (!$item->expiry_date) {
+                return false; // Skip items without expiry date
+            }
             $isExpired = $item->expiry_date < now()->toDateString();
             $isExpiringSoon = $item->expiry_date <= now()->addDays(3)->toDateString();
-            return !$isExpired && !$isExpiringSoon;
+            $hasStock = ($item->quantity ?? 0) > 0;
+            return !$isExpired && !$isExpiringSoon && $hasStock;
         })->count();
         
         // Today's Earnings: Sum of completed orders for today
         $todayEarnings = Order::where('establishment_id', $establishmentId)
             ->where('status', 'completed')
-            ->whereDate('completed_at', now()->toDateString())
-            ->sum('total_price') ?? 0.0;
+            ->where(function($query) {
+                $query->whereDate('completed_at', now()->toDateString())
+                      ->orWhere(function($q) {
+                          // Fallback: if completed_at is null, check updated_at for today
+                          $q->whereNull('completed_at')
+                            ->whereDate('updated_at', now()->toDateString());
+                      });
+            })
+            ->sum('total_price');
         
-        // Food Donated: Placeholder for future donation system
-        $foodDonated = 0;
+        // Ensure todayEarnings is a float, default to 0.0 if null
+        $todayEarnings = $todayEarnings ? (float) $todayEarnings : 0.0;
         
-        // Food Saved: Sum of sold_stock from food listings
-        $foodSaved = $allListings->sum('sold_stock') ?? 0;
+        // Food Donated: Count of completed donations
+        $foodDonated = Donation::where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->count();
+        
+        // Food Saved: Sum of sold_stock from food listings (handle null values)
+        $foodSaved = $allListings->sum(function($listing) {
+            return $listing->sold_stock ?? 0;
+        });
         
         // Ensure all values are properly initialized (handle null values from database)
         $dashboardStats = [
@@ -220,7 +241,40 @@ class EstablishmentController extends Controller
             'rating_text' => $ratingText,
         ];
         
-        return view('establishment.dashboard', compact('user', 'expiringItems', 'inventoryHealth', 'dashboardStats', 'pendingOrderData', 'reviewsData'));
+        // Get donation requests submitted by this establishment
+        $myDonationRequests = DonationRequest::where('establishment_id', $establishmentId)
+            ->with(['foodbank', 'donation'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($request) {
+                // Format status display
+                $statusMap = [
+                    'pending' => 'Pending Review',
+                    'accepted' => 'Accepted',
+                    'pickup_confirmed' => 'Pickup Confirmed',
+                    'delivery_successful' => 'Delivery Successful',
+                    'completed' => 'Completed',
+                    'declined' => 'Declined',
+                ];
+                $statusDisplay = $statusMap[$request->status] ?? ucfirst(str_replace('_', ' ', $request->status));
+                
+                return [
+                    'id' => $request->donation_request_id,
+                    'item_name' => $request->item_name,
+                    'quantity' => $request->quantity,
+                    'unit' => $request->unit,
+                    'foodbank_name' => $request->foodbank ? $request->foodbank->organization_name : 'Unknown',
+                    'status' => $request->status,
+                    'status_display' => $statusDisplay,
+                    'created_at' => $request->created_at->format('F d, Y'),
+                    'scheduled_date' => $request->scheduled_date ? $request->scheduled_date->format('F d, Y') : 'N/A',
+                    'updated_at' => $request->updated_at->format('F d, Y g:i A'),
+                ];
+            })
+            ->toArray();
+        
+        return view('establishment.dashboard', compact('user', 'expiringItems', 'inventoryHealth', 'dashboardStats', 'pendingOrderData', 'reviewsData', 'myDonationRequests'));
     }
 
     /**
@@ -828,7 +882,22 @@ class EstablishmentController extends Controller
         $user = $this->getUserData();
         
         // Fetch all active donation requests from food banks
-        $donationRequests = DonationRequest::whereIn('status', ['pending', 'active'])
+        // Exclude requests that have been accepted by this establishment (to avoid showing their own accepted requests)
+        $establishmentId = Session::get('user_id');
+        $donationRequests = DonationRequest::whereIn('status', [
+                DonationRequestService::STATUS_PENDING,
+                DonationRequestService::STATUS_ACCEPTED
+            ])
+            ->where(function($query) use ($establishmentId) {
+                // Only show requests that are either:
+                // 1. Not submitted by this establishment (foodbank-initiated requests), OR
+                // 2. Submitted by this establishment but still pending (not yet accepted)
+                $query->whereNull('establishment_id')
+                      ->orWhere(function($q) use ($establishmentId) {
+                          $q->where('establishment_id', $establishmentId)
+                            ->where('status', DonationRequestService::STATUS_PENDING);
+                      });
+            })
             ->with('foodbank')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -915,7 +984,10 @@ class EstablishmentController extends Controller
 
         try {
             $donationRequest = DonationRequest::where('donation_request_id', $requestId)
-                ->whereIn('status', ['pending', 'active'])
+                ->whereIn('status', [
+                    DonationRequestService::STATUS_PENDING,
+                    DonationRequestService::STATUS_ACCEPTED
+                ])
                 ->first();
 
             if (!$donationRequest) {
@@ -926,18 +998,18 @@ class EstablishmentController extends Controller
             }
 
             // Validate the donation details
-            $validated = $request->validate([
-                'item_name' => 'required|string|max:255',
-                'quantity' => 'required|integer|min:1',
-                'unit' => 'required|string|max:20',
-                'category' => 'required|string',
-                'description' => 'nullable|string',
-                'expiry_date' => 'nullable|date|after_or_equal:today',
-                'scheduled_date' => 'required|date|after_or_equal:today',
-                'scheduled_time' => 'nullable|date_format:H:i',
-                'pickup_method' => 'required|in:pickup,delivery',
-                'establishment_notes' => 'nullable|string',
-            ]);
+        $validated = $request->validate([
+            'item_name' => 'required|string|max:255',
+            'quantity' => 'required|integer|min:1',
+            'unit' => 'nullable|string|max:20',
+            'category' => 'required|string',
+            'description' => 'nullable|string',
+            'expiry_date' => 'nullable|date|after_or_equal:today',
+            'scheduled_date' => 'required|date|after_or_equal:today',
+            'scheduled_time' => 'nullable|date_format:H:i',
+            'pickup_method' => 'required|in:pickup,delivery',
+            'establishment_notes' => 'nullable|string',
+        ]);
 
             // Create the donation linked to this request
             $donation = Donation::create([
@@ -947,7 +1019,7 @@ class EstablishmentController extends Controller
                 'item_name' => $validated['item_name'],
                 'item_category' => $validated['category'],
                 'quantity' => $validated['quantity'],
-                'unit' => $validated['unit'],
+                'unit' => $validated['unit'] ?? 'pcs',
                 'description' => $validated['description'] ?? null,
                 'expiry_date' => $validated['expiry_date'] ?? null,
                 'status' => 'pending_pickup',
@@ -959,12 +1031,13 @@ class EstablishmentController extends Controller
                 'is_nearing_expiry' => false,
             ]);
 
-            // Update the donation request
+            // Update the donation request - set to 'active' (pending foodbank confirmation)
+            // Status will be set to 'completed' only after foodbank confirms pickup/delivery
             $donationRequest->fulfilled_by_establishment_id = $establishmentId;
-            $donationRequest->fulfilled_at = now();
             $donationRequest->donation_id = $donation->donation_id;
-            $donationRequest->status = 'completed';
+            $donationRequest->status = 'active'; // Active means fulfilled but awaiting confirmation
             $donationRequest->matches = ($donationRequest->matches ?? 0) + 1;
+            // Don't set fulfilled_at until foodbank confirms
             $donationRequest->save();
 
             // Reload donation with relationships for notification
@@ -972,6 +1045,9 @@ class EstablishmentController extends Controller
             
             // Send notification to foodbank
             NotificationService::notifyDonationCreated($donation);
+
+            // Dispatch event for automatic logging
+            \App\Events\DonationOfferSubmitted::dispatch($donation, $establishmentId, 'establishment');
 
             return response()->json([
                 'success' => true,
@@ -1053,7 +1129,7 @@ class EstablishmentController extends Controller
             'foodbank_id' => 'required|uuid|exists:foodbanks,foodbank_id',
             'item_name' => 'required|string|max:255',
             'quantity' => 'required|integer|min:1',
-            'unit' => 'required|string|max:20',
+            'unit' => 'nullable|string|max:20',
             'category' => 'required|string',
             'description' => 'nullable|string',
             'expiry_date' => 'nullable|date|after_or_equal:today',
@@ -1064,47 +1140,123 @@ class EstablishmentController extends Controller
         ]);
 
         try {
-            // Create the donation
-            $donation = Donation::create([
+            // Create the donation request (from establishment to foodbank)
+            $donationRequest = DonationRequest::create([
                 'foodbank_id' => $validated['foodbank_id'],
                 'establishment_id' => $establishmentId,
-                'donation_request_id' => null, // Not linked to a specific request
                 'item_name' => $validated['item_name'],
-                'item_category' => $validated['category'],
                 'quantity' => $validated['quantity'],
-                'unit' => $validated['unit'],
+                'unit' => $validated['unit'] ?? 'pcs',
+                'category' => $validated['category'],
                 'description' => $validated['description'] ?? null,
                 'expiry_date' => $validated['expiry_date'] ?? null,
-                'status' => 'pending_pickup',
-                'pickup_method' => $validated['pickup_method'],
                 'scheduled_date' => $validated['scheduled_date'],
-                'scheduled_time' => $validated['scheduled_time'] ?? null,
+                'scheduled_time' => !empty($validated['scheduled_time']) ? $validated['scheduled_time'] : null,
+                'pickup_method' => $validated['pickup_method'],
                 'establishment_notes' => $validated['establishment_notes'] ?? null,
-                'is_urgent' => false,
-                'is_nearing_expiry' => false,
+                'status' => DonationRequestService::STATUS_PENDING,
             ]);
             
-            // Reload donation with relationships for notification
-            $donation->load(['foodbank', 'establishment']);
+            // Reload donation request with relationships for notification
+            $donationRequest->load(['foodbank', 'establishment']);
             
             // Send notification to foodbank
-            NotificationService::notifyDonationCreated($donation);
+            NotificationService::notifyDonationRequested($donationRequest);
+
+            // Dispatch event for automatic logging
+            \App\Events\DonationRequestCreated::dispatch($donationRequest, $establishmentId, 'establishment');
 
             return response()->json([
                 'success' => true,
                 'message' => 'Donation request submitted successfully! The foodbank will review your request.',
                 'data' => [
-                    'id' => $donation->donation_id,
-                    'donation_number' => $donation->donation_number,
+                    'id' => $donationRequest->donation_request_id,
                 ]
             ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed. Please check your input.',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
+            \Log::error('Donation request submission error: ' . $e->getMessage(), [
+                'establishment_id' => $establishmentId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to submit donation request. Please try again.',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred. Please contact support.'
             ], 500);
         }
+    }
+
+    /**
+     * Display establishment's donation requests organized by status
+     */
+    public function myDonationRequests()
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
+        }
+
+        $user = $this->getUserData();
+        $establishmentId = Session::get('user_id');
+        
+        // Fetch PENDING requests
+        $pendingRequests = DonationRequest::where('establishment_id', $establishmentId)
+            ->where('status', \App\Services\DonationRequestService::STATUS_PENDING)
+            ->with(['foodbank'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($request) {
+                return \App\Services\DonationRequestService::formatRequestData($request);
+            })
+            ->toArray();
+        
+        // Fetch ACCEPTED requests
+        $acceptedRequests = DonationRequest::where('establishment_id', $establishmentId)
+            ->where('status', \App\Services\DonationRequestService::STATUS_ACCEPTED)
+            ->with(['foodbank'])
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function($request) {
+                return \App\Services\DonationRequestService::formatRequestData($request);
+            })
+            ->toArray();
+        
+        // Fetch DECLINED requests
+        $declinedRequests = DonationRequest::where('establishment_id', $establishmentId)
+            ->where('status', \App\Services\DonationRequestService::STATUS_DECLINED)
+            ->with(['foodbank'])
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function($request) {
+                return \App\Services\DonationRequestService::formatRequestData($request);
+            })
+            ->toArray();
+        
+        // Fetch COMPLETED requests
+        $completedRequests = DonationRequest::where('establishment_id', $establishmentId)
+            ->where('status', \App\Services\DonationRequestService::STATUS_COMPLETED)
+            ->with(['foodbank', 'donation'])
+            ->orderBy('fulfilled_at', 'desc')
+            ->get()
+            ->map(function($request) {
+                return \App\Services\DonationRequestService::formatRequestData($request);
+            })
+            ->toArray();
+        
+        return view('establishment.my-donation-requests', compact(
+            'user',
+            'pendingRequests',
+            'acceptedRequests',
+            'declinedRequests',
+            'completedRequests'
+        ));
     }
 
     public function impactReports()
@@ -1131,14 +1283,10 @@ class EstablishmentController extends Controller
             ->sum('total_price');
         $costSavings = round($costSavings, 2);
         
-        // Calculate Food Donated: expired items that weren't sold
-        $foodDonated = FoodListing::where('establishment_id', $establishmentId)
-            ->where('expiry_date', '<', now()->toDateString())
-            ->where(function($query) {
-                $query->whereNull('sold_stock')
-                      ->orWhere('sold_stock', 0);
-            })
-            ->sum('quantity');
+        // Calculate Food Donated: number of items from completed/collected donations
+        $foodDonated = Donation::where('establishment_id', $establishmentId)
+            ->whereIn('status', ['collected'])
+            ->count();
         
         // Calculate chart data: Daily, Monthly, and Yearly food saved
         $dailyData = [];
@@ -1194,30 +1342,29 @@ class EstablishmentController extends Controller
             ];
         }
         
-        // Calculate top donated items by category
-        $topDonatedItems = FoodListing::where('establishment_id', $establishmentId)
-            ->where('expiry_date', '<', now()->toDateString())
-            ->where(function($query) {
-                $query->whereNull('sold_stock')
-                      ->orWhere('sold_stock', 0);
-            })
-            ->select('category', DB::raw('SUM(quantity) as total_quantity'))
-            ->groupBy('category')
-            ->orderBy('total_quantity', 'desc')
-            ->limit(5)
+        // Calculate foodbanks ranking by donated items
+        $topDonatedItems = Donation::where('establishment_id', $establishmentId)
+            ->whereIn('status', ['collected', 'ready_for_collection'])
+            ->with('foodbank')
             ->get()
-            ->map(function($item) {
+            ->groupBy('foodbank_id')
+            ->map(function ($donations) {
+                $foodbank = $donations->first()->foodbank;
+                $totalQuantity = $donations->sum('quantity');
                 return [
-                    'category' => $item->category,
-                    'quantity' => (int) $item->total_quantity
+                    'foodbank_name' => $foodbank->organization_name ?? 'Unknown Foodbank',
+                    'quantity' => (int) $totalQuantity
                 ];
             })
+            ->sortByDesc('quantity')
+            ->take(5)
+            ->values()
             ->toArray();
         
         // Calculate total for percentage calculation
         $totalDonated = array_sum(array_column($topDonatedItems, 'quantity'));
         
-        // Add percentages to top donated items
+        // Add percentages to foodbanks ranking
         foreach ($topDonatedItems as &$item) {
             $item['percentage'] = $totalDonated > 0 ? round(($item['quantity'] / $totalDonated) * 100, 2) : 0;
         }
@@ -1232,6 +1379,233 @@ class EstablishmentController extends Controller
             'yearlyData',
             'topDonatedItems'
         ));
+    }
+
+    /**
+     * Export Impact Reports
+     */
+    public function exportImpactReports(Request $request, $format)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
+        }
+
+        $establishmentId = Session::get('user_id');
+        $user = $this->getUserData();
+        
+        // Get all the same data as impactReports
+        $completedOrders = Order::with('foodListing')
+            ->where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->get();
+        
+        $foodSaved = $completedOrders->sum('quantity');
+        $costSavings = Order::where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->sum('total_price');
+        $costSavings = round($costSavings, 2);
+        
+        $foodDonated = Donation::where('establishment_id', $establishmentId)
+            ->whereIn('status', ['collected'])
+            ->count();
+        
+        // Get chart data
+        $dailyData = [];
+        $monthlyData = [];
+        $yearlyData = [];
+        
+        $dayLabels = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dayOfWeek = $date->dayOfWeek;
+            $dayFoodSaved = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->whereDate('completed_at', $date->toDateString())
+                ->sum('quantity');
+            $dailyData[] = [
+                'label' => $dayLabels[$dayOfWeek],
+                'value' => (int) $dayFoodSaved
+            ];
+        }
+        
+        $monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        for ($i = 11; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            $monthFoodSaved = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->whereYear('completed_at', $date->year)
+                ->whereMonth('completed_at', $date->month)
+                ->sum('quantity');
+            $monthlyData[] = [
+                'label' => $monthLabels[$date->month - 1],
+                'value' => (int) $monthFoodSaved
+            ];
+        }
+        
+        for ($i = 4; $i >= 0; $i--) {
+            $year = now()->subYears($i)->year;
+            $yearFoodSaved = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->whereYear('completed_at', $year)
+                ->sum('quantity');
+            $yearlyData[] = [
+                'label' => (string) $year,
+                'value' => (int) $yearFoodSaved
+            ];
+        }
+        
+        $topDonatedItems = Donation::where('establishment_id', $establishmentId)
+            ->whereIn('status', ['collected', 'ready_for_collection'])
+            ->with('foodbank')
+            ->get()
+            ->groupBy('foodbank_id')
+            ->map(function ($donations) {
+                $foodbank = $donations->first()->foodbank;
+                $totalQuantity = $donations->sum('quantity');
+                return [
+                    'foodbank_name' => $foodbank->organization_name ?? 'Unknown Foodbank',
+                    'quantity' => (int) $totalQuantity
+                ];
+            })
+            ->sortByDesc('quantity')
+            ->take(5)
+            ->values()
+            ->toArray();
+        
+        $totalDonated = array_sum(array_column($topDonatedItems, 'quantity'));
+        foreach ($topDonatedItems as &$item) {
+            $item['percentage'] = $totalDonated > 0 ? round(($item['quantity'] / $totalDonated) * 100, 2) : 0;
+        }
+        
+        $establishmentName = $user->business_name ?? 'Establishment';
+        $reportDate = now()->format('F j, Y');
+        $dateRange = 'All Time';
+        
+        switch ($format) {
+            case 'pdf':
+                return $this->exportImpactReportsToPdf(
+                    $establishmentName,
+                    $reportDate,
+                    $dateRange,
+                    $foodSaved,
+                    $costSavings,
+                    $foodDonated,
+                    $dailyData,
+                    $monthlyData,
+                    $yearlyData,
+                    $topDonatedItems
+                );
+            case 'csv':
+                return $this->exportImpactReportsToCsv(
+                    $establishmentName,
+                    $reportDate,
+                    $dateRange,
+                    $foodSaved,
+                    $costSavings,
+                    $foodDonated,
+                    $dailyData,
+                    $monthlyData,
+                    $yearlyData,
+                    $topDonatedItems
+                );
+            default:
+                return redirect()->back()->with('error', 'Invalid export format.');
+        }
+    }
+
+    /**
+     * Export Impact Reports to PDF
+     */
+    private function exportImpactReportsToPdf($establishmentName, $reportDate, $dateRange, $foodSaved, $costSavings, $foodDonated, $dailyData, $monthlyData, $yearlyData, $topDonatedItems)
+    {
+        $data = compact(
+            'establishmentName',
+            'reportDate',
+            'dateRange',
+            'foodSaved',
+            'costSavings',
+            'foodDonated',
+            'dailyData',
+            'monthlyData',
+            'yearlyData',
+            'topDonatedItems'
+        );
+        
+        $pdf = Pdf::loadView('establishment.exports.impact-reports-pdf', $data);
+        $pdf->setPaper('a4', 'portrait');
+        
+        $filename = 'impact_report_' . date('Y-m-d_His') . '.pdf';
+        
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Export Impact Reports to CSV
+     */
+    private function exportImpactReportsToCsv($establishmentName, $reportDate, $dateRange, $foodSaved, $costSavings, $foodDonated, $dailyData, $monthlyData, $yearlyData, $topDonatedItems)
+    {
+        $filename = 'impact_report_' . date('Y-m-d_His') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+        
+        $callback = function() use ($establishmentName, $reportDate, $dateRange, $foodSaved, $costSavings, $foodDonated, $dailyData, $monthlyData, $yearlyData, $topDonatedItems) {
+            $file = fopen('php://output', 'w');
+            
+            // Header Section
+            fputcsv($file, ['Impact Report - ' . $establishmentName]);
+            fputcsv($file, ['Generated: ' . $reportDate]);
+            fputcsv($file, ['Date Range: ' . $dateRange]);
+            fputcsv($file, []); // Empty row
+            
+            // Summary Section
+            fputcsv($file, ['SUMMARY']);
+            fputcsv($file, ['Food Saved', $foodSaved]);
+            fputcsv($file, ['Cost Savings', '₱' . number_format($costSavings, 2)]);
+            fputcsv($file, ['Food Donations Completed', $foodDonated]);
+            fputcsv($file, []); // Empty row
+            
+            // Monthly Data
+            fputcsv($file, ['MONTHLY TRENDS']);
+            fputcsv($file, ['Month', 'Items Saved']);
+            foreach ($monthlyData as $data) {
+                fputcsv($file, [$data['label'], $data['value']]);
+            }
+            fputcsv($file, []); // Empty row
+            
+            // Daily Data
+            fputcsv($file, ['DAILY TRENDS (Last 7 Days)']);
+            fputcsv($file, ['Day', 'Items Saved']);
+            foreach ($dailyData as $data) {
+                fputcsv($file, [$data['label'], $data['value']]);
+            }
+            fputcsv($file, []); // Empty row
+            
+            // Yearly Data
+            fputcsv($file, ['YEARLY TRENDS']);
+            fputcsv($file, ['Year', 'Items Saved']);
+            foreach ($yearlyData as $data) {
+                fputcsv($file, [$data['label'], $data['value']]);
+            }
+            fputcsv($file, []); // Empty row
+            
+            // Top Donated Items
+            fputcsv($file, ['FOODBANKS RANKING OF DONATED ITEMS']);
+            fputcsv($file, ['Foodbank Name', 'Quantity', 'Percentage']);
+            foreach ($topDonatedItems as $item) {
+                fputcsv($file, [
+                    $item['foodbank_name'],
+                    $item['quantity'],
+                    $item['percentage'] . '%'
+                ]);
+            }
+            
+            fclose($file);
+        };
+        
+        return response()->stream($callback, 200, $headers);
     }
 
     public function settings()
@@ -1256,21 +1630,7 @@ class EstablishmentController extends Controller
             return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
         }
 
-        // Get published help articles
-        $articles = HelpCenterArticle::published()
-            ->orderBy('display_order', 'asc')
-            ->orderBy('created_at', 'desc')
-            ->get();
-        
-        // Get unique categories
-        $categories = HelpCenterArticle::published()
-            ->whereNotNull('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category')
-            ->toArray();
-
-        return view('establishment.help', compact('articles', 'categories'));
+        return view('establishment.help');
     }
 
     /**
@@ -1720,6 +2080,73 @@ class EstablishmentController extends Controller
         return response()->make($html, 200, [
             'Content-Type' => 'text/html',
             'Content-Disposition' => 'attachment; filename="donation_history_' . date('Y-m-d_His') . '.html"',
+        ]);
+    }
+
+    /**
+     * Get reviews for a specific food listing
+     */
+    public function getFoodListingReviews($id)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $establishmentId = Session::get('user_id');
+        
+        // Verify the food listing belongs to this establishment
+        $foodListing = FoodListing::where('id', $id)
+            ->where('establishment_id', $establishmentId)
+            ->first();
+
+        if (!$foodListing) {
+            return response()->json(['error' => 'Food listing not found'], 404);
+        }
+
+        // Get reviews for this food listing (optimized query)
+        // First get total count and average rating efficiently
+        $totalReviews = Review::where('food_listing_id', $id)->count();
+        $averageRating = $totalReviews > 0 
+            ? round(Review::where('food_listing_id', $id)->avg('rating'), 1) 
+            : 0;
+        
+        // Get reviews with consumer data (limit to recent reviews for performance)
+        $reviewsData = Review::with(['consumer' => function($query) {
+                $query->select('consumer_id', 'fname', 'lname');
+            }])
+            ->where('food_listing_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->limit(50) // Limit to 50 most recent reviews for performance
+            ->get();
+
+        // Format reviews for display
+        $reviews = $reviewsData->map(function ($review) {
+            $consumer = $review->consumer;
+            $userName = 'Anonymous';
+            
+            if ($consumer) {
+                $fname = trim($consumer->fname ?? '');
+                $lname = trim($consumer->lname ?? '');
+                $userName = trim($fname . ' ' . $lname) ?: 'Anonymous';
+            }
+
+            return [
+                'id' => $review->id,
+                'user_name' => $userName,
+                'avatar' => null,
+                'rating' => $review->rating,
+                'comment' => $review->description ?? '',
+                'date' => $review->created_at->format('Y-m-d'),
+                'image_path' => $review->image_path ? Storage::url($review->image_path) : null,
+                'video_path' => $review->video_path ? Storage::url($review->video_path) : null,
+            ];
+        })->toArray();
+
+        return response()->json([
+            'success' => true,
+            'reviews' => $reviews,
+            'average_rating' => $averageRating,
+            'total_reviews' => $totalReviews,
         ]);
     }
 }

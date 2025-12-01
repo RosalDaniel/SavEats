@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             if (!Schema::hasColumn('users', 'role')) {
-                $table->string('role')->default('user')->after('email');
+            $table->string('role')->default('user')->after('email');
             }
         });
     }

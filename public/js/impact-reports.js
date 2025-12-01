@@ -5,6 +5,7 @@ let donationChart = null;
 document.addEventListener('DOMContentLoaded', function() {
     initializeCharts();
     initializeTabs();
+    initializeExport();
 });
 
 // Initialize the charts
@@ -104,7 +105,7 @@ function initializeDonationChart() {
     }
 
     const colors = ['#ffd700', '#ff6b35', '#84cc16', '#374151', '#ef4444'];
-    const labels = donationDataFromServer.map(d => d.category.toUpperCase());
+    const labels = donationDataFromServer.map(d => d.foodbank_name.toUpperCase());
     const data = donationDataFromServer.map(d => d.quantity);
     const backgroundColors = donationDataFromServer.map((d, index) => colors[index % colors.length]);
 
@@ -317,3 +318,84 @@ function switchTab(tabType) {
     monthlyChart = new Chart(ctx, config);
 }
 
+// Initialize Export Functionality
+function initializeExport() {
+    const exportBtn = document.getElementById('exportBtn');
+    const exportMenu = document.getElementById('exportMenu');
+    const exportOptions = document.querySelectorAll('.export-option');
+    
+    if (!exportBtn || !exportMenu) return;
+    
+    // Toggle dropdown on button click
+    exportBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        exportMenu.classList.toggle('show');
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!exportBtn.contains(e.target) && !exportMenu.contains(e.target)) {
+            exportMenu.classList.remove('show');
+        }
+    });
+    
+    // Handle export option clicks
+    exportOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const format = this.getAttribute('data-format');
+            if (format) {
+                exportImpactReport(format);
+                exportMenu.classList.remove('show');
+            }
+        });
+    });
+}
+
+// Export Impact Report
+function exportImpactReport(format) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    
+    if (!csrfToken) {
+        console.error('CSRF token not found');
+        alert('Security token missing. Please refresh the page.');
+        return;
+    }
+    
+    // Show loading state
+    const exportBtn = document.getElementById('exportBtn');
+    const originalText = exportBtn ? exportBtn.innerHTML : '';
+    if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = 'Exporting...';
+    }
+    
+    // Create form to submit export request
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/establishment/impact-reports/export/${format}`;
+    form.style.display = 'none';
+    
+    // Add CSRF token
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+    
+    // Add to body and submit
+    document.body.appendChild(form);
+    form.submit();
+    
+    // Reset button after a delay
+    setTimeout(() => {
+        if (exportBtn) {
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = originalText;
+        }
+        if (document.body.contains(form)) {
+            document.body.removeChild(form);
+        }
+    }, 2000);
+}

@@ -78,10 +78,6 @@
                 <div class="form-group">
                     <input type="text" id="organizationName" name="organization_name" value="{{ $userData->organization_name ?? '' }}" readonly>
                 </div>
-            @else
-                <div class="form-group">
-                    <input type="text" id="middleName" name="middle_name" value="{{ $userData->middle_name }}" readonly>
-                </div>
             @endif
         </div>
 
@@ -99,33 +95,13 @@
                 <input type="text" id="address" name="address" value="{{ $userData->address }}" placeholder="Address" readonly>
             </div>
             <div class="form-group">
-                <input type="tel" id="phone" name="phone" value="{{ $userData->phone }}" placeholder="Phone Number" readonly>
+                <input type="tel" id="phone" name="phone" value="{{ $userData->phone ?? $userData->phone_no ?? '' }}" placeholder="09123456789" readonly>
             </div>
             <div class="form-group">
                 <input type="email" id="email" name="email" value="{{ $userData->email }}" placeholder="Email Address" readonly>
             </div>
         </div>
 
-        <!-- Account Information Section -->
-        <div class="profile-section">
-            <div class="section-header">
-                <h3 class="section-title">Account Information</h3>
-                <button class="edit-btn secondary" onclick="openAccountModal()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="form-group">
-                <input type="text" id="username" name="username" value="{{ $userData->username }}" placeholder="Username" readonly>
-            </div>
-            <div class="form-group">
-                <input type="password" id="password" name="password" placeholder="Password" readonly>
-            </div>
-            <div class="form-group">
-                <input type="password" id="passwordConfirmation" name="password_confirmation" placeholder="Confirm Password" readonly>
-            </div>
-        </div>
             </div>
         </div>
     </div>
@@ -197,7 +173,7 @@
                 <input type="text" id="modalAddress" name="address" placeholder="Enter Address" value="{{ $userData->address }}">
             </div>
             <div class="form-group">
-                <input type="tel" id="modalPhone" name="phone" placeholder="Enter Phone Number" value="{{ $userData->phone }}">
+                <input type="tel" id="modalPhone" name="phone" placeholder="09123456789" value="{{ $userData->phone ?? $userData->phone_no ?? '' }}" pattern="0\d{10}">
             </div>
             <div class="form-group">
                 <input type="email" id="modalEmail" name="email" placeholder="Enter Email Address" value="{{ $userData->email }}">
@@ -210,6 +186,7 @@
     </div>
 </div>
 
+@if($userType === 'foodbank')
 <!-- Account Information Modal -->
 <div class="modal-overlay" id="accountModal">
     <div class="modal-content">
@@ -230,6 +207,7 @@
         </div>
     </div>
 </div>
+@endif
 @endsection
 
 @section('scripts')

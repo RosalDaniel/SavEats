@@ -70,6 +70,116 @@ class SystemLog extends Model
     }
 
     /**
+     * Scope a query to filter by foodbank ID (from metadata).
+     */
+    public function scopeFoodbankId($query, $foodbankId)
+    {
+        return $query->where(function($q) use ($foodbankId) {
+            // Support both PostgreSQL and MySQL JSON queries
+            if (config('database.default') === 'pgsql') {
+                $q->whereRaw("metadata->>'foodbank_id' = ?", [$foodbankId])
+                  ->orWhereRaw("metadata->>'foodbank_id'::text = ?", [$foodbankId]);
+            } else {
+                $q->whereJsonContains('metadata->foodbank_id', $foodbankId)
+                  ->orWhere('metadata', 'like', "%\"foodbank_id\":\"{$foodbankId}\"%");
+            }
+        });
+    }
+
+    /**
+     * Scope a query to filter by establishment ID (from metadata).
+     */
+    public function scopeEstablishmentId($query, $establishmentId)
+    {
+        return $query->where(function($q) use ($establishmentId) {
+            if (config('database.default') === 'pgsql') {
+                $q->whereRaw("metadata->>'establishment_id' = ?", [$establishmentId])
+                  ->orWhereRaw("metadata->>'establishment_id'::text = ?", [$establishmentId]);
+            } else {
+                $q->whereJsonContains('metadata->establishment_id', $establishmentId)
+                  ->orWhere('metadata', 'like', "%\"establishment_id\":\"{$establishmentId}\"%");
+            }
+        });
+    }
+
+    /**
+     * Scope a query to filter by donation ID (from metadata).
+     */
+    public function scopeDonationId($query, $donationId)
+    {
+        return $query->where(function($q) use ($donationId) {
+            if (config('database.default') === 'pgsql') {
+                $q->whereRaw("metadata->>'donation_id' = ?", [$donationId])
+                  ->orWhereRaw("metadata->>'donation_id'::text = ?", [$donationId])
+                  ->orWhere('description', 'like', "%{$donationId}%");
+            } else {
+                $q->whereJsonContains('metadata->donation_id', $donationId)
+                  ->orWhere('metadata', 'like', "%\"donation_id\":\"{$donationId}\"%")
+                  ->orWhere('description', 'like', "%{$donationId}%");
+            }
+        });
+    }
+
+    /**
+     * Scope a query to filter by donation request ID (from metadata).
+     */
+    public function scopeDonationRequestId($query, $requestId)
+    {
+        return $query->where(function($q) use ($requestId) {
+            if (config('database.default') === 'pgsql') {
+                $q->whereRaw("metadata->>'donation_request_id' = ?", [$requestId])
+                  ->orWhereRaw("metadata->>'donation_request_id'::text = ?", [$requestId])
+                  ->orWhere('description', 'like', "%{$requestId}%");
+            } else {
+                $q->whereJsonContains('metadata->donation_request_id', $requestId)
+                  ->orWhere('metadata', 'like', "%\"donation_request_id\":\"{$requestId}\"%")
+                  ->orWhere('description', 'like', "%{$requestId}%");
+            }
+        });
+    }
+
+    /**
+     * Scope a query to filter donation-related events.
+     */
+    public function scopeDonationEvents($query)
+    {
+        return $query->whereIn('event_type', ['donation', 'donation_request'])
+                    ->orWhere('action', 'like', 'donation%');
+    }
+
+    /**
+     * Get foodbank name from metadata.
+     */
+    public function getFoodbankNameAttribute()
+    {
+        return $this->metadata['foodbank_name'] ?? null;
+    }
+
+    /**
+     * Get establishment name from metadata.
+     */
+    public function getEstablishmentNameAttribute()
+    {
+        return $this->metadata['establishment_name'] ?? null;
+    }
+
+    /**
+     * Get donation ID from metadata.
+     */
+    public function getDonationIdAttribute()
+    {
+        return $this->metadata['donation_id'] ?? null;
+    }
+
+    /**
+     * Get donation request ID from metadata.
+     */
+    public function getDonationRequestIdAttribute()
+    {
+        return $this->metadata['donation_request_id'] ?? null;
+    }
+
+    /**
      * Get the severity badge color.
      */
     public function getSeverityColorAttribute()

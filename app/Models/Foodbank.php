@@ -45,6 +45,7 @@ class Foodbank extends Authenticatable
         'username',
         'password',
         'status',
+        'verified',
     ];
 
     /**
@@ -68,6 +69,7 @@ class Foodbank extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'registered_at' => 'datetime',
+            'verified' => 'boolean',
         ];
     }
 

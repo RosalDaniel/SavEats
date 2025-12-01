@@ -31,12 +31,6 @@
             </svg>
             <span>Notifications</span>
         </div>
-        <div class="nav-item" data-tab="orders">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-            </svg>
-            <span>Orders</span>
-        </div>
         <div class="nav-item" data-tab="security">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C15.4,11.5 16,12.4 16,13V16C16,16.6 15.6,17 15,17H9C8.4,17 8,16.6 8,16V13C8,12.4 8.4,11.5 9,11.5V10C9,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.2,9.2 10.2,10V11.5H13.8V10C13.8,9.2 12.8,8.2 12,8.2Z"/>
@@ -91,27 +85,6 @@
                 </div>
             </div>
 
-            <div class="settings-card">
-                <div class="card-header">
-                    <h3>Account Actions</h3>
-                </div>
-                <div class="card-content">
-                    <div class="action-item">
-                        <div class="action-info">
-                            <h4>Change Password</h4>
-                            <p>Update your account password</p>
-                        </div>
-                        <button class="action-btn" onclick="changePassword()">Change</button>
-                    </div>
-                    <div class="action-item">
-                        <div class="action-info">
-                            <h4>Download Data</h4>
-                            <p>Download a copy of your business data</p>
-                        </div>
-                        <button class="action-btn" onclick="downloadData()">Download</button>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Business Settings -->
@@ -128,20 +101,18 @@
                 </div>
                 <div class="card-content">
                     <div class="info-row">
-                        <label>Business Registration</label>
-                        <span>{{ $userData->business_registration ?? 'Not provided' }}</span>
+                        <label>Account Verification Status</label>
+                        <span>
+                            @if($userData->verified ?? false)
+                                <span class="verification-badge verified">Verified</span>
+                            @else
+                                <span class="verification-badge not-verified">Not Verified</span>
+                            @endif
+                        </span>
                     </div>
                     <div class="info-row">
                         <label>BIR File</label>
                         <span>{{ $userData->bir_file ? 'Uploaded' : 'Not uploaded' }}</span>
-                    </div>
-                    <div class="info-row">
-                        <label>Operating Hours</label>
-                        <span>9:00 AM - 9:00 PM</span>
-                    </div>
-                    <div class="info-row">
-                        <label>Service Areas</label>
-                        <span>Within 5km radius</span>
                     </div>
                 </div>
             </div>
@@ -157,19 +128,6 @@
                             <input type="checkbox" checked>
                             <span class="slider"></span>
                         </label>
-                    </div>
-                    <div class="preference-item">
-                        <label>Default Listing Duration</label>
-                        <select class="preference-select">
-                            <option value="24">24 hours</option>
-                            <option value="48">48 hours</option>
-                            <option value="72">72 hours</option>
-                        </select>
-                    </div>
-                    <div class="preference-item">
-                        <label>Minimum Order Amount</label>
-                        <input type="number" class="preference-input" value="100" min="0">
-                        <span class="input-suffix">₱</span>
                     </div>
                 </div>
             </div>
@@ -249,69 +207,6 @@
             </div>
         </div>
 
-        <!-- Orders Settings -->
-        <div class="settings-section" id="orders">
-            <div class="section-header">
-                <h2>Order Management</h2>
-                <p>Configure your order processing settings</p>
-            </div>
-
-            <div class="settings-card">
-                <div class="card-header">
-                    <h3>Order Processing</h3>
-                </div>
-                <div class="card-content">
-                    <div class="preference-item">
-                        <label>Order Confirmation Time</label>
-                        <select class="preference-select">
-                            <option value="15">15 minutes</option>
-                            <option value="30">30 minutes</option>
-                            <option value="60">1 hour</option>
-                        </select>
-                    </div>
-                    <div class="preference-item">
-                        <label>Preparation Time</label>
-                        <select class="preference-select">
-                            <option value="30">30 minutes</option>
-                            <option value="45">45 minutes</option>
-                            <option value="60">1 hour</option>
-                            <option value="90">1.5 hours</option>
-                        </select>
-                    </div>
-                    <div class="preference-item">
-                        <label>Auto-accept Orders</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="settings-card">
-                <div class="card-header">
-                    <h3>Delivery Settings</h3>
-                </div>
-                <div class="card-content">
-                    <div class="preference-item">
-                        <label>Delivery Radius (km)</label>
-                        <input type="range" class="preference-range" min="1" max="20" value="5">
-                        <span class="range-value">5 km</span>
-                    </div>
-                    <div class="preference-item">
-                        <label>Delivery Fee</label>
-                        <input type="number" class="preference-input" value="50" min="0">
-                        <span class="input-suffix">₱</span>
-                    </div>
-                    <div class="preference-item">
-                        <label>Free Delivery Threshold</label>
-                        <input type="number" class="preference-input" value="500" min="0">
-                        <span class="input-suffix">₱</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Security Settings -->
         <div class="settings-section" id="security">
             <div class="section-header">
@@ -346,20 +241,6 @@
                             <p>Update your account password</p>
                         </div>
                         <button class="action-btn" onclick="changePassword()">Change</button>
-                    </div>
-                    <div class="action-item">
-                        <div class="action-info">
-                            <h4>Two-Factor Authentication</h4>
-                            <p>Add an extra layer of security</p>
-                        </div>
-                        <button class="action-btn secondary" onclick="enable2FA()">Enable</button>
-                    </div>
-                    <div class="action-item">
-                        <div class="action-info">
-                            <h4>Active Sessions</h4>
-                            <p>Manage your active login sessions</p>
-                        </div>
-                        <button class="action-btn" onclick="viewSessions()">View</button>
                     </div>
                 </div>
             </div>

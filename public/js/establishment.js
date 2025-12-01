@@ -40,6 +40,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Navigation functionality
     const navLinks = document.querySelectorAll('.nav-link');
     
+    // Preserve server-side active state on page load
+    // The server already sets the active class via Blade template
+    // The active state is determined by the current route
+    // Do NOT interfere with initial page load - let server-side rendering work
+    
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             // Allow logout and external links to work normally
@@ -52,54 +57,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            e.preventDefault();
-            
-            // Remove active class from all links
-            navLinks.forEach(l => l.classList.remove('active'));
-            
-            // Add active class to clicked link
-            link.classList.add('active');
+            // Let Laravel handle navigation normally
+            // Don't prevent default - this allows server-side routing to work
+            // The server will set the active class based on the current route
             
             // Close mobile menu if open
             if (window.innerWidth <= 768) {
                 closeMobileMenu();
             }
             
-            // Handle page navigation
-            const page = link.getAttribute('data-page');
-            handlePageNavigation(page);
+            // Don't call handlePageNavigation - let the server handle the page load
+            // This ensures all data is loaded from the server on each navigation
         });
     });
 
-    // Handle page navigation
+    // Handle page navigation - DISABLED to allow server-side rendering
+    // All navigation is now handled by Laravel routes, ensuring data is loaded from server
     function handlePageNavigation(page) {
-        console.log(`Navigating to: ${page}`);
-        
-        // Update header title
-        const headerTitle = document.querySelector('.header h1');
-        const pageNames = {
-            'dashboard': 'Dashboard',
-            'listing-management': 'Listing Management',
-            'order-management': 'Order Management',
-            'announcements': 'Announcements',
-            'earnings': 'Earnings',
-            'donation-hub': 'Donation Hub',
-            'impact-reports': 'Impact Reports',
-            'settings': 'Settings',
-            'help': 'Help Center',
-            'logout': 'Logout'
-        };
-        
-        if (headerTitle && pageNames[page]) {
-            headerTitle.textContent = pageNames[page];
-        }
-        
-        // Show different content based on page
-        if (page !== 'dashboard') {
-            showPlaceholderContent(page);
-        } else {
-            showDashboardContent();
-        }
+        // This function is no longer used - navigation is handled by Laravel
+        // Keeping it for backwards compatibility but it won't interfere
+        return;
     }
 
     // Show placeholder content for other pages

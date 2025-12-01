@@ -76,21 +76,6 @@
     line-height: 1;
 }
 
-/* Flash Sale Banner */
-.flash-sale {
-    background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
-    padding: 15px 20px;
-    border-radius: 10px;
-    margin-bottom: 30px;
-    text-align: center;
-    border: 2px solid #81c784;
-}
-
-.flash-sale-text {
-    color: #2e7d32;
-    font-weight: 600;
-    font-size: 16px;
-}
 
 /* Mobile Top Section (Expiring Soon) */
 .mobile-top-section {

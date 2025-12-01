@@ -23,7 +23,7 @@
             <tr>
                 <th>Version</th>
                 <th>Status</th>
-                <th>Published Date</th>
+                <th>Last Updated</th>
                 <th>Created</th>
                 <th>Actions</th>
             </tr>

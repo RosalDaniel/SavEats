@@ -1065,6 +1065,174 @@ select.icon-input {
     margin-top: 20px;
 }
 
+/* Donation Request Card Style (matching Completed Orders UI) */
+.donation-request-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.donation-request-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.donation-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.donation-card-header .product-info {
+    flex: 1;
+}
+
+.donation-card-header .product-name {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ff8c00;
+    margin: 0 0 5px 0;
+}
+
+.donation-card-header .product-quantity {
+    font-size: 16px;
+    color: #ff8c00;
+    margin: 0;
+    font-weight: 500;
+}
+
+.donation-card-details {
+    margin: 15px 0;
+}
+
+.donation-card-details .detail-row {
+    display: flex;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.donation-card-details .detail-label {
+    font-weight: 600;
+    color: #495057;
+    min-width: 120px;
+    margin-right: 10px;
+}
+
+.donation-card-details .detail-value {
+    color: #6c757d;
+    flex: 1;
+}
+
+.donation-card-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.donation-card-actions .btn-view {
+    background: #236816;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 120px;
+}
+
+.donation-card-actions .btn-view:hover {
+    background: #2d5016;
+    transform: translateY(-1px);
+}
+
+.donation-card-actions .btn-contact {
+    background: #f5f5f5;
+    color: #236816;
+    border: 2px solid #236816;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 120px;
+}
+
+.donation-card-actions .btn-contact:hover {
+    background: #236816;
+    color: white;
+}
+
+.donation-card-actions .btn-accept {
+    background: #22c55e;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 120px;
+}
+
+.donation-card-actions .btn-accept:hover {
+    background: #16a34a;
+    transform: translateY(-1px);
+}
+
+.donation-card-actions .btn-decline {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 120px;
+}
+
+.donation-card-actions .btn-decline:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
+.donation-card-actions .btn-confirm {
+    background: #22c55e;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 120px;
+}
+
+.donation-card-actions .btn-confirm:hover {
+    background: #16a34a;
+    transform: translateY(-1px);
+}
+
 .establishment-donation-card {
     background: white;
     border-radius: 12px;

@@ -70,16 +70,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="report-card">
-            <h3>Geographic Distribution</h3>
-            <div class="map-placeholder">
-                <div class="map-region active">Metro Manila</div>
-                <div class="map-region">Cebu</div>
-                <div class="map-region">Davao</div>
-            </div>
-            <p class="chart-description">Coverage across 3 major cities</p>
-        </div>
     </div>
 
     <div class="detailed-reports">

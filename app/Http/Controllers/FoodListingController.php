@@ -8,7 +8,6 @@ use App\Models\Establishment;
 use App\Models\Order;
 use App\Models\Review;
 use App\Models\Announcement;
-use App\Models\HelpCenterArticle;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use App\Models\Consumer;
@@ -22,21 +21,7 @@ class FoodListingController extends Controller
      */
     public function help()
     {
-        // Get published help articles
-        $articles = HelpCenterArticle::published()
-            ->orderBy('display_order', 'asc')
-            ->orderBy('created_at', 'desc')
-            ->get();
-        
-        // Get unique categories
-        $categories = HelpCenterArticle::published()
-            ->whereNotNull('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category')
-            ->toArray();
-        
-        return view('consumer.help', compact('articles', 'categories'));
+        return view('consumer.help');
     }
 
     /**

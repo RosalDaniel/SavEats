@@ -9,7 +9,7 @@
     @yield('styles')
 </head>
 <body>
-    @unless(request()->routeIs('login') || request()->routeIs('registration'))
+    @unless(request()->routeIs('login') || request()->routeIs('registration') || request()->routeIs('terms') || request()->routeIs('privacy'))
         @include('partials.header')
     @endunless
     

@@ -1305,10 +1305,124 @@
     box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
 }
 
+/* Read-only field styling */
+.form-input.read-only-field,
+.form-select.read-only-field,
+textarea.read-only-field {
+    background-color: #f9fafb;
+    color: #6b7280;
+    cursor: not-allowed;
+    border-color: #e5e7eb;
+    opacity: 0.9;
+}
+
+.form-input.read-only-field:focus,
+.form-select.read-only-field:focus,
+textarea.read-only-field:focus {
+    border-color: #e5e7eb;
+    box-shadow: none;
+    outline: none;
+}
+
+.form-select.read-only-field {
+    background-image: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
+}
+
+/* Form Sections */
+.form-section {
+    margin-bottom: 30px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.form-section:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.form-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #1a1a1a;
+    font-family: 'Afacad', sans-serif;
+}
+
+/* Form Row Layouts */
+.form-row-two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+/* Quantity Controls */
+.quantity-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    overflow: hidden;
+    max-width: 200px;
+}
+
+.quantity-btn {
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 6px;
+    background-color: #2d5016;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 600;
+}
+
+.quantity-btn:hover {
+    background-color: #1e3a0f;
+}
+
+.quantity-btn:active {
+    transform: scale(0.95);
+}
+
+.quantity-input {
+    width: 60px;
+    text-align: center;
+    padding: 12px 8px;
+    border: none;
+    border-radius: 0;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    background-color: #fff;
+    color: #374151;
+    outline: none;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.quantity-input::-webkit-outer-spin-button,
+.quantity-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .form-actions {
@@ -1330,6 +1444,29 @@
     .requests-grid,
     .foodbanks-grid {
         grid-template-columns: 1fr;
+    }
+
+    .form-row-two {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .quantity-controls {
+        max-width: 100%;
+        justify-content: center;
+    }
+
+    .form-section {
+        margin-bottom: 25px;
+        padding-bottom: 20px;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn {
+        width: 100%;
     }
 
     .request-card-actions,

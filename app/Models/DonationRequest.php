@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use App\Services\DonationRequestService;
 
 class DonationRequest extends Model
 {
@@ -33,10 +34,17 @@ class DonationRequest extends Model
      */
     protected $fillable = [
         'foodbank_id',
+        'establishment_id',
         'item_name',
         'quantity',
+        'unit',
         'category',
         'description',
+        'expiry_date',
+        'scheduled_date',
+        'scheduled_time',
+        'pickup_method',
+        'establishment_notes',
         'distribution_zone',
         'dropoff_date',
         'time_option',
@@ -63,6 +71,9 @@ class DonationRequest extends Model
     {
         return [
             'dropoff_date' => 'date',
+            'expiry_date' => 'date',
+            'scheduled_date' => 'date',
+            'scheduled_time' => 'datetime',
             'start_time' => 'datetime',
             'end_time' => 'datetime',
             'quantity' => 'integer',
@@ -77,6 +88,14 @@ class DonationRequest extends Model
     public function foodbank(): BelongsTo
     {
         return $this->belongsTo(Foodbank::class, 'foodbank_id', 'foodbank_id');
+    }
+
+    /**
+     * Get the establishment that created this donation request.
+     */
+    public function establishment(): BelongsTo
+    {
+        return $this->belongsTo(Establishment::class, 'establishment_id', 'establishment_id');
     }
 
     /**
@@ -96,18 +115,69 @@ class DonationRequest extends Model
     }
 
     /**
-     * Scope a query to only include active requests.
-     */
-    public function scopeActive($query)
-    {
-        return $query->whereIn('status', ['pending', 'active']);
-    }
-
-    /**
      * Scope a query to only include pending requests.
      */
     public function scopePending($query)
     {
-        return $query->where('status', 'pending');
+        return $query->where('status', DonationRequestService::STATUS_PENDING);
+    }
+
+    /**
+     * Scope a query to only include accepted requests.
+     */
+    public function scopeAccepted($query)
+    {
+        return $query->where('status', DonationRequestService::STATUS_ACCEPTED);
+    }
+
+    /**
+     * Scope a query to only include completed requests.
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', DonationRequestService::STATUS_COMPLETED);
+    }
+
+    /**
+     * Scope a query to only include declined requests.
+     */
+    public function scopeDeclined($query)
+    {
+        return $query->where('status', DonationRequestService::STATUS_DECLINED);
+    }
+
+    /**
+     * Check if request can be accepted
+     */
+    public function canBeAccepted(): bool
+    {
+        return $this->status === DonationRequestService::STATUS_PENDING;
+    }
+
+    /**
+     * Check if request can be declined
+     */
+    public function canBeDeclined(): bool
+    {
+        return $this->status === DonationRequestService::STATUS_PENDING;
+    }
+
+    /**
+     * Check if request can be completed
+     */
+    public function canBeCompleted(): bool
+    {
+        return in_array($this->status, [
+            DonationRequestService::STATUS_ACCEPTED,
+            DonationRequestService::STATUS_PENDING_CONFIRMATION
+        ]);
+    }
+
+    /**
+     * Get status display name
+     */
+    public function getStatusDisplayAttribute(): string
+    {
+        return DonationRequestService::getStatusDisplay($this->status);
     }
 }

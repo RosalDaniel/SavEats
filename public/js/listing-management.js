@@ -100,15 +100,34 @@ searchInput?.addEventListener('input', (e) => {
     filterTable(searchTerm);
 });
 
-function filterTable(searchTerm) {
+// Filter state
+let currentStatusFilter = 'all';
+let currentCategoryFilter = 'all';
+
+function filterTable(searchTerm = '') {
     const rows = document.querySelectorAll('#itemsTableBody tr');
     let visibleCount = 0;
     
     rows.forEach(row => {
         const itemName = row.querySelector('.item-name')?.textContent.toLowerCase() || '';
-        const itemDescription = row.querySelector('.item-description')?.textContent.toLowerCase() || '';
+        const itemId = row.querySelector('.item-id')?.textContent.toLowerCase() || '';
+        const category = row.getAttribute('data-category')?.toLowerCase() || '';
+        const status = row.getAttribute('data-status')?.toLowerCase() || '';
         
-        if (itemName.includes(searchTerm) || itemDescription.includes(searchTerm)) {
+        // Search filter
+        const matchesSearch = !searchTerm || 
+            itemName.includes(searchTerm) || 
+            itemId.includes(searchTerm) ||
+            category.includes(searchTerm);
+        
+        // Status filter
+        const matchesStatus = currentStatusFilter === 'all' || status === currentStatusFilter;
+        
+        // Category filter
+        const matchesCategory = currentCategoryFilter === 'all' || category === currentCategoryFilter;
+        
+        // Show/hide row based on all filters
+        if (matchesSearch && matchesStatus && matchesCategory) {
             row.style.display = '';
             visibleCount++;
         } else {
@@ -119,8 +138,9 @@ function filterTable(searchTerm) {
     // Update pagination info
     const paginationInfo = document.querySelector('.pagination-info');
     if (paginationInfo) {
+        const totalCount = rows.length;
         paginationInfo.textContent = 
-            `Showing ${visibleCount} of ${rows.length} items${searchTerm ? ' (filtered)' : ''}`;
+            `Showing ${visibleCount} of ${totalCount} items${(searchTerm || currentStatusFilter !== 'all' || currentCategoryFilter !== 'all') ? ' (filtered)' : ''}`;
     }
 }
 
@@ -221,6 +241,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Form should only be submitted via saveItem() function
             return false;
         });
+    }
+    
+    // Initialize filters on page load
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        filterTable(searchInput.value || '');
+    } else {
+        filterTable('');
     }
 });
 
@@ -544,14 +572,6 @@ function viewItem(id) {
     viewDetails(id);
 }
 
-function duplicateItem(id) {
-    showNotification(`Creating duplicate of item ${id}...`, 'success');
-}
-
-function donateItem(id) {
-    showNotification(`Item ${id} marked for donation!`, 'success');
-}
-
 function deleteItem(id) {
     if (confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -731,8 +751,6 @@ function addItemToTable(itemData) {
                 <div class="actions-menu" id="menu-${newId}">
                     <button type="button" onclick="viewItem(${newId})">View Details</button>
                     <button type="button" onclick="editItem(${newId})">Edit</button>
-                    <button type="button" onclick="duplicateItem(${newId})">Duplicate</button>
-                    <button type="button" onclick="donateItem(${newId})">Mark for Donation</button>
                     <button type="button" class="delete" onclick="deleteItem(${newId})">Delete</button>
                 </div>
             </div>
@@ -750,10 +768,6 @@ function addItemToTable(itemData) {
 // Bulk actions
 document.getElementById('bulkEditBtn')?.addEventListener('click', () => {
     showNotification(`Editing ${selectedItems.size} selected items...`, 'info');
-});
-
-document.getElementById('bulkDonateBtn')?.addEventListener('click', () => {
-    showNotification(`${selectedItems.size} items marked for donation!`, 'success');
 });
 
 document.getElementById('bulkDeleteBtn')?.addEventListener('click', () => {
@@ -786,13 +800,161 @@ document.getElementById('sortBtn')?.addEventListener('click', () => {
     showNotification('Sort options coming soon...', 'info');
 });
 
-// Status and category filter buttons
-document.getElementById('statusFilterBtn')?.addEventListener('click', () => {
-    showNotification('Status filter options coming soon...', 'info');
+// Status filter dropdown
+let statusDropdown = null;
+document.getElementById('statusFilterBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    
+    // Close category dropdown if open
+    if (categoryDropdown) {
+        categoryDropdown.remove();
+        categoryDropdown = null;
+    }
+    
+    // Remove existing status dropdown if open
+    if (statusDropdown) {
+        statusDropdown.remove();
+        statusDropdown = null;
+        return;
+    }
+    
+    const btn = e.target.closest('#statusFilterBtn');
+    const rect = btn.getBoundingClientRect();
+    
+    statusDropdown = document.createElement('div');
+    statusDropdown.className = 'filter-dropdown-menu';
+    statusDropdown.style.position = 'fixed';
+    statusDropdown.style.top = (rect.bottom + 5) + 'px';
+    statusDropdown.style.left = rect.left + 'px';
+    statusDropdown.style.zIndex = '1000';
+    
+    const statusOptions = [
+        { value: 'all', label: 'All Statuses' },
+        { value: 'active', label: 'Active' },
+        { value: 'expiring', label: 'Expiring Soon' },
+        { value: 'expired', label: 'Expired' },
+        { value: 'sold', label: 'Sold' },
+        { value: 'completed', label: 'Completed' },
+        { value: 'pending', label: 'Pending' }
+    ];
+    
+    statusOptions.forEach(option => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'filter-dropdown-item';
+        if (currentStatusFilter === option.value) {
+            item.classList.add('active');
+        }
+        item.textContent = option.label;
+        item.addEventListener('click', () => {
+            currentStatusFilter = option.value;
+            btn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+                </svg>
+                Status: ${option.label}
+            `;
+            statusDropdown.remove();
+            statusDropdown = null;
+            
+            const searchInput = document.getElementById('searchInput');
+            filterTable(searchInput?.value || '');
+        });
+        statusDropdown.appendChild(item);
+    });
+    
+    document.body.appendChild(statusDropdown);
+    
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', function closeDropdown(e) {
+            if (!statusDropdown?.contains(e.target) && !btn.contains(e.target)) {
+                if (statusDropdown) {
+                    statusDropdown.remove();
+                    statusDropdown = null;
+                }
+                document.removeEventListener('click', closeDropdown);
+            }
+        }, { once: true });
+    }, 0);
 });
 
-document.getElementById('categoryFilterBtn')?.addEventListener('click', () => {
-    showNotification('Category filter options coming soon...', 'info');
+// Category filter dropdown
+let categoryDropdown = null;
+document.getElementById('categoryFilterBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    
+    // Close status dropdown if open
+    if (statusDropdown) {
+        statusDropdown.remove();
+        statusDropdown = null;
+    }
+    
+    // Remove existing category dropdown if open
+    if (categoryDropdown) {
+        categoryDropdown.remove();
+        categoryDropdown = null;
+        return;
+    }
+    
+    const btn = e.target.closest('#categoryFilterBtn');
+    const rect = btn.getBoundingClientRect();
+    
+    categoryDropdown = document.createElement('div');
+    categoryDropdown.className = 'filter-dropdown-menu';
+    categoryDropdown.style.position = 'fixed';
+    categoryDropdown.style.top = (rect.bottom + 5) + 'px';
+    categoryDropdown.style.left = rect.left + 'px';
+    categoryDropdown.style.zIndex = '1000';
+    
+    const categoryOptions = [
+        { value: 'all', label: 'All Categories' },
+        { value: 'fruits-vegetables', label: 'Fruits & Vegetables' },
+        { value: 'baked-goods', label: 'Baked Goods' },
+        { value: 'cooked-meals', label: 'Cooked Meals' },
+        { value: 'packaged-goods', label: 'Packaged Goods' },
+        { value: 'beverages', label: 'Beverages' }
+    ];
+    
+    categoryOptions.forEach(option => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'filter-dropdown-item';
+        if (currentCategoryFilter === option.value) {
+            item.classList.add('active');
+        }
+        item.textContent = option.label;
+        item.addEventListener('click', () => {
+            currentCategoryFilter = option.value;
+            btn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                Category: ${option.label}
+            `;
+            categoryDropdown.remove();
+            categoryDropdown = null;
+            
+            const searchInput = document.getElementById('searchInput');
+            filterTable(searchInput?.value || '');
+        });
+        categoryDropdown.appendChild(item);
+    });
+    
+    document.body.appendChild(categoryDropdown);
+    
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', function closeDropdown(e) {
+            if (!categoryDropdown?.contains(e.target) && !btn.contains(e.target)) {
+                if (categoryDropdown) {
+                    categoryDropdown.remove();
+                    categoryDropdown = null;
+                }
+                document.removeEventListener('click', closeDropdown);
+            }
+        }, { once: true });
+    }, 0);
 });
 
 // Pagination functionality
@@ -922,16 +1084,18 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Real-time search with debouncing
-let searchTimeout;
-const searchInputElement = document.getElementById('searchInput');
-searchInputElement?.addEventListener('input', (e) => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        const searchTerm = e.target.value.toLowerCase();
-        filterTable(searchTerm);
-    }, 300);
-});
+// Real-time search with debouncing (if searchInputElement is different from searchInput)
+if (searchInput && !searchInput.hasAttribute('data-listener-added')) {
+    let searchTimeout;
+    searchInput.setAttribute('data-listener-added', 'true');
+    searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            const searchTerm = e.target.value.toLowerCase();
+            filterTable(searchTerm);
+        }, 300);
+    });
+}
 
 // Responsive handling
 function handleResize() {
@@ -1111,6 +1275,246 @@ function viewDetails(itemId) {
     // Show modal
     viewDetailsModal.classList.add('active');
     document.body.style.overflow = 'hidden';
+    
+    // Show loading state for reviews immediately
+    showReviewsLoading();
+    
+    // Fetch and load reviews
+    loadReviews(itemId);
+}
+
+// Function to show loading state for reviews
+function showReviewsLoading() {
+    const reviewsList = document.getElementById('viewReviewsList');
+    const ratingStars = document.getElementById('viewRatingStars');
+    const ratingText = document.getElementById('viewRatingText');
+    const noReviews = document.getElementById('viewNoReviews');
+    const showMoreBtn = document.getElementById('viewShowMoreBtn');
+    
+    // Show loading state
+    if (reviewsList) {
+        reviewsList.innerHTML = '<div class="no-reviews"><p>Loading reviews...</p></div>';
+    }
+    if (noReviews) {
+        noReviews.style.display = 'none';
+    }
+    if (showMoreBtn) {
+        showMoreBtn.style.display = 'none';
+    }
+    if (ratingText) {
+        ratingText.textContent = 'Loading...';
+    }
+    if (ratingStars) {
+        ratingStars.innerHTML = '';
+    }
+}
+
+// Function to load reviews for a food listing
+async function loadReviews(foodListingId) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                      document.querySelector('input[name="_token"]')?.value;
+    
+    try {
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
+        const response = await fetch(`/establishment/food-listings/${foodListingId}/reviews`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success !== false) {
+            renderReviews(data.reviews || [], data.average_rating || 0, data.total_reviews || 0);
+        } else {
+            console.error('Error loading reviews:', data.error || data.message);
+            renderReviews([], 0, 0);
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.error('Request timeout while fetching reviews');
+            renderReviews([], 0, 0, 'Request timeout. Please try again.');
+        } else {
+            console.error('Error fetching reviews:', error);
+            renderReviews([], 0, 0, 'Failed to load reviews. Please try again.');
+        }
+    }
+}
+
+// Function to render reviews
+function renderReviews(reviews, averageRating, totalReviews, errorMessage = null) {
+    const reviewsList = document.getElementById('viewReviewsList');
+    const noReviews = document.getElementById('viewNoReviews');
+    const ratingStars = document.getElementById('viewRatingStars');
+    const ratingText = document.getElementById('viewRatingText');
+    const showMoreBtn = document.getElementById('viewShowMoreBtn');
+    
+    // Render rating stars immediately (optimized)
+    if (ratingStars) {
+        renderRatingStars(ratingStars, averageRating);
+    }
+    
+    // Update rating text
+    if (ratingText) {
+        if (errorMessage) {
+            ratingText.textContent = 'Error loading ratings';
+        } else if (totalReviews > 0) {
+            ratingText.textContent = `${averageRating} out of 5 (${totalReviews} reviews)`;
+        } else {
+            ratingText.textContent = 'No ratings yet';
+        }
+    }
+    
+    // Render reviews using innerHTML for better performance
+    if (errorMessage) {
+        if (reviewsList) {
+            reviewsList.innerHTML = `<div class="no-reviews"><p>${errorMessage}</p></div>`;
+        }
+        if (noReviews) noReviews.style.display = 'none';
+        if (showMoreBtn) showMoreBtn.style.display = 'none';
+        return;
+    }
+    
+    if (reviews.length === 0) {
+        if (reviewsList) reviewsList.innerHTML = '';
+        if (noReviews) noReviews.style.display = 'block';
+        if (showMoreBtn) showMoreBtn.style.display = 'none';
+    } else {
+        // Build all HTML at once for maximum performance
+        let reviewsHTML = '';
+        reviews.forEach(review => {
+            const userName = review.user_name || 'Anonymous';
+            const nameParts = userName.split(' ');
+            const initials = nameParts.length >= 2 
+                ? (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase()
+                : userName.charAt(0).toUpperCase();
+            
+            let starsHTML = '';
+            for (let i = 1; i <= 5; i++) {
+                const starClass = i <= review.rating ? 'star filled' : 'star empty';
+                starsHTML += `<svg class="${starClass}" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>`;
+            }
+            
+            reviewsHTML += `<div class="review-item" data-rating="${review.rating}">
+                <div class="review-header">
+                    ${review.avatar ? `<img src="${review.avatar}" alt="${userName}" class="review-avatar">` : `<div class="review-avatar-initials">${initials}</div>`}
+                    <span class="reviewer-name">${userName}</span>
+                    <div class="review-rating">${starsHTML}</div>
+                </div>
+                ${review.comment ? `<p class="review-comment">${review.comment}</p>` : ''}
+                ${review.image_path ? `<div class="review-media"><img src="${review.image_path}" alt="Review image" class="review-image"></div>` : ''}
+                ${review.video_path ? `<div class="review-media"><video src="${review.video_path}" controls class="review-video"></video></div>` : ''}
+            </div>`;
+        });
+        
+        if (reviewsList) {
+            reviewsList.innerHTML = reviewsHTML;
+        }
+        if (noReviews) noReviews.style.display = 'none';
+        
+        // Show "Show more" button if there are more reviews (for future pagination)
+        if (showMoreBtn) {
+            showMoreBtn.style.display = 'none'; // Hide for now, can be implemented later
+        }
+    }
+}
+
+// Function to render rating stars (optimized with innerHTML)
+function renderRatingStars(container, rating) {
+    if (!container) return;
+    
+    let starsHTML = '';
+    for (let i = 1; i <= 5; i++) {
+        let starClass = 'star empty';
+        if (i <= Math.floor(rating)) {
+            starClass = 'star filled';
+        } else if (i - 0.5 <= rating) {
+            starClass = 'star half';
+        }
+        
+        starsHTML += `<svg class="${starClass}" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>`;
+    }
+    
+    container.innerHTML = starsHTML;
+}
+
+// Function to create a review element
+function createReviewElement(review) {
+    const reviewItem = document.createElement('div');
+    reviewItem.className = 'review-item';
+    reviewItem.setAttribute('data-rating', review.rating);
+    
+    // Get user initials
+    const userName = review.user_name || 'Anonymous';
+    const nameParts = userName.split(' ');
+    const initials = nameParts.length >= 2 
+        ? (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase()
+        : userName.charAt(0).toUpperCase();
+    
+    let reviewHTML = `
+        <div class="review-header">
+            ${review.avatar ? `<img src="${review.avatar}" alt="${userName}" class="review-avatar">` : `<div class="review-avatar-initials">${initials}</div>`}
+            <span class="reviewer-name">${userName}</span>
+            <div class="review-rating">
+    `;
+    
+    // Add stars
+    for (let i = 1; i <= 5; i++) {
+        const starClass = i <= review.rating ? 'star filled' : 'star empty';
+        reviewHTML += `
+            <svg class="${starClass}" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+        `;
+    }
+    
+    reviewHTML += `
+            </div>
+        </div>
+    `;
+    
+    // Add comment if exists
+    if (review.comment) {
+        reviewHTML += `<p class="review-comment">${review.comment}</p>`;
+    }
+    
+    // Add image if exists
+    if (review.image_path) {
+        reviewHTML += `
+            <div class="review-media">
+                <img src="${review.image_path}" alt="Review image" class="review-image">
+            </div>
+        `;
+    }
+    
+    // Add video if exists
+    if (review.video_path) {
+        reviewHTML += `
+            <div class="review-media">
+                <video src="${review.video_path}" controls class="review-video"></video>
+            </div>
+        `;
+    }
+    
+    reviewItem.innerHTML = reviewHTML;
+    return reviewItem;
 }
 
 // Quantity controls for View Details modal
@@ -1137,19 +1541,21 @@ if (viewIncreaseQty) {
     });
 }
 
-// Review filter functionality
-const reviewFilterBtns = document.querySelectorAll('.rating-filters .filter-btn');
-reviewFilterBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
+// Review filter functionality - use event delegation for dynamically loaded content
+document.addEventListener('click', (e) => {
+    if (e.target.closest('.rating-filters .filter-btn')) {
+        const btn = e.target.closest('.rating-filters .filter-btn');
+        const filterBtns = document.querySelectorAll('.rating-filters .filter-btn');
+        
         // Remove active class from all buttons
-        reviewFilterBtns.forEach(b => b.classList.remove('active'));
+        filterBtns.forEach(b => b.classList.remove('active'));
         // Add active class to clicked button
         btn.classList.add('active');
         
         // Filter reviews based on rating
         const rating = btn.dataset.rating;
         filterReviews(rating);
-    });
+    }
 });
 
 function filterReviews(rating) {

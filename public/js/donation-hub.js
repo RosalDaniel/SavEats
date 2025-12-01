@@ -2,6 +2,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     initializeModals();
     initializeRequestToDonateForm();
+    initializeRequestToDonateFoodbankForm();
     initializeFilters();
 });
 
@@ -393,7 +394,7 @@ window.viewRequestDetails = function(id) {
 
     // Store current request ID for contact function
     window.currentViewRequestId = id;
-    
+
     // Set donate now button action
     const donateBtn = document.getElementById('modalDonateNowBtn');
     if (donateBtn) {
@@ -557,88 +558,88 @@ window.contactFoodbank = function(id) {
     .then(data => {
         if (data.success) {
             const foodbank = data.data;
-            const modal = document.getElementById('contactFoodbankModal');
-            const modalBody = document.getElementById('contactFoodbankModalBody');
-            const modalTitle = document.getElementById('contactFoodbankModalTitle');
-            
-            if (!modal || !modalBody || !modalTitle) return;
-            
-            modalTitle.textContent = `Contact ${foodbank.organization_name || 'Food Bank'}`;
-            
-            const escapeHtml = (text) => {
-                if (!text) return 'N/A';
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            };
+    const modal = document.getElementById('contactFoodbankModal');
+    const modalBody = document.getElementById('contactFoodbankModalBody');
+    const modalTitle = document.getElementById('contactFoodbankModalTitle');
 
-            // Format phone number for clickable link
-            const formatPhoneForLink = (phone) => {
-                if (!phone || phone === 'Not provided') return null;
-                const cleaned = phone.replace(/\D/g, '');
-                return cleaned.length > 0 ? `tel:${cleaned}` : null;
-            };
+    if (!modal || !modalBody || !modalTitle) return;
 
-            // Format email for clickable link
-            const formatEmailForLink = (email) => {
-                if (!email || email === 'Not provided') return null;
-                return `mailto:${email}`;
-            };
+    modalTitle.textContent = `Contact ${foodbank.organization_name || 'Food Bank'}`;
 
-            const phoneLink = formatPhoneForLink(foodbank.phone_no);
-            const emailLink = formatEmailForLink(foodbank.email);
+    const escapeHtml = (text) => {
+        if (!text) return 'N/A';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
 
-            modalBody.innerHTML = `
-                <div class="contact-foodbank-content">
-                    <div class="contact-section">
-                        <h3>Contact Information</h3>
-                        <div class="contact-grid">
-                            ${foodbank.contact_person && foodbank.contact_person !== 'Not provided' ? `
-                            <div class="contact-item">
-                                <span class="contact-label">Contact Person:</span>
-                                <span class="contact-value">${escapeHtml(foodbank.contact_person)}</span>
-                            </div>
-                            ` : ''}
-                            ${phoneLink ? `
-                            <div class="contact-item">
-                                <span class="contact-label">Phone Number:</span>
-                                <a href="${phoneLink}" class="contact-link">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
-                                        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
-                                    </svg>
-                                    ${escapeHtml(foodbank.phone_no)}
-                                </a>
-                            </div>
-                            ` : foodbank.phone_no && foodbank.phone_no !== 'Not provided' ? `
-                            <div class="contact-item">
-                                <span class="contact-label">Phone Number:</span>
-                                <span class="contact-value">${escapeHtml(foodbank.phone_no)}</span>
-                            </div>
-                            ` : ''}
-                            ${emailLink ? `
-                            <div class="contact-item">
-                                <span class="contact-label">Email:</span>
-                                <a href="${emailLink}" class="contact-link">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
-                                        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
-                                    </svg>
-                                    ${escapeHtml(foodbank.email)}
-                                </a>
-                            </div>
-                            ` : foodbank.email ? `
-                            <div class="contact-item">
-                                <span class="contact-label">Email:</span>
-                                <span class="contact-value">${escapeHtml(foodbank.email)}</span>
-                            </div>
-                            ` : ''}
-                            ${foodbank.address && foodbank.address !== 'Not provided' ? `
-                            <div class="contact-item">
-                                <span class="contact-label">Address:</span>
-                                <span class="contact-value">${escapeHtml(foodbank.address)}</span>
-                            </div>
-                            ` : ''}
-                        </div>
+    // Format phone number for clickable link
+    const formatPhoneForLink = (phone) => {
+        if (!phone || phone === 'Not provided') return null;
+        const cleaned = phone.replace(/\D/g, '');
+        return cleaned.length > 0 ? `tel:${cleaned}` : null;
+    };
+
+    // Format email for clickable link
+    const formatEmailForLink = (email) => {
+        if (!email || email === 'Not provided') return null;
+        return `mailto:${email}`;
+    };
+
+    const phoneLink = formatPhoneForLink(foodbank.phone_no);
+    const emailLink = formatEmailForLink(foodbank.email);
+
+    modalBody.innerHTML = `
+        <div class="contact-foodbank-content">
+            <div class="contact-section">
+                <h3>Contact Information</h3>
+                <div class="contact-grid">
+                    ${foodbank.contact_person && foodbank.contact_person !== 'Not provided' ? `
+                    <div class="contact-item">
+                        <span class="contact-label">Contact Person:</span>
+                        <span class="contact-value">${escapeHtml(foodbank.contact_person)}</span>
                     </div>
+                    ` : ''}
+                    ${phoneLink ? `
+                    <div class="contact-item">
+                        <span class="contact-label">Phone Number:</span>
+                        <a href="${phoneLink}" class="contact-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
+                                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                            </svg>
+                            ${escapeHtml(foodbank.phone_no)}
+                        </a>
+                    </div>
+                    ` : foodbank.phone_no && foodbank.phone_no !== 'Not provided' ? `
+                    <div class="contact-item">
+                        <span class="contact-label">Phone Number:</span>
+                        <span class="contact-value">${escapeHtml(foodbank.phone_no)}</span>
+                    </div>
+                    ` : ''}
+                    ${emailLink ? `
+                    <div class="contact-item">
+                        <span class="contact-label">Email:</span>
+                        <a href="${emailLink}" class="contact-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
+                                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                            </svg>
+                            ${escapeHtml(foodbank.email)}
+                        </a>
+                    </div>
+                    ` : foodbank.email ? `
+                    <div class="contact-item">
+                        <span class="contact-label">Email:</span>
+                        <span class="contact-value">${escapeHtml(foodbank.email)}</span>
+                    </div>
+                    ` : ''}
+                    ${foodbank.address && foodbank.address !== 'Not provided' ? `
+                    <div class="contact-item">
+                        <span class="contact-label">Address:</span>
+                        <span class="contact-value">${escapeHtml(foodbank.address)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
                     ${foodbank.registration_number && foodbank.registration_number !== 'Not provided' ? `
                     <div class="contact-section">
                         <h3>Registration</h3>
@@ -656,11 +657,11 @@ window.contactFoodbank = function(id) {
                         </div>
                     </div>
                     ` : ''}
-                </div>
-            `;
-            
-            modal.classList.add('show');
-            document.body.style.overflow = 'hidden';
+        </div>
+    `;
+
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
         } else {
             showToast(data.message || 'Failed to retrieve foodbank details.', 'error');
         }
@@ -673,6 +674,7 @@ window.contactFoodbank = function(id) {
 
 // Request to Donate
 window.requestToDonate = function(foodbankId, itemDetails = null) {
+    console.log('requestToDonate called with:', { foodbankId, itemDetails });
     const foodbanks = window.foodbanks || [];
     const foodbank = foodbanks.find(f => f.id === foodbankId || String(f.id) === String(foodbankId));
     
@@ -685,49 +687,82 @@ window.requestToDonate = function(foodbankId, itemDetails = null) {
     const modalTitle = document.getElementById('requestDonateModalTitle');
     const foodbankIdInput = document.getElementById('requestDonateFoodbankId');
 
-    if (!modal || !modalTitle || !foodbankIdInput) return;
+    if (!modal || !modalTitle || !foodbankIdInput) {
+        console.error('Modal elements not found:', { modal: !!modal, modalTitle: !!modalTitle, foodbankIdInput: !!foodbankIdInput });
+        return;
+    }
 
     modalTitle.textContent = `Request to Donate to ${foodbank.organization_name}`;
     foodbankIdInput.value = foodbank.id;
+    console.log('Foodbank ID set to:', foodbank.id);
 
-    // Pre-fill form fields if item details are provided
+    // Get display elements and hidden inputs
+    const displayItemName = document.getElementById('displayItemName');
+    const displayQuantity = document.getElementById('displayQuantity');
+    const displayCategory = document.getElementById('displayCategory');
+    const displayDescription = document.getElementById('displayDescription');
+    const itemNameInput = document.getElementById('donateItemName');
+    const quantityInput = document.getElementById('donateQuantity');
+    const categoryInput = document.getElementById('donateCategory');
+    const descriptionInput = document.getElementById('donateDescription');
+
+    // Populate display and hidden fields if item details are provided
     if (itemDetails) {
-        const itemNameInput = document.getElementById('donateItemName');
-        const categorySelect = document.getElementById('donateCategory');
-        const quantityInput = document.getElementById('donateQuantity');
-        const descriptionTextarea = document.getElementById('donateDescription');
-        
-        if (itemNameInput && itemDetails.item_name) {
-            itemNameInput.value = itemDetails.item_name;
+        // Populate display elements
+        if (displayItemName && itemDetails.item_name) {
+            displayItemName.textContent = itemDetails.item_name;
+        } else if (displayItemName) {
+            displayItemName.textContent = '-';
         }
         
-        if (categorySelect && itemDetails.category) {
-            // Set the category option
-            categorySelect.value = itemDetails.category;
+        if (displayQuantity && itemDetails.quantity) {
+            displayQuantity.textContent = `${itemDetails.quantity} pcs.`;
+        } else if (displayQuantity) {
+            displayQuantity.textContent = '-';
         }
         
-        if (quantityInput && itemDetails.quantity) {
-            quantityInput.value = itemDetails.quantity;
+        if (displayCategory && itemDetails.category) {
+            // Format category name (e.g., "fruits-vegetables" -> "Fruits & Vegetables")
+            const categoryMap = {
+                'fruits-vegetables': 'Fruits & Vegetables',
+                'baked-goods': 'Baked Goods',
+                'cooked-meals': 'Cooked Meals',
+                'packaged-goods': 'Packaged Goods',
+                'beverages': 'Beverages',
+                'dairy': 'Dairy',
+                'meat-seafood': 'Meat & Seafood',
+                'other': 'Other'
+            };
+            const formattedCategory = categoryMap[itemDetails.category] || 
+                itemDetails.category.charAt(0).toUpperCase() + itemDetails.category.slice(1).replace('-', ' ');
+            displayCategory.textContent = formattedCategory;
+        } else if (displayCategory) {
+            displayCategory.textContent = '-';
         }
         
-        if (descriptionTextarea && itemDetails.description) {
-            descriptionTextarea.value = itemDetails.description;
+        if (displayDescription && itemDetails.description) {
+            displayDescription.textContent = itemDetails.description;
+        } else if (displayDescription) {
+            displayDescription.textContent = '-';
         }
+        
+        // Populate hidden inputs for form submission
+        if (itemNameInput) itemNameInput.value = itemDetails.item_name || '';
+        if (quantityInput) quantityInput.value = itemDetails.quantity || '';
+        if (categoryInput) categoryInput.value = itemDetails.category || '';
+        if (descriptionInput) descriptionInput.value = itemDetails.description || '';
     } else {
-        // Clear form fields if no item details (when clicking from foodbank list)
-        const form = document.getElementById('requestToDonateForm');
-        if (form) {
-            // Reset all fields except foodbank_id
-            const itemNameInput = document.getElementById('donateItemName');
-            const categorySelect = document.getElementById('donateCategory');
-            const quantityInput = document.getElementById('donateQuantity');
-            const descriptionTextarea = document.getElementById('donateDescription');
-            
-            if (itemNameInput) itemNameInput.value = '';
-            if (categorySelect) categorySelect.value = '';
-            if (quantityInput) quantityInput.value = '';
-            if (descriptionTextarea) descriptionTextarea.value = '';
-        }
+        // Clear display elements when no item details (when clicking from foodbank list)
+        if (displayItemName) displayItemName.textContent = '-';
+        if (displayQuantity) displayQuantity.textContent = '-';
+        if (displayCategory) displayCategory.textContent = '-';
+        if (displayDescription) displayDescription.textContent = '-';
+        
+        // Clear hidden inputs
+        if (itemNameInput) itemNameInput.value = '';
+        if (quantityInput) quantityInput.value = '';
+        if (categoryInput) categoryInput.value = '';
+        if (descriptionInput) descriptionInput.value = '';
     }
 
     // Set minimum date to today
@@ -738,52 +773,166 @@ window.requestToDonate = function(foodbankId, itemDetails = null) {
 
     modal.classList.add('show');
     document.body.style.overflow = 'hidden';
+    
+    // Re-initialize form event listeners after modal is shown
+    setTimeout(() => {
+        console.log('Re-initializing form after modal open');
+        initializeRequestToDonateForm();
+    }, 50);
 };
 
 // Initialize Request to Donate Form
 function initializeRequestToDonateForm() {
     const form = document.getElementById('requestToDonateForm');
-    const cancelBtn = document.getElementById('cancelRequestDonate');
+    
+    if (!form) {
+        console.error('Donation form not found!');
+        return;
+    }
 
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
+    // Remove any existing submit listeners by cloning
+    const formClone = form.cloneNode(true);
+    form.parentNode.replaceChild(formClone, form);
+    const freshForm = document.getElementById('requestToDonateForm');
+    const freshCancelBtn = freshForm ? freshForm.querySelector('#cancelRequestDonate') : null;
+    const freshSubmitBtn = freshForm ? freshForm.querySelector('button[type="submit"]') : null;
+
+    console.log('Initializing donation form:', { form: !!freshForm, cancelBtn: !!freshCancelBtn, submitBtn: !!freshSubmitBtn });
+
+    // Set up cancel button AFTER cloning
+    if (freshCancelBtn) {
+        freshCancelBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             closeModal('requestToDonateModal');
             // Reset form but preserve foodbank_id
-            if (form) {
+            if (freshForm) {
                 const foodbankId = document.getElementById('requestDonateFoodbankId')?.value;
-                form.reset();
+                freshForm.reset();
                 if (foodbankId) {
                     document.getElementById('requestDonateFoodbankId').value = foodbankId;
                 }
+                
+                // Clear display elements
+                const displayItemName = document.getElementById('displayItemName');
+                const displayQuantity = document.getElementById('displayQuantity');
+                const displayCategory = document.getElementById('displayCategory');
+                const displayDescription = document.getElementById('displayDescription');
+                
+                if (displayItemName) displayItemName.textContent = '-';
+                if (displayQuantity) displayQuantity.textContent = '-';
+                if (displayCategory) displayCategory.textContent = '-';
+                if (displayDescription) displayDescription.textContent = '-';
+                
                 // Clear the fulfill request ID
                 window.currentFulfillRequestId = null;
             }
+            return false;
         });
     }
-
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            submitDonationRequest();
-        });
+    
+    if (!freshForm) {
+        console.error('Could not find form after clone');
+        return;
     }
+    
+    // Add submit event listener to form
+    freshForm.addEventListener('submit', function(e) {
+        console.log('Form submit event triggered');
+        e.preventDefault();
+        e.stopPropagation();
+        submitDonationRequest();
+        return false;
+    });
+    
+    // Add click listener to submit button as primary handler (more reliable)
+    if (freshSubmitBtn) {
+        // Remove any existing listeners first by cloning
+        const newSubmitBtn = freshSubmitBtn.cloneNode(true);
+        freshSubmitBtn.parentNode.replaceChild(newSubmitBtn, freshSubmitBtn);
+        const finalSubmitBtn = freshForm.querySelector('button[type="submit"]');
+        
+        if (finalSubmitBtn) {
+            finalSubmitBtn.addEventListener('click', function(e) {
+                console.log('Submit button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Validate form first
+                if (freshForm.checkValidity()) {
+                    submitDonationRequest();
+                } else {
+                    console.log('Form validation failed');
+                    freshForm.reportValidity();
+                }
+                return false;
+            });
+            console.log('Submit button listener attached');
+        } else {
+            console.error('Could not find submit button after clone');
+        }
+    } else {
+        console.error('Submit button not found');
+    }
+    
+    console.log('Form event listeners attached successfully', { form: !!freshForm, cancelBtn: !!freshCancelBtn, submitBtn: !!freshSubmitBtn });
 }
 
 // Submit Donation Request
 function submitDonationRequest() {
+    console.log('submitDonationRequest called');
     const form = document.getElementById('requestToDonateForm');
-    if (!form) return;
-
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData);
-    
-    // Validate required fields
-    if (!data.item_name || !data.quantity || !data.unit || !data.category || !data.scheduled_date || !data.pickup_method) {
-        showToast('Please fill in all required fields', 'error');
+    if (!form) {
+        console.error('Form not found in submitDonationRequest');
+        showToast('Form not found. Please refresh the page.', 'error');
         return;
     }
 
+    console.log('Form found, getting form data');
+    const formData = new FormData(form);
+    
+    // Include disabled fields (read-only fields from donation request)
+    // Disabled fields are not included in FormData by default
+    const disabledFields = form.querySelectorAll('select[disabled], input[readonly].read-only-field, textarea[readonly].read-only-field');
+    disabledFields.forEach(field => {
+        if (field.name && field.value) {
+            formData.append(field.name, field.value);
+        }
+    });
+    
+    const data = Object.fromEntries(formData);
+    
+    console.log('Form data:', data);
+    
+    // Validate foodbank_id is set
+    if (!data.foodbank_id) {
+        console.error('foodbank_id is missing');
+        showToast('Please select a foodbank first.', 'error');
+        return;
+    }
+    
+    // Validate required fields
+    if (!data.item_name || !data.quantity || !data.category || !data.scheduled_date || !data.pickup_method) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    // Clean up scheduled_time - remove if empty
+    if (!data.scheduled_time || data.scheduled_time.trim() === '') {
+        delete data.scheduled_time;
+    }
+    
+    // Clean up expiry_date - remove if empty
+    if (!data.expiry_date || data.expiry_date.trim() === '') {
+        delete data.expiry_date;
+    }
+
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (!csrfToken) {
+        console.error('CSRF token not found');
+        showToast('Security token missing. Please refresh the page.', 'error');
+        return;
+    }
     
     // Check if we're fulfilling a donation request
     const fulfillRequestId = window.currentFulfillRequestId;
@@ -803,6 +952,9 @@ function submitDonationRequest() {
         submitBtn.textContent = 'Submitting...';
     }
 
+    // Log data being sent for debugging
+    console.log('Submitting donation request:', data);
+    
     fetch(url, {
         method: method,
         headers: {
@@ -819,6 +971,7 @@ function submitDonationRequest() {
             let errorMessage = `Server error: ${response.status}`;
             try {
                 const errorData = await response.json();
+                console.error('Error response:', errorData);
                 errorMessage = errorData.message || errorData.error || errorMessage;
                 
                 // Handle validation errors
@@ -827,6 +980,7 @@ function submitDonationRequest() {
                     errorMessage = validationErrors || errorMessage;
                 }
             } catch (e) {
+                console.error('Error parsing response:', e);
                 // If response is not JSON, use status text
                 errorMessage = response.statusText || errorMessage;
             }
@@ -928,4 +1082,231 @@ if (!document.querySelector('style[data-toast]')) {
         .toast.info { background: #2196f3; }
     `;
     document.head.appendChild(style);
+}
+
+// ============================================================================
+// Request to Donate to Food Bank Modal (Fully Editable - for Foodbanks Section)
+// ============================================================================
+
+// Open Request to Donate Foodbank Modal
+window.openRequestToDonateFoodbankModal = function(foodbankId) {
+    const foodbanks = window.foodbanks || [];
+    const foodbank = foodbanks.find(f => f.id === foodbankId || String(f.id) === String(foodbankId));
+    
+    if (!foodbank) {
+        showToast('Foodbank not found', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('requestToDonateFoodbankModal');
+    const modalTitle = document.getElementById('requestDonateFoodbankModalTitle');
+    const foodbankIdInput = document.getElementById('requestDonateFoodbankFoodbankId');
+
+    if (!modal || !modalTitle || !foodbankIdInput) {
+        console.error('Modal elements not found');
+        return;
+    }
+
+    modalTitle.textContent = `Request to Donate to ${foodbank.organization_name}`;
+    foodbankIdInput.value = foodbank.id;
+
+    // Set minimum date to today for date inputs
+    const today = new Date().toISOString().split('T')[0];
+    const expiryDateInput = document.getElementById('foodbankDonateExpiryDate');
+    const scheduledDateInput = document.getElementById('foodbankDonateScheduledDate');
+    
+    if (expiryDateInput) {
+        expiryDateInput.min = today;
+    }
+    if (scheduledDateInput) {
+        scheduledDateInput.min = today;
+    }
+
+    // Reset form
+    const form = document.getElementById('requestToDonateFoodbankForm');
+    if (form) {
+        form.reset();
+        // Restore foodbank_id after reset
+        foodbankIdInput.value = foodbank.id;
+        // Set default quantity to 1
+        const quantityInput = document.getElementById('foodbankDonateQuantity');
+        if (quantityInput) {
+            quantityInput.value = 1;
+        }
+    }
+
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+};
+
+// Initialize Request to Donate Foodbank Form
+function initializeRequestToDonateFoodbankForm() {
+    const modal = document.getElementById('requestToDonateFoodbankModal');
+    if (!modal) return;
+
+    // Close button
+    const closeBtn = document.getElementById('closeRequestToDonateFoodbankModal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            closeModal('requestToDonateFoodbankModal');
+        });
+    }
+
+    // Close on overlay click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal('requestToDonateFoodbankModal');
+        }
+    });
+
+    // Cancel button
+    const cancelBtn = document.getElementById('cancelRequestDonateFoodbank');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            closeModal('requestToDonateFoodbankModal');
+        });
+    }
+
+    // Quantity controls
+    const quantityInput = document.getElementById('foodbankDonateQuantity');
+    const incrementBtn = document.getElementById('foodbankDonateIncrementBtn');
+    const decrementBtn = document.getElementById('foodbankDonateDecrementBtn');
+
+    if (incrementBtn && quantityInput) {
+        incrementBtn.addEventListener('click', () => {
+            const currentValue = parseInt(quantityInput.value) || 1;
+            quantityInput.value = currentValue + 1;
+        });
+    }
+
+    if (decrementBtn && quantityInput) {
+        decrementBtn.addEventListener('click', () => {
+            const currentValue = parseInt(quantityInput.value) || 1;
+            if (currentValue > 1) {
+                quantityInput.value = currentValue - 1;
+            }
+        });
+    }
+
+    // Form submission
+    const form = document.getElementById('requestToDonateFoodbankForm');
+    if (form) {
+        form.addEventListener('submit', handleRequestToDonateFoodbankSubmit);
+    }
+}
+
+// Handle form submission for Request to Donate Foodbank
+function handleRequestToDonateFoodbankSubmit(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const form = document.getElementById('requestToDonateFoodbankForm');
+    if (!form) return;
+
+    const submitBtn = document.getElementById('submitRequestDonateFoodbank');
+    const originalSubmitText = submitBtn ? submitBtn.textContent : 'Submit Request';
+
+    // Get form data
+    const formData = {
+        foodbank_id: document.getElementById('requestDonateFoodbankFoodbankId')?.value,
+        item_name: document.getElementById('foodbankDonateItemName')?.value,
+        category: document.getElementById('foodbankDonateCategory')?.value,
+        quantity: parseInt(document.getElementById('foodbankDonateQuantity')?.value) || 1,
+        unit: document.getElementById('foodbankDonateUnit')?.value || 'pcs',
+        description: document.getElementById('foodbankDonateDescription')?.value || null,
+        expiry_date: document.getElementById('foodbankDonateExpiryDate')?.value || null,
+        scheduled_date: document.getElementById('foodbankDonateScheduledDate')?.value,
+        scheduled_time: document.getElementById('foodbankDonateScheduledTime')?.value || null,
+        pickup_method: document.getElementById('foodbankDonatePickupMethod')?.value,
+        establishment_notes: document.getElementById('foodbankDonateNotes')?.value || null,
+    };
+
+    // Validate required fields
+    if (!formData.foodbank_id) {
+        showToast('Foodbank ID is required', 'error');
+        return;
+    }
+    if (!formData.item_name || !formData.item_name.trim()) {
+        showToast('Item name is required', 'error');
+        return;
+    }
+    if (!formData.category) {
+        showToast('Category is required', 'error');
+        return;
+    }
+    if (!formData.quantity || formData.quantity < 1) {
+        showToast('Quantity must be at least 1', 'error');
+        return;
+    }
+    if (!formData.scheduled_date) {
+        showToast('Scheduled date is required', 'error');
+        return;
+    }
+    if (!formData.pickup_method) {
+        showToast('Pickup method is required', 'error');
+        return;
+    }
+
+    // Show loading state
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+    }
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                      document.querySelector('input[name="_token"]')?.value;
+
+    // Submit to API
+    fetch('/establishment/donation-request', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || 'Donation request submitted successfully!', 'success');
+            closeModal('requestToDonateFoodbankModal');
+            
+            // Reset form
+            if (form) {
+                form.reset();
+                const quantityInput = document.getElementById('foodbankDonateQuantity');
+                if (quantityInput) {
+                    quantityInput.value = 1;
+                }
+            }
+            
+            // Optionally refresh the page or update UI
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showToast(data.message || 'Failed to submit donation request', 'error');
+            
+            // Handle validation errors
+            if (data.errors) {
+                Object.keys(data.errors).forEach(field => {
+                    const errorMessage = data.errors[field][0];
+                    showToast(`${field}: ${errorMessage}`, 'error');
+                });
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error submitting donation request:', error);
+        showToast('An error occurred. Please try again.', 'error');
+    })
+    .finally(() => {
+        // Reset button state
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalSubmitText;
+        }
+    });
 }

@@ -32,7 +32,7 @@
                 <th>Message</th>
                 <th>Target Audience</th>
                 <th>Status</th>
-                <th>Published</th>
+                <th>Last Updated</th>
                 <th>Expires</th>
                 <th>Created</th>
                 <th>Actions</th>

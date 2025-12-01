@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     id="phone" 
                     name="phone" 
                     class="form-input" 
-                    placeholder="Enter phone number"
+                    placeholder="09123456789"
                     required
                     autocomplete="tel"
                     aria-describedby="phone-error"
@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     id="phone" 
                     name="phone" 
                     class="form-input" 
-                    placeholder="Enter phone number"
+                    placeholder="09123456789"
                     required
                     autocomplete="tel"
                     aria-describedby="phone-error"
@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     id="phone" 
                     name="phone" 
                     class="form-input" 
-                    placeholder="Enter phone number"
+                    placeholder="09123456789"
                     required
                     autocomplete="tel"
                     aria-describedby="phone-error"
@@ -366,8 +366,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function validatePhone(phone) {
-        const re = /^[\+]?[1-9][\d]{0,15}$/;
-        return re.test(phone.replace(/\s+/g, ''));
+        // Format: 09123456789 (exactly 11 digits, starting with 0)
+        const cleaned = phone.replace(/\D/g, '');
+        if (cleaned.length < 11 || cleaned.length > 12) {
+            return false;
+        }
+        const re = /^0\d{10}$/;
+        return re.test(cleaned);
     }
 
     function validatePassword(password) {
@@ -408,7 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 validateField(firstName, 'firstName-error', val => val.length >= 2, 'First name must be at least 2 characters'),
                 validateField(lastName, 'lastName-error', val => val.length >= 2, 'Last name must be at least 2 characters'),
                 validateField(email, 'email-error', validateEmail, 'Please enter a valid email address'),
-                validateField(phone, 'phone-error', validatePhone, 'Please enter a valid phone number')
+                validateField(phone, 'phone-error', validatePhone, 'Please enter a valid phone number (11 digits, format: 09123456789)')
             ];
         } else if (selectedAccountType === 'business') {
             const firstName = document.getElementById('firstName');
@@ -425,7 +430,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 validateField(businessName, 'businessName-error', val => val.length >= 2, 'Business name must be at least 2 characters'),
                 validateField(businessType, 'businessType-error', val => val !== '', 'Please select a business type'),
                 validateField(email, 'email-error', validateEmail, 'Please enter a valid email address'),
-                validateField(phone, 'phone-error', validatePhone, 'Please enter a valid phone number')
+                validateField(phone, 'phone-error', validatePhone, 'Please enter a valid phone number (11 digits, format: 09123456789)')
             ];
 
             // Validate file upload
@@ -453,7 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 validateField(organizationName, 'organizationName-error', val => val.length >= 2, 'Organization name must be at least 2 characters'),
                 validateField(serviceArea, 'serviceArea-error', val => val.length >= 2, 'Service area must be at least 2 characters'),
                 validateField(email, 'email-error', validateEmail, 'Please enter a valid email address'),
-                validateField(phone, 'phone-error', validatePhone, 'Please enter a valid phone number')
+                validateField(phone, 'phone-error', validatePhone, 'Please enter a valid phone number (11 digits, format: 09123456789)')
             ];
 
             // Validate file upload
