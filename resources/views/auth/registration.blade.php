@@ -140,28 +140,45 @@
                         </div>
                     </div>
 
-                    <div class="form-group full-width">
-                        <label for="location" class="form-label required">Address</label>
-                        <div class="address-map-container">
-                            <div id="addressMap" class="address-map"></div>
-                            <div class="map-instructions">
-                                <p>Click on the map to select your location</p>
+                    <!-- Address field - different for each account type -->
+                    <div class="form-group full-width" id="addressFieldContainer">
+                        <!-- For Establishments: Map-based address selection (required) -->
+                        <div id="establishmentAddressContainer" style="display: none;">
+                            <label for="location" class="form-label required">Business Address</label>
+                            <div class="address-map-container">
+                                <div id="addressMap" class="address-map"></div>
+                                <div class="map-instructions">
+                                    <p>Click on the map to pin your business location</p>
+                                </div>
+                                <input 
+                                    type="text" 
+                                    id="location" 
+                                    name="location" 
+                                    class="form-input" 
+                                    placeholder="Address will be filled from map selection"
+                                    required
+                                    readonly
+                                    autocomplete="address-line1"
+                                    aria-describedby="location-error"
+                                >
+                                <input type="hidden" id="latitude" name="latitude">
+                                <input type="hidden" id="longitude" name="longitude">
                             </div>
+                            <div class="error-message" id="location-error" role="alert"></div>
+                        </div>
+                        
+                        <!-- For Consumers and Foodbanks: Simple text input (optional) -->
+                        <div id="simpleAddressContainer" style="display: none;">
+                            <label for="simpleAddress" class="form-label">Address (Optional)</label>
                             <input 
                                 type="text" 
-                                id="location" 
-                                name="location" 
+                                id="simpleAddress" 
+                                name="address" 
                                 class="form-input" 
-                                placeholder="Address will be filled from map selection"
-                                required
-                                readonly
+                                placeholder="Enter your address"
                                 autocomplete="address-line1"
-                                aria-describedby="location-error"
                             >
-                            <input type="hidden" id="latitude" name="latitude">
-                            <input type="hidden" id="longitude" name="longitude">
                         </div>
-                        <div class="error-message" id="location-error" role="alert"></div>
                     </div>
 
                     <div class="checkbox-group">

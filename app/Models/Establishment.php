@@ -42,6 +42,9 @@ class Establishment extends Authenticatable
         'email',
         'phone_no',
         'address',
+        'latitude',
+        'longitude',
+        'formatted_address',
         'business_type',
         'bir_file',
         'profile_image',
@@ -49,6 +52,7 @@ class Establishment extends Authenticatable
         'password',
         'status',
         'verified',
+        'verification_status',
         'violations_count',
         'violations',
     ];
@@ -77,6 +81,14 @@ class Establishment extends Authenticatable
             'verified' => 'boolean',
             'violations' => 'array',
         ];
+    }
+
+    /**
+     * Check if the establishment is verified
+     */
+    public function isVerified(): bool
+    {
+        return $this->verification_status === 'verified';
     }
 
     /**

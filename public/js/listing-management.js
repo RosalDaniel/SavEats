@@ -536,8 +536,6 @@ function editItem(id) {
      const discountedPriceField = document.getElementById('itemDiscountedPrice');
      const expiryField = document.getElementById('itemExpiry');
      const addressField = document.getElementById('itemAddress');
-     const pickupField = document.getElementById('itemPickup');
-     const deliveryField = document.getElementById('itemDelivery');
      
      // Populate form fields
      if (nameField) nameField.value = row.dataset.name || '';
@@ -549,8 +547,6 @@ function editItem(id) {
      if (discountedPriceField) discountedPriceField.value = row.dataset.discountedPrice || '';
      if (expiryField) expiryField.value = row.dataset.expiry || '';
      if (addressField) addressField.value = row.dataset.address || '';
-     if (pickupField) pickupField.checked = row.dataset.pickupAvailable === 'true';
-     if (deliveryField) deliveryField.checked = row.dataset.deliveryAvailable === 'true';
     
     // Recalculate discounted price
     calculateDiscountedPrice();
@@ -561,6 +557,17 @@ function editItem(id) {
         loadExistingImage(existingImage);
     } else {
         resetImagePreview();
+    }
+    
+    // Show/hide disabled item notice
+    const disabledNotice = document.getElementById('disabledItemNotice');
+    const isDisabled = row.dataset.isDisabled === 'true' || row.dataset.dbStatus === 'inactive';
+    if (disabledNotice) {
+        if (isDisabled) {
+            disabledNotice.style.display = 'flex';
+        } else {
+            disabledNotice.style.display = 'none';
+        }
     }
     
     // Show modal
@@ -626,8 +633,6 @@ function saveItem() {
     formData.append('discount_percentage', parseFloat(document.getElementById('itemDiscount').value) || 0);
     formData.append('expiry_date', document.getElementById('itemExpiry').value);
     formData.append('address', document.getElementById('itemAddress').value.trim());
-    formData.append('pickup', document.getElementById('itemPickup').checked ? '1' : '0');
-    formData.append('delivery', document.getElementById('itemDelivery').checked ? '1' : '0');
     
     // Add image if selected
     const imageFile = document.getElementById('itemImage').files[0];
@@ -788,6 +793,13 @@ document.getElementById('addFoodBtn')?.addEventListener('click', () => {
     if (modalTitle) {
         modalTitle.textContent = 'Add List Form';
     }
+    
+    // Hide disabled item notice when adding new item
+    const disabledNotice = document.getElementById('disabledItemNotice');
+    if (disabledNotice) {
+        disabledNotice.style.display = 'none';
+    }
+    
     showModal('itemModal');
 });
 
@@ -1416,9 +1428,12 @@ function renderReviews(reviews, averageRating, totalReviews, errorMessage = null
                     <span class="reviewer-name">${userName}</span>
                     <div class="review-rating">${starsHTML}</div>
                 </div>
-                ${review.comment ? `<p class="review-comment">${review.comment}</p>` : ''}
-                ${review.image_path ? `<div class="review-media"><img src="${review.image_path}" alt="Review image" class="review-image"></div>` : ''}
-                ${review.video_path ? `<div class="review-media"><video src="${review.video_path}" controls class="review-video"></video></div>` : ''}
+                ${review.flagged 
+                    ? `<p class="review-hidden-tag">This review is hidden.</p>` 
+                    : `${review.comment ? `<p class="review-comment">${review.comment}</p>` : ''}
+                       ${review.image_path ? `<div class="review-media"><img src="${review.image_path}" alt="Review image" class="review-image"></div>` : ''}
+                       ${review.video_path ? `<div class="review-media"><video src="${review.video_path}" controls class="review-video"></video></div>` : ''}`
+                }
             </div>`;
         });
         
@@ -1490,27 +1505,32 @@ function createReviewElement(review) {
         </div>
     `;
     
-    // Add comment if exists
-    if (review.comment) {
-        reviewHTML += `<p class="review-comment">${review.comment}</p>`;
-    }
-    
-    // Add image if exists
-    if (review.image_path) {
-        reviewHTML += `
-            <div class="review-media">
-                <img src="${review.image_path}" alt="Review image" class="review-image">
-            </div>
-        `;
-    }
-    
-    // Add video if exists
-    if (review.video_path) {
-        reviewHTML += `
-            <div class="review-media">
-                <video src="${review.video_path}" controls class="review-video"></video>
-            </div>
-        `;
+    // If flagged, show hidden message only; otherwise show content
+    if (review.flagged) {
+        reviewHTML += `<p class="review-hidden-tag">This review is hidden.</p>`;
+    } else {
+        // Add comment if exists
+        if (review.comment) {
+            reviewHTML += `<p class="review-comment">${review.comment}</p>`;
+        }
+        
+        // Add image if exists
+        if (review.image_path) {
+            reviewHTML += `
+                <div class="review-media">
+                    <img src="${review.image_path}" alt="Review image" class="review-image">
+                </div>
+            `;
+        }
+        
+        // Add video if exists
+        if (review.video_path) {
+            reviewHTML += `
+                <div class="review-media">
+                    <video src="${review.video_path}" controls class="review-video"></video>
+                </div>
+            `;
+        }
     }
     
     reviewItem.innerHTML = reviewHTML;

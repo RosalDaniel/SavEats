@@ -381,6 +381,15 @@
     color: #d97706;
 }
 
+.btn-action.btn-view {
+    color: #667eea;
+}
+
+.btn-action.btn-view:hover {
+    background: #eef2ff;
+    color: #4f46e5;
+}
+
 .btn-action.btn-delete {
     color: #ef4444;
 }
@@ -595,6 +604,125 @@
     .action-buttons {
         flex-direction: column;
         gap: 0.25rem;
+    }
+}
+
+/* Review Details Modal */
+.review-details-modal {
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.review-details-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.review-details-section {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1.25rem;
+    background: #f9fafb;
+}
+
+.review-details-section h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1f2937;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 0.5rem;
+}
+
+.detail-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    align-items: flex-start;
+}
+
+.detail-row.full-width {
+    flex-direction: column;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #374151;
+    min-width: 140px;
+    font-size: 0.875rem;
+}
+
+.detail-value {
+    color: #6b7280;
+    font-size: 0.875rem;
+    flex: 1;
+    word-break: break-word;
+}
+
+.review-description {
+    background: white;
+    padding: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.review-detail-image {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-top: 0.5rem;
+}
+
+.review-detail-video {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-top: 0.5rem;
+}
+
+.loading-spinner {
+    text-align: center;
+    padding: 2rem;
+    color: #6b7280;
+}
+
+.loading-spinner p {
+    margin: 0;
+}
+
+.error-message {
+    text-align: center;
+    padding: 2rem;
+    color: #ef4444;
+}
+
+.error-message p {
+    margin: 0;
+}
+
+.review-details-modal .modal-body {
+    max-height: calc(90vh - 140px);
+    overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+    .review-details-modal {
+        max-width: 95%;
+    }
+    
+    .detail-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .detail-label {
+        min-width: auto;
     }
 }
 

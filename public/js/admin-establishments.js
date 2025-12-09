@@ -1,66 +1,6 @@
 // Admin Establishment Management JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     // Modal elements
-    const violationsModal = document.getElementById('violationsModal');
-    const closeViolationsModal = document.getElementById('closeViolationsModal');
-    const closeViolationsModalBtn = document.getElementById('closeViolationsModalBtn');
-    
-    const addViolationModal = document.getElementById('addViolationModal');
-    const closeAddViolationModal = document.getElementById('closeAddViolationModal');
-    const cancelAddViolationBtn = document.getElementById('cancelAddViolationBtn');
-    const saveViolationBtn = document.getElementById('saveViolationBtn');
-    const addViolationForm = document.getElementById('addViolationForm');
-    
-    // Close violations modal handlers
-    if (closeViolationsModal) {
-        closeViolationsModal.addEventListener('click', closeViolationsModal);
-    }
-    
-    if (closeViolationsModalBtn) {
-        closeViolationsModalBtn.addEventListener('click', closeViolationsModal);
-    }
-    
-    if (violationsModal) {
-        violationsModal.addEventListener('click', function(e) {
-            if (e.target === violationsModal) {
-                closeViolationsModal();
-            }
-        });
-    }
-    
-    // Close add violation modal handlers
-    if (closeAddViolationModal) {
-        closeAddViolationModal.addEventListener('click', closeAddViolationModal);
-    }
-    
-    if (cancelAddViolationBtn) {
-        cancelAddViolationBtn.addEventListener('click', closeAddViolationModal);
-    }
-    
-    if (addViolationModal) {
-        addViolationModal.addEventListener('click', function(e) {
-            if (e.target === addViolationModal) {
-                closeAddViolationModal();
-            }
-        });
-    }
-    
-    // Form submission
-    if (saveViolationBtn) {
-        saveViolationBtn.addEventListener('click', function() {
-            if (addViolationForm) {
-                addViolationForm.dispatchEvent(new Event('submit'));
-            }
-        });
-    }
-    
-    if (addViolationForm) {
-        addViolationForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            saveViolation();
-        });
-    }
-    
     // Automatic filtering
     initializeAutoFilter();
     
@@ -73,7 +13,6 @@ function initializeAutoFilter() {
     const searchInput = document.getElementById('search');
     const statusSelect = document.getElementById('status');
     const verifiedSelect = document.getElementById('verified');
-    const violationsSelect = document.getElementById('violations');
     
     if (searchInput) {
         let searchTimeout;
@@ -92,10 +31,6 @@ function initializeAutoFilter() {
     if (verifiedSelect) {
         verifiedSelect.addEventListener('change', applyFilters);
     }
-    
-    if (violationsSelect) {
-        violationsSelect.addEventListener('change', applyFilters);
-    }
 }
 
 // Apply filters automatically
@@ -103,7 +38,6 @@ function applyFilters() {
     const searchInput = document.getElementById('search');
     const statusSelect = document.getElementById('status');
     const verifiedSelect = document.getElementById('verified');
-    const violationsSelect = document.getElementById('violations');
     const tableBody = document.getElementById('establishmentsTableBody');
     
     if (!tableBody) return;
@@ -111,7 +45,6 @@ function applyFilters() {
     const searchValue = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const statusValue = statusSelect ? statusSelect.value : 'all';
     const verifiedValue = verifiedSelect ? verifiedSelect.value : 'all';
-    const violationsValue = violationsSelect ? violationsSelect.value : 'all';
     
     const rows = tableBody.querySelectorAll('tr');
     let visibleCount = 0;
@@ -125,7 +58,6 @@ function applyFilters() {
         const searchText = row.getAttribute('data-search-text') || '';
         const status = row.getAttribute('data-status') || 'active';
         const verified = row.getAttribute('data-verified') || 'false';
-        const violationsCount = parseInt(row.getAttribute('data-violations-count') || 0);
         
         // Check search filter
         const matchesSearch = !searchValue || searchText.includes(searchValue);
@@ -138,13 +70,8 @@ function applyFilters() {
             (verifiedValue === 'verified' && verified === 'true') ||
             (verifiedValue === 'unverified' && verified === 'false');
         
-        // Check violations filter
-        const matchesViolations = violationsValue === 'all' ||
-            (violationsValue === 'has_violations' && violationsCount > 0) ||
-            (violationsValue === 'no_violations' && violationsCount === 0);
-        
         // Show/hide row based on filters
-        if (matchesSearch && matchesStatus && matchesVerified && matchesViolations) {
+        if (matchesSearch && matchesStatus && matchesVerified) {
             row.style.display = '';
             visibleCount++;
         } else {
@@ -168,7 +95,7 @@ function applyFilters() {
     if (visibleCount === 0 && !noEstablishmentsRow) {
         const newRow = document.createElement('tr');
         newRow.className = 'no-establishments';
-        newRow.innerHTML = '<td colspan="8" class="no-establishments">No establishments found matching the filters.</td>';
+        newRow.innerHTML = '<td colspan="7" class="no-establishments">No establishments found matching the filters.</td>';
         tableBody.appendChild(newRow);
     } else if (visibleCount > 0 && noEstablishmentsRow) {
         noEstablishmentsRow.remove();
@@ -180,141 +107,10 @@ function clearFilters() {
     window.location.href = '/admin/establishments';
 }
 
-// View violations
-function viewViolations(establishmentId, violations) {
-    const modal = document.getElementById('violationsModal');
-    const modalBody = document.getElementById('violationsModalBody');
-    
-    if (!modal || !modalBody) return;
-    
-    if (!violations || violations.length === 0) {
-        modalBody.innerHTML = '<p>No violations recorded for this establishment.</p>';
-    } else {
-        let html = '<div class="violations-list">';
-        violations.forEach(function(violation) {
-            const severity = violation.severity || 'low';
-            html += `
-                <div class="violation-item severity-${severity}">
-                    <div class="violation-header">
-                        <span class="violation-type">${violation.type || 'Unknown Violation'}</span>
-                        <span class="violation-severity ${severity}">${severity}</span>
-                    </div>
-                    <div class="violation-description">${violation.description || 'No description provided.'}</div>
-                    <div class="violation-meta">
-                        <span>Date: ${violation.date || 'N/A'}</span>
-                        <span>Admin: ${violation.admin || 'System'}</span>
-                    </div>
-                </div>
-            `;
-        });
-        html += '</div>';
-        modalBody.innerHTML = html;
-    }
-    
-    modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
-}
-
-// Close violations modal
-function closeViolationsModal() {
-    const modal = document.getElementById('violationsModal');
-    if (modal) {
-        modal.classList.remove('show');
-        document.body.style.overflow = '';
-    }
-}
-
-// Add violation
-function addViolation(establishmentId) {
-    const modal = document.getElementById('addViolationModal');
-    const form = document.getElementById('addViolationForm');
-    
-    if (!modal || !form) return;
-    
-    document.getElementById('violationEstablishmentId').value = establishmentId;
-    form.reset();
-    document.getElementById('violationEstablishmentId').value = establishmentId;
-    
-    modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
-}
-
-// Close add violation modal
-function closeAddViolationModal() {
-    const modal = document.getElementById('addViolationModal');
-    if (modal) {
-        modal.classList.remove('show');
-        document.body.style.overflow = '';
-    }
-    
-    const form = document.getElementById('addViolationForm');
-    if (form) {
-        form.reset();
-    }
-}
-
-// Save violation
-function saveViolation() {
-    const establishmentId = document.getElementById('violationEstablishmentId').value;
-    
-    if (!establishmentId) {
-        showToast('Invalid establishment', 'error');
-        return;
-    }
-    
-    const formData = new FormData(document.getElementById('addViolationForm'));
-    const data = {
-        violation_type: formData.get('violation_type'),
-        description: formData.get('description'),
-        severity: formData.get('severity')
-    };
-    
-    // Show loading state
-    const saveBtn = document.getElementById('saveViolationBtn');
-    const originalText = saveBtn ? saveBtn.textContent : 'Add Violation';
-    if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Adding...';
-    }
-    
-    // Send request
-    fetch(`/admin/establishments/${establishmentId}/violation`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast(data.message || 'Violation added successfully', 'success');
-            closeAddViolationModal();
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showToast(data.message || 'Failed to add violation', 'error');
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.textContent = originalText;
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('An error occurred while adding the violation', 'error');
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.textContent = originalText;
-        }
-    });
-}
-
 // Toggle verification
 function toggleVerification(id, verified) {
     const action = verified ? 'verify' : 'unverify';
+    const verificationStatus = verified ? 'verified' : 'unverified';
     if (!confirm(`Are you sure you want to ${action} this establishment?`)) {
         return;
     }
@@ -325,7 +121,7 @@ function toggleVerification(id, verified) {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
         },
-        body: JSON.stringify({ verified: verified })
+        body: JSON.stringify({ verification_status: verificationStatus })
     })
     .then(response => response.json())
     .then(data => {
@@ -347,7 +143,12 @@ function toggleVerification(id, verified) {
 // Update status
 function updateStatus(id, status) {
     const action = status === 'active' ? 'activate' : 'suspend';
-    if (!confirm(`Are you sure you want to ${action} this establishment?`)) {
+    const actionText = status === 'active' ? 'activate' : 'suspend';
+    const message = status === 'active' 
+        ? 'Are you sure you want to activate this establishment account? The account will regain full access to the system.'
+        : 'Are you sure you want to suspend this establishment account? The user will be immediately logged out and prevented from accessing the system.';
+    
+    if (!confirm(message)) {
         return;
     }
     
@@ -405,6 +206,157 @@ function deleteEstablishment(id) {
         showToast('An error occurred while deleting the establishment', 'error');
     });
 }
+
+// View establishment details
+function viewEstablishmentDetails(id) {
+    const modal = document.getElementById('establishmentDetailsModal');
+    const modalBody = document.getElementById('establishmentDetailsModalBody');
+    const loadingSpinner = document.getElementById('establishmentDetailsLoading');
+    const contentDiv = document.getElementById('establishmentDetailsContent');
+    
+    if (!modal || !modalBody) return;
+    
+    // Show modal and loading state
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    loadingSpinner.style.display = 'block';
+    contentDiv.style.display = 'none';
+    
+    // Fetch establishment details
+    fetch(`/admin/establishments/${id}/details`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingSpinner.style.display = 'none';
+        
+        if (data.success && data.data) {
+            const establishment = data.data;
+            let html = '<div class="establishment-details-grid">';
+            
+            // Business Information
+            html += '<div class="detail-section">';
+            html += '<h3>Business Information</h3>';
+            html += `<div class="detail-item"><div class="detail-label">Business Name</div><div class="detail-value">${establishment.business_name || 'N/A'}</div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Business Type</div><div class="detail-value">${establishment.business_type || 'N/A'}</div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Status</div><div class="detail-value"><span class="status-badge status-${establishment.status}">${establishment.status}</span></div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Verification Status</div><div class="detail-value"><span class="verified-badge ${establishment.verified ? 'verified-yes' : 'verified-no'}">${establishment.verification_status}</span></div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Registered</div><div class="detail-value">${establishment.registered_at}</div></div>`;
+            html += '</div>';
+            
+            // Owner Information
+            html += '<div class="detail-section">';
+            html += '<h3>Owner Information</h3>';
+            html += `<div class="detail-item"><div class="detail-label">Owner Name</div><div class="detail-value">${establishment.owner_name || 'N/A'}</div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Email</div><div class="detail-value">${establishment.email || 'N/A'}</div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Username</div><div class="detail-value">${establishment.username || 'N/A'}</div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Phone</div><div class="detail-value">${establishment.phone_no || 'N/A'}</div></div>`;
+            html += '</div>';
+            
+            // Location Information
+            html += '<div class="detail-section">';
+            html += '<h3>Location Information</h3>';
+            html += `<div class="detail-item"><div class="detail-label">Address</div><div class="detail-value">${establishment.formatted_address || establishment.address || 'N/A'}</div></div>`;
+            if (establishment.latitude && establishment.longitude) {
+                html += `<div class="detail-item"><div class="detail-label">Coordinates</div><div class="detail-value">${establishment.latitude}, ${establishment.longitude}</div></div>`;
+            }
+            html += '</div>';
+            
+            // Business Statistics
+            html += '<div class="detail-section">';
+            html += '<h3>Business Statistics</h3>';
+            html += `<div class="detail-item"><div class="detail-label">Active Listings</div><div class="detail-value">${establishment.active_listings}</div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Total Listings</div><div class="detail-value">${establishment.total_listings}</div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Total Orders</div><div class="detail-value">${establishment.total_orders}</div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Average Rating</div><div class="detail-value">${establishment.avg_rating} (${establishment.total_reviews} reviews)</div></div>`;
+            html += `<div class="detail-item"><div class="detail-label">Violations</div><div class="detail-value">${establishment.violations_count || 0}</div></div>`;
+            html += '</div>';
+            
+            // BIR Certificate
+            if (establishment.bir_file) {
+                html += '<div class="detail-section">';
+                html += '<h3>BIR Certificate</h3>';
+                html += `<div class="detail-item"><div class="detail-label">Certificate File</div><div class="detail-value"><a href="${establishment.bir_file.startsWith('http') ? establishment.bir_file : '/storage/' + establishment.bir_file}" target="_blank" class="file-link">View Certificate</a></div></div>`;
+                html += '</div>';
+            }
+            
+            // Recent Orders
+            if (establishment.recent_orders && establishment.recent_orders.length > 0) {
+                html += '<div class="detail-section">';
+                html += '<h3>Recent Orders (Last 5)</h3>';
+                html += '<div class="recent-orders-list">';
+                establishment.recent_orders.forEach(order => {
+                    html += `<div class="order-item">`;
+                    html += `<div class="order-number">${order.order_number}</div>`;
+                    html += `<div class="order-info">${order.item_name} - Qty: ${order.quantity} - ₱${parseFloat(order.total_price).toFixed(2)}</div>`;
+                    html += `<div class="order-status">Status: <span class="status-badge status-${order.status}">${order.status}</span></div>`;
+                    html += `<div class="order-date">${order.created_at}</div>`;
+                    html += `</div>`;
+                });
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            
+            contentDiv.innerHTML = html;
+            contentDiv.style.display = 'block';
+        } else {
+            contentDiv.innerHTML = '<div class="error-message">Failed to load establishment details. Please try again.</div>';
+            contentDiv.style.display = 'block';
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching establishment details:', error);
+        loadingSpinner.style.display = 'none';
+        contentDiv.innerHTML = '<div class="error-message">An error occurred while loading establishment details. Please try again.</div>';
+        contentDiv.style.display = 'block';
+    });
+}
+
+// Close establishment details modal
+function closeEstablishmentDetailsModal() {
+    const modal = document.getElementById('establishmentDetailsModal');
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+}
+
+// Initialize modal close handlers
+document.addEventListener('DOMContentLoaded', function() {
+    const closeBtn = document.getElementById('closeEstablishmentDetailsModal');
+    const closeBtnFooter = document.getElementById('closeEstablishmentDetailsModalBtn');
+    const modal = document.getElementById('establishmentDetailsModal');
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeEstablishmentDetailsModal);
+    }
+    
+    if (closeBtnFooter) {
+        closeBtnFooter.addEventListener('click', closeEstablishmentDetailsModal);
+    }
+    
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeEstablishmentDetailsModal();
+            }
+        });
+    }
+    
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal && modal.classList.contains('show')) {
+            closeEstablishmentDetailsModal();
+        }
+    });
+});
 
 // Toast notification
 function showToast(message, type = 'info') {

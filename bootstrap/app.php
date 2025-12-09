@@ -14,7 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'custom.auth' => \App\Http\Middleware\CustomAuth::class,
             'role' => \App\Http\Middleware\CheckUserRole::class,
+            'check.verification' => \App\Http\Middleware\CheckVerificationStatus::class,
         ]);
+    })
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
+        // Precompute dashboard metrics every 10 minutes
+        $schedule->command('dashboard:precompute')->everyTenMinutes();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

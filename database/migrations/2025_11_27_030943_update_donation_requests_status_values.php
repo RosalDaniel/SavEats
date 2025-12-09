@@ -13,7 +13,7 @@ return new class extends Migration
     {
         // Update status column to allow new values (PostgreSQL compatible)
         \DB::statement("ALTER TABLE donation_requests DROP CONSTRAINT IF EXISTS donation_requests_status_check");
-        \DB::statement("ALTER TABLE donation_requests ADD CONSTRAINT donation_requests_status_check CHECK (status IN ('pending', 'active', 'completed', 'expired', 'accepted', 'declined', 'pickup_confirmed', 'delivery_successful'))");
+        \DB::statement("ALTER TABLE donation_requests ADD CONSTRAINT donation_requests_status_check CHECK (status IN ('pending', 'pending_confirmation', 'active', 'completed', 'expired', 'accepted', 'declined', 'pickup_confirmed', 'delivery_successful'))");
     }
 
     /**

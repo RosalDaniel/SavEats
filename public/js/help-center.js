@@ -238,6 +238,50 @@ function closeChat() {
     }
 }
 
+// Copy to clipboard functionality
+function copyToClipboard(text, element) {
+    // Create a temporary textarea element
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    
+    // Select and copy
+    textarea.select();
+    textarea.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        document.execCommand('copy');
+        
+        // Visual feedback
+        const originalText = element.textContent;
+        element.textContent = 'Copied!';
+        element.style.color = '#10b981';
+        element.style.backgroundColor = '#d1fae5';
+        
+        // Reset after 2 seconds
+        setTimeout(() => {
+            element.textContent = originalText;
+            element.style.color = '#347928';
+            element.style.backgroundColor = 'transparent';
+        }, 2000);
+        
+        // Show notification if available
+        if (typeof showNotification === 'function') {
+            showNotification(`${text} copied to clipboard!`, 'success');
+        }
+    } catch (err) {
+        console.error('Failed to copy:', err);
+        if (typeof showNotification === 'function') {
+            showNotification('Failed to copy. Please select and copy manually.', 'error');
+        }
+    }
+    
+    // Clean up
+    document.body.removeChild(textarea);
+}
+
 function sendMessage() {
     const chatInput = document.getElementById('chatInput');
     const message = chatInput.value.trim();

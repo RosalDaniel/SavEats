@@ -15,10 +15,18 @@ use App\Models\Donation;
 use App\Models\Announcement;
 use App\Services\NotificationService;
 use App\Services\DonationRequestService;
+use App\Services\DashboardCacheService;
 use App\Models\Notification;
+use App\Models\DeletionRequest;
+use App\Models\StockLedger;
+use App\Models\SystemLog;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
 {
@@ -49,6 +57,20 @@ class DashboardController extends Controller
     }
 
     /**
+     * Check if the current foodbank is verified
+     */
+    private function checkFoodbankVerification()
+    {
+        $foodbankId = session('user_id');
+        if (!$foodbankId) {
+            return false;
+        }
+        
+        $foodbank = Foodbank::find($foodbankId);
+        return $foodbank && $foodbank->isVerified();
+    }
+
+    /**
      * Show consumer dashboard
      */
     public function consumer()
@@ -61,47 +83,20 @@ class DashboardController extends Controller
         $user = $this->getUserData();
         $consumerId = session('user_id');
         
-        // Initialize statistics with default values
-        $totalSavings = 0;
-        $ordersCount = 0;
-        $foodRescued = 0;
-        $ratedOrdersCount = 0;
+        // Get cached statistics
+        $stats = $consumerId ? DashboardCacheService::getConsumerStats($consumerId) : [
+            'total_savings' => 0,
+            'orders_count' => 0,
+            'food_rescued' => 0,
+            'rated_orders_count' => 0,
+        ];
         
-        if ($consumerId) {
-            // Get all completed orders for this consumer
-            $completedOrders = Order::with('foodListing')
-                ->where('consumer_id', $consumerId)
-                ->where('status', 'completed')
-                ->get();
-            
-            // Calculate Total Savings (money saved from discounts)
-            foreach ($completedOrders as $order) {
-                if ($order->foodListing) {
-                    $foodListing = $order->foodListing;
-                    $originalPrice = (float) $foodListing->original_price;
-                    $discountPercentage = (float) ($foodListing->discount_percentage ?? 0);
-                    $quantity = (int) $order->quantity;
-                    
-                    if ($discountPercentage > 0) {
-                        $discountAmountPerUnit = $originalPrice * ($discountPercentage / 100);
-                        $totalSavings += $discountAmountPerUnit * $quantity;
-                    }
-                    
-                    // Calculate food rescued (total quantity)
-                    $foodRescued += $quantity;
-                }
-            }
-            
-            $totalSavings = round($totalSavings, 2);
-            $ordersCount = $completedOrders->count();
-            
-            // Calculate number of rated orders (orders that have reviews)
-            $ratedOrdersCount = Review::where('consumer_id', $consumerId)
-                ->distinct('order_id')
-                ->count('order_id');
-        }
+        $totalSavings = $stats['total_savings'];
+        $ordersCount = $stats['orders_count'];
+        $foodRescued = $stats['food_rescued'];
+        $ratedOrdersCount = $stats['rated_orders_count'];
         
-        // Get upcoming order (pending or accepted status)
+        // Get upcoming order (pending or accepted status) - not cached as it changes frequently
         $upcomingOrder = null;
         if ($consumerId) {
             $upcomingOrder = Order::with(['foodListing', 'establishment'])
@@ -200,38 +195,41 @@ class DashboardController extends Controller
             }
         }
         
-        // Get random food listings with discounts (best deals)
-        // Prioritize items with higher discount percentages
-        $bestDeals = FoodListing::where('status', 'active')
-            ->where('discount_percentage', '>', 0)
-            ->where('expiry_date', '>=', now()->toDateString())
-            ->orderBy('discount_percentage', 'desc')
-            ->inRandomOrder()
-            ->limit(2)
-            ->get()
-            ->map(function ($item) {
-                // Calculate available stock
-                $availableStock = max(0, $item->quantity - ($item->reserved_stock ?? 0));
-                
-                // Calculate discounted price
-                $discountedPrice = $this->calculateDiscountedPrice($item->original_price, $item->discount_percentage);
-                
-                // Get image URL
-                $imageUrl = null;
-                if ($item->image_path && Storage::disk('public')->exists($item->image_path)) {
-                    $imageUrl = Storage::url($item->image_path);
-                }
-                
-                return [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'quantity' => $availableStock,
-                    'original_price' => $item->original_price,
-                    'discounted_price' => $discountedPrice,
-                    'discount_percentage' => round($item->discount_percentage),
-                    'image_url' => $imageUrl,
-                ];
-            });
+        // Get random food listings with discounts (best deals) - cached
+        $bestDeals = Cache::remember('dashboard:consumer:best_deals', 5 * 60, function () {
+            return FoodListing::where('status', 'active')
+                ->where('discount_percentage', '>', 0)
+                ->where('expiry_date', '>=', now()->toDateString())
+                ->orderBy('discount_percentage', 'desc')
+                ->inRandomOrder()
+                ->limit(2)
+                ->get()
+                ->map(function ($item) {
+                    // Calculate available stock
+                    $availableStock = max(0, $item->quantity - ($item->reserved_stock ?? 0));
+                    
+                    // Calculate discounted price
+                    $originalPrice = (float) $item->original_price;
+                    $discountPercentage = (float) ($item->discount_percentage ?? 0);
+                    $discountedPrice = $originalPrice * (1 - ($discountPercentage / 100));
+                    
+                    // Get image URL
+                    $imageUrl = null;
+                    if ($item->image_path && Storage::disk('public')->exists($item->image_path)) {
+                        $imageUrl = Storage::url($item->image_path);
+                    }
+                    
+                    return [
+                        'id' => $item->id,
+                        'name' => $item->name,
+                        'quantity' => $availableStock,
+                        'original_price' => $item->original_price,
+                        'discounted_price' => $discountedPrice,
+                        'discount_percentage' => round($item->discount_percentage),
+                        'image_url' => $imageUrl,
+                    ];
+                });
+        });
         
         return view('consumer.dashboard', compact(
             'user', 
@@ -270,37 +268,80 @@ class DashboardController extends Controller
         }
         
         $user = $this->getUserData();
+        $foodbankId = session('user_id');
+        $foodbank = Foodbank::find($foodbankId);
+        $isVerified = $foodbank && $foodbank->isVerified();
         
-        // Weekly data for chart (last 7 days)
-        $dayLabels = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-        $weeklyData = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = now()->subDays($i);
-            $dayOfWeek = $date->dayOfWeek; // 0=Sunday, 1=Monday, etc.
-            
-            // Sample data - replace with actual database queries when ready
-            $dayFoodReceived = 0; // TODO: Query actual food received for this day
-            
-            $weeklyData[] = [
-                'label' => $dayLabels[$dayOfWeek],
-                'value' => (int) $dayFoodReceived
-            ];
-        }
+        // Get cached statistics
+        $stats = DashboardCacheService::getFoodbankStats($foodbankId);
+        $activeRequests = $stats['active_requests'];
+        $businessPartnered = $stats['business_partnered'];
+        $donationsReceived = $stats['donations_received'];
         
-        // If no data, use sample data
-        if (array_sum(array_column($weeklyData, 'value')) === 0) {
-            $weeklyData = [
-                ['label' => 'SUN', 'value' => 5],
-                ['label' => 'MON', 'value' => 8],
-                ['label' => 'TUE', 'value' => 12],
-                ['label' => 'WED', 'value' => 15],
-                ['label' => 'THU', 'value' => 10],
-                ['label' => 'FRI', 'value' => 18],
-                ['label' => 'SAT', 'value' => 14],
-            ];
-        }
+        // Get recent donations (latest 2) - not cached as it changes frequently
+        $recentDonations = Donation::where('foodbank_id', $foodbankId)
+            ->with(['establishment', 'donationRequest'])
+            ->orderByRaw('COALESCE(collected_at, created_at) DESC')
+            ->limit(2)
+            ->get()
+            ->map(function ($donation) {
+                $establishment = $donation->establishment;
+                
+                // Use collected_at if available, otherwise use created_at for display
+                $displayDate = $donation->collected_at ?? $donation->created_at;
+                
+                // Format scheduled time
+                $timeDisplay = 'N/A';
+                if ($donation->scheduled_time) {
+                    $timeDisplay = is_string($donation->scheduled_time) 
+                        ? substr($donation->scheduled_time, 0, 5) 
+                        : $donation->scheduled_time->format('H:i');
+                }
+                
+                return [
+                    'id' => $donation->donation_id,
+                    'donation_number' => $donation->donation_number,
+                    'item_name' => $donation->item_name,
+                    'quantity' => $donation->quantity,
+                    'unit' => $donation->unit ?? 'pcs',
+                    'establishment_name' => $establishment ? $establishment->business_name : 'Unknown',
+                    'establishment_id' => $donation->establishment_id,
+                    'category' => $donation->item_category,
+                    'description' => $donation->description,
+                    'expiry_date' => $donation->expiry_date ? $donation->expiry_date->format('Y-m-d') : null,
+                    'expiry_date_display' => $donation->expiry_date ? $donation->expiry_date->format('F d, Y') : 'N/A',
+                    'status' => $donation->status,
+                    'status_display' => ucfirst(str_replace('_', ' ', $donation->status)),
+                    'pickup_method' => $donation->pickup_method,
+                    'pickup_method_display' => ucfirst($donation->pickup_method),
+                    'scheduled_date' => $donation->scheduled_date ? $donation->scheduled_date->format('Y-m-d') : null,
+                    'scheduled_date_display' => $donation->scheduled_date ? $donation->scheduled_date->format('F d, Y') : 'N/A',
+                    'scheduled_time' => $timeDisplay,
+                    'created_at' => $donation->created_at->format('Y-m-d H:i:s'),
+                    'created_at_display' => $donation->created_at->format('F d, Y g:i A'),
+                    'collected_at' => $donation->collected_at ? $donation->collected_at->format('Y-m-d H:i:s') : null,
+                    'collected_at_display' => $donation->collected_at ? $donation->collected_at->format('F d, Y g:i A') : 'N/A',
+                    'handler_name' => $donation->handler_name ?? 'N/A',
+                    'establishment_notes' => $donation->establishment_notes,
+                    'foodbank_notes' => $donation->foodbank_notes,
+                    'is_urgent' => $donation->is_urgent ?? false,
+                    'is_nearing_expiry' => $donation->is_nearing_expiry ?? false,
+                    'formatted_date' => $displayDate->format('l - g:i A'),
+                ];
+            });
         
-        return view('foodbank.dashboard', compact('user', 'weeklyData'));
+        // Get cached weekly chart data
+        $weeklyData = DashboardCacheService::getFoodbankWeeklyData($foodbankId);
+        
+        return view('foodbank.dashboard', compact(
+            'user', 
+            'weeklyData', 
+            'activeRequests', 
+            'businessPartnered', 
+            'donationsReceived',
+            'recentDonations',
+            'isVerified'
+        ));
     }
 
     /**
@@ -373,6 +414,9 @@ class DashboardController extends Controller
      */
     public function foodbankHelp()
     {
+        $foodbankId = session('user_id');
+        $foodbank = Foodbank::find($foodbankId);
+        $isVerified = $foodbank && $foodbank->isVerified();
         return view('foodbank.help');
     }
 
@@ -382,6 +426,9 @@ class DashboardController extends Controller
     public function foodbankSettings()
     {
         $userData = $this->getUserData();
+        $foodbankId = session('user_id');
+        $foodbank = Foodbank::find($foodbankId);
+        $isVerified = $foodbank && $foodbank->isVerified();
         return view('foodbank.settings', compact('userData'));
     }
 
@@ -397,23 +444,112 @@ class DashboardController extends Controller
         
         $user = $this->getUserData();
         $foodbankId = session('user_id');
+        $foodbank = Foodbank::find($foodbankId);
+        $isVerified = $foodbank && $foodbank->isVerified();
         
-        // Fetch INCOMING requests (pending - newly submitted by establishments)
-        $incomingRequests = DonationRequest::where('foodbank_id', $foodbankId)
+        // Ensure foodbank_id is a string (UUID)
+        if (!is_string($foodbankId)) {
+            $foodbankId = (string) $foodbankId;
+        }
+        
+        // Fetch INCOMING requests (pending-type statuses - newly submitted by establishments)
+        // Include both 'pending' and 'pending_confirmation' statuses
+        // Only show pickup requests (delivery is no longer supported)
+        $incomingRequestsQuery = DonationRequest::where('foodbank_id', $foodbankId)
             ->whereNotNull('establishment_id')
-            ->where('status', DonationRequestService::STATUS_PENDING)
+            ->whereIn('status', [
+                DonationRequestService::STATUS_PENDING,
+                DonationRequestService::STATUS_PENDING_CONFIRMATION
+            ])
+            ->where(function($query) {
+                $query->where('pickup_method', 'pickup')
+                      ->orWhereNull('pickup_method'); // Legacy records without pickup_method
+            });
+        
+        // Log ALL donation requests for this foodbank to debug (including all statuses)
+        $allRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->whereNotNull('establishment_id')
+            ->orderBy('created_at', 'desc')
+            ->get(['donation_request_id', 'status', 'item_name', 'created_at', 'establishment_id']);
+        
+        \Log::info('All donation requests for foodbank (debug)', [
+            'foodbank_id' => $foodbankId,
+            'total_count' => $allRequests->count(),
+            'requests' => $allRequests->map(function($r) {
+                return [
+                    'id' => $r->donation_request_id,
+                    'status' => $r->status,
+                    'item_name' => $r->item_name,
+                    'created_at' => $r->created_at->format('Y-m-d H:i:s'),
+                    'establishment_id' => $r->establishment_id,
+                ];
+            })->toArray(),
+        ]);
+        
+        // Also check for the specific ID the user mentioned
+        $specificRequest = DonationRequest::where('donation_request_id', '079311d8-9f7b-4df0-87d8-8de2da60cf0f')->first();
+        if ($specificRequest) {
+            \Log::info('Found specific donation request', [
+                'id' => $specificRequest->donation_request_id,
+                'status' => $specificRequest->status,
+                'foodbank_id' => $specificRequest->foodbank_id,
+                'establishment_id' => $specificRequest->establishment_id,
+                'item_name' => $specificRequest->item_name,
+            ]);
+        } else {
+            \Log::warning('DonationRequest 079311d8-9f7b-4df0-87d8-8de2da60cf0f NOT FOUND in database');
+        }
+        
+        // Log query for debugging (can be removed in production)
+        $rawCount = $incomingRequestsQuery->count();
+        \Log::info('Incoming donation requests query', [
+            'foodbank_id' => $foodbankId,
+            'raw_count' => $rawCount,
+            'statuses_checked' => [DonationRequestService::STATUS_PENDING, DonationRequestService::STATUS_PENDING_CONFIRMATION],
+        ]);
+        
+        $incomingRequests = $incomingRequestsQuery
             ->with(['establishment'])
             ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function($request) {
-                return DonationRequestService::formatRequestData($request);
+            ->get();
+        
+        \Log::info('Fetched incoming requests', [
+            'count' => $incomingRequests->count(),
+            'request_ids' => $incomingRequests->pluck('donation_request_id')->toArray(),
+        ]);
+        
+        $incomingRequests = $incomingRequests->map(function($request) {
+                try {
+                    return DonationRequestService::formatRequestData($request);
+                } catch (\Exception $e) {
+                    \Log::error('Error formatting donation request data', [
+                        'request_id' => $request->donation_request_id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    return null;
+                }
             })
+            ->filter(function($request) {
+                return $request !== null;
+            })
+            ->values()
             ->toArray();
         
-        // Fetch ACCEPTED requests (accepted by foodbank, awaiting pickup/delivery confirmation)
+        \Log::info('Formatted incoming requests', [
+            'count' => count($incomingRequests),
+            'request_ids' => array_column($incomingRequests, 'id'),
+        ]);
+        
+        // Fetch ACCEPTED requests (accepted by foodbank, awaiting pickup confirmation)
+        // Only show pickup requests (delivery is no longer supported)
         $acceptedRequests = DonationRequest::where('foodbank_id', $foodbankId)
             ->whereNotNull('establishment_id')
             ->where('status', DonationRequestService::STATUS_ACCEPTED)
+            ->where(function($query) {
+                $query->where('pickup_method', 'pickup')
+                      ->orWhereNull('pickup_method'); // Legacy records without pickup_method
+            })
             ->with(['establishment'])
             ->orderBy('updated_at', 'desc')
             ->get()
@@ -423,9 +559,14 @@ class DashboardController extends Controller
             ->toArray();
         
         // Fetch DECLINED requests
+        // Only show pickup requests (delivery is no longer supported)
         $declinedRequests = DonationRequest::where('foodbank_id', $foodbankId)
             ->whereNotNull('establishment_id')
             ->where('status', DonationRequestService::STATUS_DECLINED)
+            ->where(function($query) {
+                $query->where('pickup_method', 'pickup')
+                      ->orWhereNull('pickup_method'); // Legacy records without pickup_method
+            })
             ->with(['establishment'])
             ->orderBy('updated_at', 'desc')
             ->get()
@@ -435,9 +576,14 @@ class DashboardController extends Controller
             ->toArray();
         
         // Fetch COMPLETED requests
+        // Only show pickup requests (delivery is no longer supported)
         $completedRequests = DonationRequest::where('foodbank_id', $foodbankId)
             ->whereNotNull('establishment_id')
             ->where('status', DonationRequestService::STATUS_COMPLETED)
+            ->where(function($query) {
+                $query->where('pickup_method', 'pickup')
+                      ->orWhereNull('pickup_method'); // Legacy records without pickup_method
+            })
             ->with(['establishment', 'donation'])
             ->orderBy('fulfilled_at', 'desc')
             ->get()
@@ -448,8 +594,13 @@ class DashboardController extends Controller
         
         // Legacy: Fetch foodbank's own donation requests (foodbank requesting donations from establishments)
         // This is separate from establishment-initiated requests
+        // Only show pickup requests (delivery is no longer supported)
         $foodbankDonationRequests = DonationRequest::where('foodbank_id', $foodbankId)
             ->whereNull('establishment_id')
+            ->where(function($query) {
+                $query->where('pickup_method', 'pickup')
+                      ->orWhereNull('pickup_method'); // Legacy records without pickup_method
+            })
             ->orderBy('created_at', 'desc')
             ->with(['donation', 'fulfilledBy'])
             ->get()
@@ -462,25 +613,25 @@ class DashboardController extends Controller
                     'status' => $request->status,
                     'donation_id' => $request->donation_id,
                     'fulfilled_at' => $request->fulfilled_at,
-                    'pickup_method' => $request->donation ? $request->donation->pickup_method : null,
+                    'pickup_method' => 'pickup', // Always pickup
                     'establishment_name' => $request->fulfilledBy ? $request->fulfilledBy->business_name : null,
                     'establishment_id' => $request->fulfilled_by_establishment_id,
                 ];
             })
             ->toArray();
         
-        return view('foodbank.donation-request', compact(
+        return view('foodbank.donation-requests', compact(
             'user', 
             'incomingRequests', 
             'acceptedRequests', 
             'declinedRequests', 
             'completedRequests',
-            'foodbankDonationRequests'
+            'isVerified'
         ));
     }
 
     /**
-     * Show donation requests list page (foodbank's own published requests)
+     * Show donation requests list page (foodbank's own published requests AND establishment-submitted requests)
      */
     public function donationRequestsList()
     {
@@ -491,17 +642,26 @@ class DashboardController extends Controller
         
         $user = $this->getUserData();
         $foodbankId = session('user_id');
+        $foodbank = Foodbank::find($foodbankId);
+        $isVerified = $foodbank && $foodbank->isVerified();
         
-        // Fetch foodbank's own donation requests (foodbank requesting donations from establishments)
+        // Fetch ALL donation requests for this foodbank (both foodbank's own and establishment-submitted)
+        // Always read fresh from database - no caching
         $foodbankDonationRequests = DonationRequest::where('foodbank_id', $foodbankId)
-            ->whereNull('establishment_id')
+            ->where(function($query) {
+                $query->where('pickup_method', 'pickup')
+                      ->orWhereNull('pickup_method'); // Legacy records without pickup_method
+            })
             ->orderBy('created_at', 'desc')
-            ->with(['donation', 'fulfilledBy'])
+            ->with(['donation', 'fulfilledBy', 'establishment'])
             ->get()
             ->map(function ($request) {
                 $data = DonationRequestService::formatRequestData($request);
-                // Add additional fields for foodbank's own requests
+                // Add additional fields for display
                 $data['foodType'] = $data['item_name'];
+                // Mark if it's a foodbank's own request or establishment-submitted
+                $data['is_foodbank_request'] = is_null($request->establishment_id);
+                $data['establishment_name'] = $request->establishment ? $request->establishment->business_name : null;
                 return $data;
             })
             ->toArray();
@@ -510,6 +670,51 @@ class DashboardController extends Controller
             'user',
             'foodbankDonationRequests'
         ));
+    }
+
+    /**
+     * Fetch fresh donation requests data for the List page (AJAX endpoint)
+     */
+    public function fetchDonationRequestsList()
+    {
+        // Verify user is a foodbank
+        if (session('user_type') !== 'foodbank') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+        
+        $foodbankId = session('user_id');
+        
+        // Fetch ALL donation requests for this foodbank (both foodbank's own and establishment-submitted)
+        // Always read fresh from database - no caching
+        // Re-query to ensure we get the absolute latest data
+        $allDonationRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->where(function($query) {
+                $query->where('pickup_method', 'pickup')
+                      ->orWhereNull('pickup_method'); // Legacy records without pickup_method
+            })
+            ->orderBy('created_at', 'desc')
+            ->with(['donation', 'fulfilledBy', 'establishment'])
+            ->get() // Fresh query - no cache
+            ->map(function ($request) {
+                // Reload the model to ensure we have the latest status
+                $request->refresh();
+                $data = DonationRequestService::formatRequestData($request);
+                // Add additional fields for display
+                $data['foodType'] = $data['item_name'];
+                // Mark if it's a foodbank's own request or establishment-submitted
+                $data['is_foodbank_request'] = is_null($request->establishment_id);
+                $data['establishment_name'] = $request->establishment ? $request->establishment->business_name : null;
+                return $data;
+            })
+            ->toArray();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $allDonationRequests
+        ], 200);
     }
 
     /**
@@ -525,6 +730,15 @@ class DashboardController extends Controller
             ], 403);
         }
 
+        // Check verification status
+        if (!$this->checkFoodbankVerification()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is not verified. Please wait for admin approval.',
+                'error' => 'unverified_account'
+            ], 403);
+        }
+
         $foodbankId = session('user_id');
 
         // Validate the request
@@ -533,33 +747,26 @@ class DashboardController extends Controller
             'quantity' => 'required|integer|min:1',
             'category' => 'required|string',
             'description' => 'nullable|string',
-            'distributionZone' => 'required|string',
-            'dropoffDate' => 'required|date|after_or_equal:today',
-            'timeOption' => 'required|in:allDay,anytime,specific',
-            'startTime' => 'nullable|required_if:timeOption,specific|date_format:H:i',
-            'endTime' => 'nullable|required_if:timeOption,specific|date_format:H:i|after:startTime',
-            'address' => 'required|string',
-            'deliveryOption' => 'required|in:pickup,delivery',
             'contactName' => 'required|string|max:255',
             'phoneNumber' => 'required|string',
             'email' => 'required|email|max:255',
         ]);
 
         try {
-            // Create the donation request
+            // Create the donation request (pickup only - establishment's address will be used)
             $donationRequest = DonationRequest::create([
                 'foodbank_id' => $foodbankId,
                 'item_name' => $validated['itemName'],
                 'quantity' => $validated['quantity'],
                 'category' => $validated['category'],
                 'description' => $validated['description'] ?? null,
-                'distribution_zone' => $validated['distributionZone'],
-                'dropoff_date' => $validated['dropoffDate'],
-                'time_option' => $validated['timeOption'],
-                'start_time' => $validated['timeOption'] === 'specific' ? $validated['startTime'] : null,
-                'end_time' => $validated['timeOption'] === 'specific' ? $validated['endTime'] : null,
-                'address' => $validated['address'],
-                'delivery_option' => $validated['deliveryOption'],
+                'distribution_zone' => 'N/A', // Not used for pickup-only requests
+                'dropoff_date' => now()->toDateString(), // Default to today
+                'time_option' => 'anytime', // Default for pickup-only
+                'start_time' => null,
+                'end_time' => null,
+                'address' => 'Establishment Address', // Will be set to establishment's address when fulfilled
+                'pickup_method' => 'pickup', // Always pickup
                 'contact_name' => $validated['contactName'],
                 'phone_number' => $validated['phoneNumber'],
                 'email' => $validated['email'],
@@ -642,6 +849,15 @@ class DashboardController extends Controller
             ], 403);
         }
 
+        // Check verification status
+        if (!$this->checkFoodbankVerification()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is not verified. Please wait for admin approval.',
+                'error' => 'unverified_account'
+            ], 403);
+        }
+
         $foodbankId = session('user_id');
 
         // Validate the request
@@ -650,13 +866,6 @@ class DashboardController extends Controller
             'quantity' => 'required|integer|min:1',
             'category' => 'required|string',
             'description' => 'nullable|string',
-            'distributionZone' => 'required|string',
-            'dropoffDate' => 'required|date|after_or_equal:today',
-            'timeOption' => 'required|in:allDay,anytime,specific',
-            'startTime' => 'nullable|required_if:timeOption,specific|date_format:H:i',
-            'endTime' => 'nullable|required_if:timeOption,specific|date_format:H:i|after:startTime',
-            'address' => 'required|string',
-            'deliveryOption' => 'required|in:pickup,delivery',
             'contactName' => 'required|string|max:255',
             'phoneNumber' => 'required|string',
             'email' => 'required|email|max:255',
@@ -676,19 +885,14 @@ class DashboardController extends Controller
                 ], 404);
             }
 
-            // Update the donation request
+            // Update the donation request (pickup only - delivery fields removed)
             $donationRequest->update([
                 'item_name' => $validated['itemName'],
                 'quantity' => $validated['quantity'],
                 'category' => $validated['category'],
                 'description' => $validated['description'] ?? null,
-                'distribution_zone' => $validated['distributionZone'],
-                'dropoff_date' => $validated['dropoffDate'],
-                'time_option' => $validated['timeOption'],
-                'start_time' => $validated['timeOption'] === 'specific' ? $validated['startTime'] : null,
-                'end_time' => $validated['timeOption'] === 'specific' ? $validated['endTime'] : null,
-                'address' => $validated['address'],
-                'delivery_option' => $validated['deliveryOption'],
+                // Delivery fields not updated - pickup only
+                'pickup_method' => 'pickup', // Always pickup
                 'contact_name' => $validated['contactName'],
                 'phone_number' => $validated['phoneNumber'],
                 'email' => $validated['email'],
@@ -731,6 +935,15 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Access denied. Please login as a foodbank.'
+            ], 403);
+        }
+
+        // Check verification status
+        if (!$this->checkFoodbankVerification()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is not verified. Please wait for admin approval.',
+                'error' => 'unverified_account'
             ], 403);
         }
 
@@ -830,58 +1043,13 @@ class DashboardController extends Controller
     }
 
     /**
-     * Confirm delivery for foodbank's own donation request
+     * Confirm delivery for foodbank's own donation request (removed - pickup only)
+     * Redirects to pickup confirmation
      */
     public function confirmFoodbankRequestDelivery(Request $request, $requestId)
     {
-        if (session('user_type') !== 'foodbank') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Access denied. Please login as a foodbank.'
-            ], 403);
-        }
-
-        $foodbankId = session('user_id');
-
-        try {
-            $donationRequest = DonationRequest::where('donation_request_id', $requestId)
-                ->where('foodbank_id', $foodbankId)
-                ->whereNull('establishment_id')
-                ->whereIn('status', [
-                    DonationRequestService::STATUS_PENDING,
-                    DonationRequestService::STATUS_ACCEPTED,
-                    DonationRequestService::STATUS_PENDING_CONFIRMATION
-                ])
-                ->first();
-
-            if (!$donationRequest) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Donation request not found or cannot confirm delivery.'
-                ], 404);
-            }
-
-            $donationRequest->status = DonationRequestService::STATUS_COMPLETED;
-            $donationRequest->fulfilled_at = now();
-            $donationRequest->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Delivery confirmed successfully!',
-                'data' => [
-                    'id' => $donationRequest->donation_request_id,
-                    'status' => $donationRequest->status,
-                    'fulfilled_at' => $donationRequest->fulfilled_at->format('F d, Y g:i A'),
-                ]
-            ], 200);
-        } catch (\Exception $e) {
-            \Log::error('Error confirming delivery: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to confirm delivery. Please try again.',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
-            ], 500);
-        }
+        // Delivery is no longer supported - redirect to pickup confirmation
+        return $this->confirmFoodbankRequestPickup($request, $requestId);
     }
 
     /**
@@ -981,7 +1149,7 @@ class DashboardController extends Controller
                     'expiry_date' => $donation->expiry_date,
                     'scheduled_date' => $scheduledDate,
                     'scheduled_time' => $scheduledTime,
-                    'pickup_method' => $donation->pickup_method ?? 'pickup',
+                    'pickup_method' => 'pickup',
                     'establishment_notes' => $donation->establishment_notes,
                     'status' => DonationRequestService::STATUS_ACCEPTED,
                     // Required fields from original schema (not in Donation model)
@@ -992,7 +1160,6 @@ class DashboardController extends Controller
                     'phone_number' => $foodbank->phone_no ?? 'Not provided',
                     'email' => $foodbank->email ?? 'notprovided@example.com',
                     'time_option' => 'anytime',
-                    'delivery_option' => $donation->pickup_method ?? 'pickup',
                 ];
                 
                 $donationRequest = DonationRequest::create($requestData);
@@ -1010,19 +1177,20 @@ class DashboardController extends Controller
             
             // Send notification to foodbank (confirmation of their action)
             $establishmentName = $donation->establishment ? $donation->establishment->business_name : 'an establishment';
+            $establishmentAddress = $donation->establishment ? ($donation->establishment->address ?? 'Address not provided') : 'Address not provided';
             Notification::createNotification(
                 'foodbank',
                 $foodbankId,
                 'donation_accepted',
                 'Donation Accepted',
-                "You have accepted the donation offer for {$donation->item_name} from {$establishmentName}. Please confirm pickup or delivery when completed.",
+                "You have accepted the donation offer for {$donation->item_name} from {$establishmentName}. Pickup location: {$establishmentAddress}. Please confirm pickup when completed.",
                 [
                     'donation_id' => $donation->donation_id,
                     'data' => [
                         'item_name' => $donation->item_name,
                         'quantity' => $donation->quantity,
                         'establishment_name' => $establishmentName,
-                        'pickup_method' => $donation->pickup_method,
+                        'pickup_method' => 'pickup',
                     ]
                 ]
             );
@@ -1116,13 +1284,25 @@ class DashboardController extends Controller
             ], 403);
         }
 
+        // Check verification status
+        if (!$this->checkFoodbankVerification()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is not verified. Please wait for admin approval.',
+                'error' => 'unverified_account'
+            ], 403);
+        }
+
         $foodbankId = session('user_id');
 
         try {
             $donationRequest = DonationRequest::where('donation_request_id', $requestId)
                 ->where('foodbank_id', $foodbankId)
                 ->whereNotNull('establishment_id')
-                ->where('status', DonationRequestService::STATUS_PENDING)
+                ->whereIn('status', [
+                    DonationRequestService::STATUS_PENDING,
+                    DonationRequestService::STATUS_PENDING_CONFIRMATION
+                ])
                 ->first();
 
             if (!$donationRequest) {
@@ -1169,13 +1349,25 @@ class DashboardController extends Controller
             ], 403);
         }
 
+        // Check verification status
+        if (!$this->checkFoodbankVerification()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is not verified. Please wait for admin approval.',
+                'error' => 'unverified_account'
+            ], 403);
+        }
+
         $foodbankId = session('user_id');
 
         try {
             $donationRequest = DonationRequest::where('donation_request_id', $requestId)
                 ->where('foodbank_id', $foodbankId)
                 ->whereNotNull('establishment_id')
-                ->where('status', DonationRequestService::STATUS_PENDING)
+                ->whereIn('status', [
+                    DonationRequestService::STATUS_PENDING,
+                    DonationRequestService::STATUS_PENDING_CONFIRMATION
+                ])
                 ->first();
 
             if (!$donationRequest) {
@@ -1229,10 +1421,6 @@ class DashboardController extends Controller
                 ->where('foodbank_id', $foodbankId)
                 ->whereNotNull('establishment_id')
                 ->whereIn('status', [DonationRequestService::STATUS_ACCEPTED, DonationRequestService::STATUS_PENDING_CONFIRMATION])
-                ->where(function($query) {
-                    $query->where('pickup_method', 'pickup')
-                          ->orWhere('delivery_option', 'pickup');
-                })
                 ->first();
 
             if (!$donationRequest) {
@@ -1271,63 +1459,13 @@ class DashboardController extends Controller
     }
 
     /**
-     * Confirm delivery for an accepted donation request (from establishment)
+     * Confirm delivery for an accepted donation request (removed - pickup only)
+     * Redirects to pickup confirmation
      */
     public function confirmDelivery(Request $request, $requestId)
     {
-        if (session('user_type') !== 'foodbank') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Access denied. Please login as a foodbank.'
-            ], 403);
-        }
-
-        $foodbankId = session('user_id');
-
-        try {
-            $donationRequest = DonationRequest::where('donation_request_id', $requestId)
-                ->where('foodbank_id', $foodbankId)
-                ->whereNotNull('establishment_id')
-                ->whereIn('status', [DonationRequestService::STATUS_ACCEPTED, DonationRequestService::STATUS_PENDING_CONFIRMATION])
-                ->where(function($query) {
-                    $query->where('pickup_method', 'delivery')
-                          ->orWhere('delivery_option', 'delivery');
-                })
-                ->first();
-
-            if (!$donationRequest) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Donation request not found or cannot confirm delivery.'
-                ], 404);
-            }
-
-            $donation = DonationRequestService::confirmCompletion($donationRequest, 'delivery');
-
-            if (!$donation) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot confirm delivery. Invalid status transition.'
-                ], 400);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Delivery confirmed successfully! Donation request marked as completed.',
-                'data' => [
-                    'id' => $donationRequest->donation_request_id,
-                    'status' => $donationRequest->status,
-                    'donation_id' => $donation->donation_id,
-                ]
-            ], 200);
-        } catch (\Exception $e) {
-            \Log::error('Error confirming delivery: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to confirm delivery. Please try again.',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
-            ], 500);
-        }
+        // Delivery is no longer supported - redirect to pickup confirmation
+        return $this->confirmPickup($request, $requestId);
     }
 
 
@@ -1392,7 +1530,7 @@ class DashboardController extends Controller
                     'expiry_date' => $donation->expiry_date,
                     'scheduled_date' => $scheduledDate,
                     'scheduled_time' => $scheduledTime,
-                    'pickup_method' => $donation->pickup_method ?? 'pickup',
+                    'pickup_method' => 'pickup', // Always pickup
                     'establishment_notes' => $donation->establishment_notes,
                     'status' => 'declined',
                     // Default values for required fields in donation_requests table
@@ -1455,22 +1593,33 @@ class DashboardController extends Controller
         }
         
         $user = $this->getUserData();
+        $foodbankId = session('user_id');
+        $foodbank = Foodbank::find($foodbankId);
+        $isVerified = $foodbank && $foodbank->isVerified();
         
-        // Fetch all establishments from database
+        // Get establishments that have completed donations (status = 'collected') with this foodbank
+        // This is used for the "Business Partnered" stat count
+        $partneredEstablishmentIds = Donation::where('foodbank_id', $foodbankId)
+            ->where('status', 'collected')
+            ->distinct()
+            ->pluck('establishment_id')
+            ->toArray();
+        
+        // Fetch ALL establishments from database (for display in Food Businesses section)
         $establishments = Establishment::all();
         
         // Map establishments to partner format expected by frontend
-        $partners = $establishments->map(function ($establishment) {
+        $partners = $establishments->map(function ($establishment) use ($foodbankId) {
             // Calculate average rating from reviews (if available)
             $reviews = Review::where('establishment_id', $establishment->establishment_id)->get();
             $rating = $reviews->count() > 0 
                 ? round($reviews->avg('rating'), 1) 
-                : 4.5; // Default rating if no reviews
+                : 0; // 0 if no reviews
             
-            // Count donations (completed orders or donation requests fulfilled)
-            // For now, using order count as donation count (can be updated when donation system is ready)
-            $donations = Order::where('establishment_id', $establishment->establishment_id)
-                ->where('status', 'completed')
+            // Count completed donations with this foodbank (0 if no donations)
+            $donations = Donation::where('establishment_id', $establishment->establishment_id)
+                ->where('foodbank_id', $foodbankId)
+                ->where('status', 'collected')
                 ->count();
             
             // Calculate impact (meals provided) - estimate based on donations
@@ -1499,8 +1648,8 @@ class DashboardController extends Controller
             ];
         })->toArray();
         
-        // Calculate stats
-        $totalPartners = count($partners);
+        // Calculate stats - count of establishments with completed donations (for Business Partnered stat)
+        $totalPartners = count($partneredEstablishmentIds);
         
         return view('foodbank.partner-network', compact('user', 'partners', 'totalPartners'));
     }
@@ -1517,45 +1666,87 @@ class DashboardController extends Controller
         
         $user = $this->getUserData();
         $foodbankId = session('user_id');
+        $foodbank = Foodbank::find($foodbankId);
+        $isVerified = $foodbank && $foodbank->isVerified();
         
-        // Build query with filters
-        $query = Donation::where('foodbank_id', $foodbankId)
+        // Get Donation records (fulfilled donations)
+        $donationQuery = Donation::where('foodbank_id', $foodbankId)
             ->with(['establishment', 'donationRequest']);
         
-        // Apply filters
+        // Get DonationRequest records (accepted, declined, completed requests)
+        $requestQuery = DonationRequest::where('foodbank_id', $foodbankId)
+            ->whereNotNull('establishment_id')
+            ->whereIn('status', [
+                DonationRequestService::STATUS_ACCEPTED,
+                DonationRequestService::STATUS_DECLINED,
+                DonationRequestService::STATUS_COMPLETED
+            ])
+            ->with(['establishment', 'donation']);
+        
+        // Apply filters to donations
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $status = $request->status;
+            // Check if it's a donation status or request status
+            $donationStatuses = ['pending_pickup', 'ready_for_collection', 'collected', 'cancelled', 'expired'];
+            $requestStatuses = ['accepted', 'declined', 'completed'];
+            
+            if (in_array($status, $donationStatuses)) {
+                $donationQuery->where('status', $status);
+            } elseif (in_array($status, $requestStatuses)) {
+                $requestQuery->where('status', $status);
+            }
         }
         
         if ($request->filled('category')) {
-            $query->where('item_category', $request->category);
+            $donationQuery->where('item_category', $request->category);
+            $requestQuery->where('category', $request->category);
         }
         
         if ($request->filled('establishment_id')) {
-            $query->where('establishment_id', $request->establishment_id);
+            $donationQuery->where('establishment_id', $request->establishment_id);
+            $requestQuery->where('establishment_id', $request->establishment_id);
         }
         
         if ($request->filled('date_from')) {
-            $query->where('scheduled_date', '>=', $request->date_from);
+            $donationQuery->where('scheduled_date', '>=', $request->date_from);
+            $requestQuery->where('scheduled_date', '>=', $request->date_from);
         }
         
         if ($request->filled('date_to')) {
-            $query->where('scheduled_date', '<=', $request->date_to);
+            $donationQuery->where('scheduled_date', '<=', $request->date_to);
+            $requestQuery->where('scheduled_date', '<=', $request->date_to);
         }
         
-        // Get all donations for filtering options
+        // Get all donations and requests for filtering options
         $allDonations = Donation::where('foodbank_id', $foodbankId)->get();
+        $allRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->whereNotNull('establishment_id')
+            ->whereIn('status', [
+                DonationRequestService::STATUS_ACCEPTED,
+                DonationRequestService::STATUS_DECLINED,
+                DonationRequestService::STATUS_COMPLETED
+            ])
+            ->get();
         
-        // Get unique categories and establishments for filters
-        $categories = $allDonations->pluck('item_category')->unique()->sort()->values();
-        $establishments = Establishment::whereIn('establishment_id', $allDonations->pluck('establishment_id')->unique())
+        // Get unique categories from both donations and requests
+        $donationCategories = $allDonations->pluck('item_category')->unique();
+        $requestCategories = $allRequests->pluck('category')->unique();
+        $categories = $donationCategories->merge($requestCategories)->unique()->sort()->values();
+        
+        // Get unique establishments from both donations and requests
+        $donationEstablishmentIds = $allDonations->pluck('establishment_id')->unique();
+        $requestEstablishmentIds = $allRequests->pluck('establishment_id')->unique();
+        $allEstablishmentIds = $donationEstablishmentIds->merge($requestEstablishmentIds)->unique();
+        $establishments = Establishment::whereIn('establishment_id', $allEstablishmentIds)
             ->get(['establishment_id', 'business_name'])
             ->map(function ($est) {
                 return ['id' => $est->establishment_id, 'name' => $est->business_name];
             });
         
-        // Get filtered donations
-        $donations = $query->orderBy('created_at', 'desc')->get()->map(function ($donation) {
+        // Format Donation records (only if not filtering by request status)
+        $formattedDonations = collect();
+        if (!$request->filled('status') || in_array($request->status, ['pending_pickup', 'ready_for_collection', 'collected', 'cancelled', 'expired'])) {
+            $formattedDonations = $donationQuery->get()->map(function ($donation) {
             $establishment = $donation->establishment;
             
             // Format scheduled time
@@ -1568,6 +1759,7 @@ class DashboardController extends Controller
             
             return [
                 'id' => $donation->donation_id,
+                'type' => 'donation',
                 'donation_number' => $donation->donation_number,
                 'establishment_name' => $establishment->business_name ?? 'Unknown',
                 'establishment_id' => $donation->establishment_id,
@@ -1594,20 +1786,94 @@ class DashboardController extends Controller
                 'foodbank_notes' => $donation->foodbank_notes,
                 'is_urgent' => $donation->is_urgent,
                 'is_nearing_expiry' => $donation->is_nearing_expiry,
+                'sort_date' => $donation->collected_at ?? $donation->created_at,
             ];
-        })->toArray();
+            });
+        }
         
-        // Calculate statistics
+        // Format DonationRequest records (only if not filtering by donation status)
+        $formattedRequests = collect();
+        if (!$request->filled('status') || in_array($request->status, ['accepted', 'declined', 'completed'])) {
+            $formattedRequests = $requestQuery->get()->map(function ($donationRequest) {
+                $establishment = $donationRequest->establishment;
+                $formatted = DonationRequestService::formatRequestData($donationRequest);
+                
+                // Format scheduled date
+                $scheduledDate = $donationRequest->scheduled_date ?? $donationRequest->dropoff_date ?? $donationRequest->created_at;
+                $scheduledDateDisplay = $scheduledDate instanceof \Carbon\Carbon 
+                    ? $scheduledDate->format('F d, Y') 
+                    : ($scheduledDate ? \Carbon\Carbon::parse($scheduledDate)->format('F d, Y') : 'N/A');
+                
+                return [
+                    'id' => $donationRequest->donation_request_id,
+                    'type' => 'request',
+                    'donation_number' => $donationRequest->donation ? $donationRequest->donation->donation_number : 'REQ-' . substr($donationRequest->donation_request_id, 0, 8),
+                    'establishment_name' => $establishment->business_name ?? 'Unknown',
+                    'establishment_id' => $donationRequest->establishment_id,
+                    'item_name' => $donationRequest->item_name,
+                    'category' => $donationRequest->category,
+                    'quantity' => $donationRequest->quantity,
+                    'unit' => $donationRequest->unit ?? 'pcs',
+                    'description' => $donationRequest->description,
+                    'expiry_date' => $donationRequest->expiry_date ? $donationRequest->expiry_date->format('Y-m-d') : null,
+                    'expiry_date_display' => $donationRequest->expiry_date ? $donationRequest->expiry_date->format('F d, Y') : 'N/A',
+                    'status' => $donationRequest->status,
+                    'status_display' => DonationRequestService::getStatusDisplay($donationRequest->status),
+                    'pickup_method' => 'pickup',
+                    'pickup_method_display' => 'Pickup',
+                    'scheduled_date' => $scheduledDate instanceof \Carbon\Carbon ? $scheduledDate->format('Y-m-d') : ($scheduledDate ? \Carbon\Carbon::parse($scheduledDate)->format('Y-m-d') : null),
+                    'scheduled_date_display' => $scheduledDateDisplay,
+                    'scheduled_time' => $formatted['scheduled_time_display'] ?? 'N/A',
+                    'created_at' => $donationRequest->created_at->format('Y-m-d H:i:s'),
+                    'created_at_display' => $donationRequest->created_at->format('F d, Y g:i A'),
+                    'collected_at' => null,
+                    'collected_at_display' => 'N/A',
+                    'handler_name' => 'N/A',
+                    'establishment_notes' => $donationRequest->establishment_notes,
+                    'foodbank_notes' => null,
+                    'is_urgent' => false,
+                    'is_nearing_expiry' => false,
+                    'sort_date' => $donationRequest->fulfilled_at ?? $donationRequest->updated_at ?? $donationRequest->created_at,
+                ];
+            });
+        }
+        
+        // Merge and sort by date (most recent first)
+        $allRecords = $formattedDonations->merge($formattedRequests)
+            ->sortByDesc(function ($record) {
+                return $record['sort_date'] instanceof \Carbon\Carbon 
+                    ? $record['sort_date']->timestamp 
+                    : \Carbon\Carbon::parse($record['sort_date'])->timestamp;
+            })
+            ->values();
+        
+        // Create a custom paginator
+        $currentPage = $request->get('page', 1);
+        $perPage = 10;
+        $currentItems = $allRecords->slice(($currentPage - 1) * $perPage, $perPage)->values();
+        $donations = new \Illuminate\Pagination\LengthAwarePaginator(
+            $currentItems,
+            $allRecords->count(),
+            $perPage,
+            $currentPage,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+        
+        // Calculate statistics (include both donations and requests)
+        $totalQuantity = $allDonations->sum('quantity') + $allRequests->sum('quantity');
         $stats = [
-            'total_donations' => $allDonations->count(),
-            'total_quantity' => $allDonations->sum('quantity'),
-            'establishment_participation' => $allDonations->pluck('establishment_id')->unique()->count(),
+            'total_donations' => $allDonations->count() + $allRequests->count(),
+            'total_quantity' => $totalQuantity,
+            'establishment_participation' => $allEstablishmentIds->count(),
             'by_status' => [
                 'pending_pickup' => $allDonations->where('status', 'pending_pickup')->count(),
                 'ready_for_collection' => $allDonations->where('status', 'ready_for_collection')->count(),
                 'collected' => $allDonations->where('status', 'collected')->count(),
                 'cancelled' => $allDonations->where('status', 'cancelled')->count(),
                 'expired' => $allDonations->where('status', 'expired')->count(),
+                'accepted' => $allRequests->where('status', DonationRequestService::STATUS_ACCEPTED)->count(),
+                'declined' => $allRequests->where('status', DonationRequestService::STATUS_DECLINED)->count(),
+                'completed' => $allRequests->where('status', DonationRequestService::STATUS_COMPLETED)->count(),
             ],
         ];
         
@@ -1632,6 +1898,12 @@ class DashboardController extends Controller
         
         $foodbankId = session('user_id');
         $exportType = $request->get('type', 'history');
+        $format = $request->get('format', 'csv'); // csv, excel, pdf
+        
+        // Handle format-specific exports for history type
+        if ($exportType === 'history' && in_array($format, ['excel', 'pdf'])) {
+            return $this->exportFoodbankDonationHistoryFormatted($request, $format);
+        }
         
         $filename = '';
         $headers = [];
@@ -1663,33 +1935,57 @@ class DashboardController extends Controller
                     'Foodbank Notes'
                 ];
                 
-                $query = Donation::where('foodbank_id', $foodbankId)
+                // Build queries with same filters as donationHistory - include both Donation and DonationRequest
+                $donationQuery = Donation::where('foodbank_id', $foodbankId)
                     ->with(['establishment']);
+                
+                $requestQuery = DonationRequest::where('foodbank_id', $foodbankId)
+                    ->whereNotNull('establishment_id') // Only establishment-submitted requests
+                    ->whereIn('status', [
+                        DonationRequestService::STATUS_ACCEPTED,
+                        DonationRequestService::STATUS_DECLINED,
+                        DonationRequestService::STATUS_COMPLETED
+                    ])
+                    ->with(['establishment', 'donation']);
                 
                 // Apply filters if provided
                 if ($request->filled('status')) {
-                    $query->where('status', $request->status);
+                    $status = $request->status;
+                    $donationStatuses = ['pending_pickup', 'ready_for_collection', 'collected', 'cancelled', 'expired'];
+                    $requestStatuses = ['accepted', 'declined', 'completed'];
+                    
+                    if (in_array($status, $donationStatuses)) {
+                        $donationQuery->where('status', $status);
+                    } elseif (in_array($status, $requestStatuses)) {
+                        $requestQuery->where('status', $status);
+                    }
                 }
                 
                 if ($request->filled('category')) {
-                    $query->where('item_category', $request->category);
+                    $donationQuery->where('item_category', $request->category);
+                    $requestQuery->where('category', $request->category);
                 }
                 
                 if ($request->filled('establishment_id')) {
-                    $query->where('establishment_id', $request->establishment_id);
+                    $donationQuery->where('establishment_id', $request->establishment_id);
+                    $requestQuery->where('establishment_id', $request->establishment_id);
                 }
                 
                 if ($request->filled('date_from')) {
-                    $query->where('scheduled_date', '>=', $request->date_from);
+                    $donationQuery->where('created_at', '>=', $request->date_from);
+                    $requestQuery->where('created_at', '>=', $request->date_from);
                 }
                 
                 if ($request->filled('date_to')) {
-                    $query->where('scheduled_date', '<=', $request->date_to);
+                    $donationQuery->where('created_at', '<=', $request->date_to . ' 23:59:59');
+                    $requestQuery->where('created_at', '<=', $request->date_to . ' 23:59:59');
                 }
                 
-                $donations = $query->orderBy('created_at', 'desc')->get();
+                $allDonations = $donationQuery->orderBy('created_at', 'desc')->get();
+                $allRequests = $requestQuery->orderBy('created_at', 'desc')->get();
                 
-                foreach ($donations as $donation) {
+                // Format and add Donation records
+                foreach ($allDonations as $donation) {
                     $data[] = [
                         $donation->donation_id,
                         $donation->donation_number,
@@ -1699,7 +1995,7 @@ class DashboardController extends Controller
                         $donation->quantity,
                         $donation->unit,
                         ucfirst(str_replace('_', ' ', $donation->status)),
-                        $donation->scheduled_date->format('Y-m-d'),
+                        $donation->scheduled_date ? $donation->scheduled_date->format('Y-m-d') : 'N/A',
                         $donation->scheduled_time ? (is_string($donation->scheduled_time) ? substr($donation->scheduled_time, 0, 5) : $donation->scheduled_time->format('H:i')) : 'N/A',
                         ucfirst($donation->pickup_method),
                         $donation->expiry_date ? $donation->expiry_date->format('Y-m-d') : 'N/A',
@@ -1711,6 +2007,46 @@ class DashboardController extends Controller
                         $donation->description ?? '',
                         $donation->establishment_notes ?? '',
                         $donation->foodbank_notes ?? ''
+                    ];
+                }
+                
+                // Format and add DonationRequest records
+                foreach ($allRequests as $donationRequest) {
+                    $establishment = $donationRequest->establishment;
+                    $formatted = DonationRequestService::formatRequestData($donationRequest);
+                    
+                    $scheduledDate = $donationRequest->scheduled_date ?? $donationRequest->dropoff_date ?? $donationRequest->created_at;
+                    $scheduledDateFormatted = $scheduledDate instanceof \Carbon\Carbon 
+                        ? $scheduledDate->format('Y-m-d') 
+                        : ($scheduledDate ? \Carbon\Carbon::parse($scheduledDate)->format('Y-m-d') : 'N/A');
+                    
+                    // Format scheduled time
+                    $scheduledTimeFormatted = $formatted['time_display'] ?? 'N/A';
+                    if ($scheduledTimeFormatted === 'N/A' && $formatted['scheduled_time_display'] && $formatted['scheduled_time_display'] !== 'N/A') {
+                        $scheduledTimeFormatted = $formatted['scheduled_time_display'];
+                    }
+                    
+                    $data[] = [
+                        $donationRequest->donation_request_id,
+                        $donationRequest->donation ? $donationRequest->donation->donation_number : 'REQ-' . substr($donationRequest->donation_request_id, 0, 8),
+                        $establishment->business_name ?? 'Unknown',
+                        $donationRequest->item_name,
+                        $donationRequest->category,
+                        $donationRequest->quantity,
+                        $donationRequest->unit ?? 'pcs',
+                        DonationRequestService::getStatusDisplay($donationRequest->status),
+                        $scheduledDateFormatted,
+                        $scheduledTimeFormatted,
+                        'Pickup',
+                        $donationRequest->expiry_date ? $donationRequest->expiry_date->format('Y-m-d') : 'N/A',
+                        $donationRequest->created_at->format('Y-m-d H:i:s'),
+                        $donationRequest->fulfilled_at ? $donationRequest->fulfilled_at->format('Y-m-d H:i:s') : 'N/A',
+                        'N/A',
+                        'No',
+                        'No',
+                        $donationRequest->description ?? '',
+                        $donationRequest->establishment_notes ?? '',
+                        ''
                     ];
                 }
                 break;
@@ -1863,6 +2199,267 @@ class DashboardController extends Controller
     }
 
     /**
+     * Export foodbank donation history in formatted formats (Excel, PDF)
+     */
+    private function exportFoodbankDonationHistoryFormatted(Request $request, $format)
+    {
+        $foodbankId = session('user_id');
+        
+        // Build queries with same filters as donationHistory - include both Donation and DonationRequest
+        $donationQuery = Donation::where('foodbank_id', $foodbankId)
+            ->with(['establishment']);
+        
+        $requestQuery = DonationRequest::where('foodbank_id', $foodbankId)
+            ->whereNotNull('establishment_id') // Only establishment-submitted requests
+            ->whereIn('status', [
+                DonationRequestService::STATUS_ACCEPTED,
+                DonationRequestService::STATUS_DECLINED,
+                DonationRequestService::STATUS_COMPLETED
+            ])
+            ->with(['establishment', 'donation']);
+        
+        // Apply filters if provided
+        if ($request->filled('status')) {
+            $status = $request->status;
+            $donationStatuses = ['pending_pickup', 'ready_for_collection', 'collected', 'cancelled', 'expired'];
+            $requestStatuses = ['accepted', 'declined', 'completed'];
+            
+            if (in_array($status, $donationStatuses)) {
+                $donationQuery->where('status', $status);
+            } elseif (in_array($status, $requestStatuses)) {
+                $requestQuery->where('status', $status);
+            }
+        }
+        
+        if ($request->filled('category')) {
+            $donationQuery->where('item_category', $request->category);
+            $requestQuery->where('category', $request->category);
+        }
+        
+        if ($request->filled('establishment_id')) {
+            $donationQuery->where('establishment_id', $request->establishment_id);
+            $requestQuery->where('establishment_id', $request->establishment_id);
+        }
+        
+        if ($request->filled('date_from')) {
+            $donationQuery->where('scheduled_date', '>=', $request->date_from);
+            $requestQuery->where('scheduled_date', '>=', $request->date_from);
+        }
+        
+        if ($request->filled('date_to')) {
+            $donationQuery->where('scheduled_date', '<=', $request->date_to);
+            $requestQuery->where('scheduled_date', '<=', $request->date_to);
+        }
+        
+        // Get and format both types of records
+        $allDonations = $donationQuery->orderBy('created_at', 'desc')->get();
+        $allRequests = $requestQuery->orderBy('created_at', 'desc')->get();
+        
+        // Format records consistently
+        $formattedRecords = collect();
+        
+        // Format Donation records
+        foreach ($allDonations as $donation) {
+            $formattedRecords->push([
+                'donation_number' => $donation->donation_number,
+                'item_name' => $donation->item_name,
+                'category' => ucfirst($donation->item_category),
+                'quantity' => $donation->quantity,
+                'unit' => $donation->unit ?? 'pcs',
+                'donation_type' => ucfirst($donation->pickup_method ?? 'pickup'),
+                'date_donated' => $donation->created_at->format('Y-m-d H:i:s'),
+                'scheduled_date' => $donation->scheduled_date ? $donation->scheduled_date->format('Y-m-d') : 'N/A',
+                'scheduled_time' => $donation->scheduled_time ? (is_string($donation->scheduled_time) ? substr($donation->scheduled_time, 0, 5) : $donation->scheduled_time->format('H:i')) : 'N/A',
+                'expiry_date' => $donation->expiry_date ? $donation->expiry_date->format('Y-m-d') : 'N/A',
+                'collected_date' => $donation->collected_at ? $donation->collected_at->format('Y-m-d H:i:s') : 'N/A',
+                'status' => ucfirst(str_replace('_', ' ', $donation->status)),
+                'donor' => $donation->establishment->business_name ?? 'Unknown',
+                'description' => $donation->description ?? '',
+                'sort_date' => $donation->collected_at ?? $donation->created_at,
+            ]);
+        }
+        
+        // Format DonationRequest records
+        foreach ($allRequests as $donationRequest) {
+            $establishment = $donationRequest->establishment;
+            $formatted = DonationRequestService::formatRequestData($donationRequest);
+            
+            $scheduledDate = $donationRequest->scheduled_date ?? $donationRequest->dropoff_date ?? $donationRequest->created_at;
+            $scheduledDateFormatted = $scheduledDate instanceof \Carbon\Carbon 
+                ? $scheduledDate->format('Y-m-d') 
+                : ($scheduledDate ? \Carbon\Carbon::parse($scheduledDate)->format('Y-m-d') : 'N/A');
+            
+            // Format scheduled time - use time_display which handles allDay, anytime, or time ranges
+            $scheduledTimeFormatted = $formatted['time_display'] ?? 'N/A';
+            if ($scheduledTimeFormatted === 'N/A' && $formatted['scheduled_time_display'] && $formatted['scheduled_time_display'] !== 'N/A') {
+                $scheduledTimeFormatted = $formatted['scheduled_time_display'];
+            }
+            
+            // Format expiry date
+            $expiryDateFormatted = 'N/A';
+            if ($donationRequest->expiry_date) {
+                $expiryDateFormatted = $donationRequest->expiry_date instanceof \Carbon\Carbon 
+                    ? $donationRequest->expiry_date->format('Y-m-d') 
+                    : \Carbon\Carbon::parse($donationRequest->expiry_date)->format('Y-m-d');
+            }
+            
+            // Format collected date
+            $collectedDateFormatted = 'N/A';
+            if ($donationRequest->fulfilled_at) {
+                $collectedDateFormatted = $donationRequest->fulfilled_at instanceof \Carbon\Carbon 
+                    ? $donationRequest->fulfilled_at->format('Y-m-d H:i:s') 
+                    : \Carbon\Carbon::parse($donationRequest->fulfilled_at)->format('Y-m-d H:i:s');
+            } elseif ($donationRequest->status === DonationRequestService::STATUS_COMPLETED && $donationRequest->donation) {
+                $donation = $donationRequest->donation;
+                if ($donation->collected_at) {
+                    $collectedDateFormatted = $donation->collected_at instanceof \Carbon\Carbon 
+                        ? $donation->collected_at->format('Y-m-d H:i:s') 
+                        : \Carbon\Carbon::parse($donation->collected_at)->format('Y-m-d H:i:s');
+                }
+            }
+            
+            $formattedRecords->push([
+                'donation_number' => $donationRequest->donation ? $donationRequest->donation->donation_number : 'REQ-' . substr($donationRequest->donation_request_id, 0, 8),
+                'item_name' => $donationRequest->item_name,
+                'category' => ucfirst($donationRequest->category),
+                'quantity' => $donationRequest->quantity,
+                'unit' => $donationRequest->unit ?? 'pcs',
+                'donation_type' => 'Pickup',
+                'date_donated' => $donationRequest->created_at->format('Y-m-d H:i:s'),
+                'scheduled_date' => $scheduledDateFormatted,
+                'scheduled_time' => $scheduledTimeFormatted,
+                'expiry_date' => $expiryDateFormatted,
+                'collected_date' => $collectedDateFormatted,
+                'status' => DonationRequestService::getStatusDisplay($donationRequest->status),
+                'donor' => $establishment->business_name ?? 'Unknown',
+                'description' => $donationRequest->description ?? '',
+                'sort_date' => $donationRequest->fulfilled_at ?? $donationRequest->updated_at ?? $donationRequest->created_at,
+            ]);
+        }
+        
+        // Sort by date (most recent first)
+        $formattedRecords = $formattedRecords->sortByDesc(function ($record) {
+            return $record['sort_date'] instanceof \Carbon\Carbon 
+                ? $record['sort_date']->timestamp 
+                : \Carbon\Carbon::parse($record['sort_date'])->timestamp;
+        })->values();
+        
+        if ($format === 'excel') {
+            return $this->exportFoodbankToExcel($formattedRecords);
+        } elseif ($format === 'pdf') {
+            return $this->exportFoodbankToPdf($formattedRecords);
+        }
+        
+        return redirect()->back()->with('error', 'Invalid export format.');
+    }
+
+    /**
+     * Export foodbank donations to Excel
+     */
+    private function exportFoodbankToExcel($records)
+    {
+        $filename = 'donation_history_' . date('Y-m-d_His') . '.xlsx';
+        
+        $data = [];
+        
+        // Headers
+        $data[] = [
+            'Donation Number',
+            'Item Name',
+            'Category',
+            'Quantity',
+            'Unit',
+            'Donation Type',
+            'Date Donated',
+            'Scheduled Date',
+            'Scheduled Time',
+            'Expiry Date',
+            'Collected Date',
+            'Status',
+            'Donor (Establishment)',
+            'Description'
+        ];
+        
+        // Data rows
+        foreach ($records as $record) {
+            $data[] = [
+                $record['donation_number'],
+                $record['item_name'],
+                $record['category'],
+                $record['quantity'],
+                $record['unit'],
+                $record['donation_type'],
+                $record['date_donated'],
+                $record['scheduled_date'],
+                $record['scheduled_time'],
+                $record['expiry_date'],
+                $record['collected_date'],
+                $record['status'],
+                $record['donor'],
+                $record['description']
+            ];
+        }
+        
+        return Excel::create($filename, function($excel) use ($data) {
+            $excel->sheet('Donation History', function($sheet) use ($data) {
+                $sheet->fromArray($data, null, 'A1', false, false);
+                
+                // Style the header row
+                $sheet->row(1, function($row) {
+                    $row->setFontWeight('bold');
+                    $row->setBackground('#2d5016');
+                    $row->setFontColor('#ffffff');
+                });
+                
+                // Auto-size columns
+                foreach(range('A', 'N') as $column) {
+                    $sheet->getColumnDimension($column)->setAutoSize(true);
+                }
+            });
+        })->export('xlsx');
+    }
+
+    /**
+     * Export foodbank donations to PDF
+     */
+    private function exportFoodbankToPdf($records)
+    {
+        $user = $this->getUserData();
+        $foodbankName = $user->organization_name ?? 'Foodbank';
+        
+        // Format data for PDF view
+        $data = $records->map(function ($record) {
+            return [
+                'donation_number' => $record['donation_number'],
+                'item_name' => $record['item_name'],
+                'category' => $record['category'],
+                'quantity' => $record['quantity'],
+                'unit' => $record['unit'],
+                'donation_type' => $record['donation_type'],
+                'date_donated' => \Carbon\Carbon::parse($record['date_donated'])->format('F d, Y H:i'),
+                'scheduled_date' => $record['scheduled_date'] !== 'N/A' ? \Carbon\Carbon::parse($record['scheduled_date'])->format('F d, Y') : 'N/A',
+                'scheduled_time' => $record['scheduled_time'],
+                'expiry_date' => $record['expiry_date'] !== 'N/A' ? \Carbon\Carbon::parse($record['expiry_date'])->format('F d, Y') : 'N/A',
+                'collected_at' => $record['collected_date'] !== 'N/A' ? \Carbon\Carbon::parse($record['collected_date'])->format('F d, Y H:i') : 'N/A',
+                'donor' => $record['donor'],
+                'status' => $record['status'],
+                'description' => $record['description'] ?: 'N/A',
+            ];
+        })->toArray();
+
+        $filename = 'donation_history_' . date('Y-m-d_His') . '.pdf';
+        
+        $pdf = Pdf::loadView('foodbank.donation-history-pdf', [
+            'data' => $data,
+            'foodbankName' => $foodbankName,
+            'exportDate' => now()->format('F d, Y'),
+            'totalDonations' => count($data)
+        ]);
+        
+        return $pdf->download($filename);
+    }
+
+    /**
      * Show impact reports page for foodbank
      */
     public function foodbankImpactReports()
@@ -1873,100 +2470,117 @@ class DashboardController extends Controller
         }
         
         $user = $this->getUserData();
-        
-        // Sample data - replace with actual database queries when ready
-        $foodRequests = 10;
-        $foodReceived = 320;
-        $familiesServed = 87;
-        $totalImpactScore = 95;
-        
-        // Chart data matching consumer's my-impact format
-        $dailyData = [
-            ['label' => 'SUN', 'value' => 5],
-            ['label' => 'MON', 'value' => 8],
-            ['label' => 'TUE', 'value' => 12],
-            ['label' => 'WED', 'value' => 15],
-            ['label' => 'THU', 'value' => 10],
-            ['label' => 'FRI', 'value' => 18],
-            ['label' => 'SAT', 'value' => 14],
-        ];
-        
-        $monthlyData = [
-            ['label' => 'JAN', 'value' => 100],
-            ['label' => 'FEB', 'value' => 80],
-            ['label' => 'MAR', 'value' => 120],
-            ['label' => 'APR', 'value' => 150],
-            ['label' => 'MAY', 'value' => 200],
-            ['label' => 'JUN', 'value' => 180],
-            ['label' => 'JUL', 'value' => 220],
-            ['label' => 'AUG', 'value' => 250],
-            ['label' => 'SEP', 'value' => 190],
-            ['label' => 'OCT', 'value' => 210],
-            ['label' => 'NOV', 'value' => 230],
-            ['label' => 'DEC', 'value' => 280],
-        ];
-        
-        $yearlyData = [
-            ['label' => '2020', 'value' => 1200],
-            ['label' => '2021', 'value' => 1800],
-            ['label' => '2022', 'value' => 2400],
-            ['label' => '2023', 'value' => 3000],
-            ['label' => '2024', 'value' => 3500],
-        ];
-        
-        // Top Establishment Contributors
         $foodbankId = session('user_id');
-        $topContributors = Donation::where('foodbank_id', $foodbankId)
-            ->whereIn('status', ['collected', 'ready_for_collection'])
+        $foodbank = Foodbank::find($foodbankId);
+        $isVerified = $foodbank && $foodbank->isVerified();
+        
+        // Dynamic Food Requests - count of all donation requests for this foodbank
+        $foodRequests = DonationRequest::where('foodbank_id', $foodbankId)->count();
+        
+        // Dynamic Food Received - count of completed/collected donations
+        $foodReceived = Donation::where('foodbank_id', $foodbankId)
+            ->where('status', 'collected')
+            ->count();
+        
+        // Dynamic Chart Data - quantity of received items (status = 'collected')
+        // Daily data (last 7 days)
+        $dailyData = [];
+        $dayLabels = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dayName = $dayLabels[$date->dayOfWeek];
+            
+            $dayQuantity = Donation::where('foodbank_id', $foodbankId)
+                ->where('status', 'collected')
+                ->whereDate('collected_at', $date->toDateString())
+                ->sum('quantity');
+            
+            $dailyData[] = [
+                'label' => $dayName,
+                'value' => (int) $dayQuantity
+            ];
+        }
+        
+        // Monthly data (last 12 months)
+        $monthlyData = [];
+        $monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        for ($i = 11; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            $monthName = $monthLabels[$date->month - 1];
+            
+            $monthQuantity = Donation::where('foodbank_id', $foodbankId)
+                ->where('status', 'collected')
+                ->whereYear('collected_at', $date->year)
+                ->whereMonth('collected_at', $date->month)
+                ->sum('quantity');
+            
+            $monthlyData[] = [
+                'label' => $monthName,
+                'value' => (int) $monthQuantity
+            ];
+        }
+        
+        // Yearly data (last 5 years)
+        $yearlyData = [];
+        for ($i = 4; $i >= 0; $i--) {
+            $year = now()->subYears($i)->year;
+            
+            $yearQuantity = Donation::where('foodbank_id', $foodbankId)
+                ->where('status', 'collected')
+                ->whereYear('collected_at', $year)
+                ->sum('quantity');
+            
+            $yearlyData[] = [
+                'label' => (string) $year,
+                'value' => (int) $yearQuantity
+            ];
+        }
+        
+        // Top Establishment Contributors - based on completed/collected donation requests
+        $foodbankId = session('user_id');
+        $topContributors = DonationRequest::where('foodbank_id', $foodbankId)
+            ->where('status', DonationRequestService::STATUS_COMPLETED)
             ->with('establishment')
             ->get()
             ->groupBy('establishment_id')
-            ->map(function ($donations) {
-                $establishment = $donations->first()->establishment;
-                $totalQuantity = $donations->sum('quantity');
+            ->map(function ($requests) {
+                $establishment = $requests->first()->establishment;
+                $completedRequestsCount = $requests->count();
                 return [
-                    'establishment_id' => $donations->first()->establishment_id,
+                    'establishment_id' => $requests->first()->establishment_id,
                     'establishment_name' => $establishment->business_name ?? 'Unknown',
-                    'total_quantity' => $totalQuantity,
+                    'completed_requests' => $completedRequestsCount,
                 ];
             })
-            ->sortByDesc('total_quantity')
+            ->sortByDesc('completed_requests')
             ->take(5)
             ->values();
         
-        // Calculate total food received for percentage calculation
-        $totalFoodReceived = Donation::where('foodbank_id', $foodbankId)
-            ->whereIn('status', ['collected', 'ready_for_collection'])
-            ->sum('quantity');
+        // Calculate total completed requests for percentage calculation
+        $totalCompletedRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->where('status', DonationRequestService::STATUS_COMPLETED)
+            ->count();
         
         // Calculate percentages and assign colors
         $colors = ['#f5cd79', '#ff6b6b', '#7AB267', '#347928', '#9DCF86'];
-        $topContributorsData = $topContributors->map(function ($contributor, $index) use ($totalFoodReceived, $colors) {
-            $percentage = $totalFoodReceived > 0 ? ($contributor['total_quantity'] / $totalFoodReceived) * 100 : 0;
+        $topContributorsData = $topContributors->map(function ($contributor, $index) use ($totalCompletedRequests, $colors) {
+            $percentage = $totalCompletedRequests > 0 ? ($contributor['completed_requests'] / $totalCompletedRequests) * 100 : 0;
             return [
                 'rank' => $index + 1,
                 'establishment_name' => $contributor['establishment_name'],
-                'total_quantity' => $contributor['total_quantity'],
+                'completed_requests' => $contributor['completed_requests'],
                 'percentage' => round($percentage, 2),
                 'color' => $colors[$index % count($colors)],
             ];
         })->toArray();
         
-        // Reports data
-        $reports = [
-            ['name' => 'Monthly Impact Report - October 2024', 'date' => 'Nov 5, 2024', 'period' => 'Monthly', 'format' => 'PDF'],
-            ['name' => 'Quarterly Impact Summary Q3 2024', 'date' => 'Oct 15, 2024', 'period' => 'Quarterly', 'format' => 'PDF'],
-            ['name' => 'Annual Impact Report 2023', 'date' => 'Jan 10, 2024', 'period' => 'Annual', 'format' => 'PDF'],
-            ['name' => 'Donation Trends Analysis', 'date' => 'Oct 1, 2024', 'period' => 'Custom', 'format' => 'XLSX'],
-            ['name' => 'Partner Network Impact', 'date' => 'Sep 20, 2024', 'period' => 'Monthly', 'format' => 'PDF'],
-        ];
+        // Dynamic Reports data - empty for now, can be populated from export history if available
+        $reports = [];
         
         return view('foodbank.impact-reports', compact(
             'user',
             'foodRequests',
             'foodReceived',
-            'familiesServed',
-            'totalImpactScore',
             'dailyData',
             'monthlyData',
             'yearlyData',
@@ -1988,50 +2602,41 @@ class DashboardController extends Controller
         $user = $this->getUserData();
         
         // ============================================
-        // USER STATISTICS BY ROLE
+        // USER STATISTICS BY ROLE (CACHED)
         // ============================================
-        $totalConsumers = Consumer::count();
-        $totalEstablishments = Establishment::count();
-        $totalFoodbanks = Foodbank::count();
-        $totalUsers = $totalConsumers + $totalEstablishments + $totalFoodbanks;
+        $userCounts = DashboardCacheService::getUserCounts();
+        $totalConsumers = $userCounts['consumers'];
+        $totalEstablishments = $userCounts['establishments'];
+        $totalFoodbanks = $userCounts['foodbanks'];
+        $totalUsers = DashboardCacheService::getTotalUsers();
         
         // ============================================
-        // FOOD LISTINGS STATISTICS
+        // FOOD LISTINGS STATISTICS (CACHED)
         // ============================================
-        $totalActiveListings = FoodListing::where('status', 'active')
-            ->where('expiry_date', '>=', Carbon::now()->toDateString())
-            ->count();
-        $totalListings = FoodListing::count();
+        $totalActiveListings = DashboardCacheService::getActiveListings();
+        $totalListings = DashboardCacheService::getTotalListings();
         
         // ============================================
-        // ORDERS STATISTICS BY STATUS
+        // ORDERS STATISTICS BY STATUS (CACHED)
         // ============================================
-        $ordersByStatus = [
-            'pending' => Order::where('status', 'pending')->count(),
-            'accepted' => Order::where('status', 'accepted')->count(),
-            'completed' => Order::where('status', 'completed')->count(),
-            'cancelled' => Order::where('status', 'cancelled')->count(),
-        ];
-        $totalOrders = array_sum($ordersByStatus);
+        $ordersByStatus = DashboardCacheService::getOrdersByStatus();
+        $totalOrders = DashboardCacheService::getTotalOrders();
         
         // ============================================
-        // DONATIONS STATISTICS
+        // DONATIONS STATISTICS (CACHED)
         // ============================================
-        $totalDonations = Donation::count();
-        $completedDonations = Donation::whereIn('status', ['collected', 'ready_for_collection'])->count();
-        $pendingDonations = Donation::whereIn('status', ['pending_pickup', 'ready_for_collection'])->count();
+        $totalDonations = DashboardCacheService::getTotalDonations();
+        $donationStatuses = DashboardCacheService::getDonationStatuses();
+        $completedDonations = $donationStatuses['completed'];
+        $pendingDonations = $donationStatuses['pending'];
         
         // ============================================
-        // FOOD RESCUED STATISTICS
+        // FOOD RESCUED STATISTICS (CACHED)
         // ============================================
-        // From completed orders
-        $foodRescuedFromOrders = Order::where('status', 'completed')->sum('quantity');
-        
-        // From completed donations
-        $foodRescuedFromDonations = Donation::whereIn('status', ['collected', 'ready_for_collection'])
-            ->sum('quantity');
-        
-        $totalFoodRescued = $foodRescuedFromOrders + $foodRescuedFromDonations;
+        $foodRescuedData = DashboardCacheService::getFoodRescued();
+        $totalFoodRescued = $foodRescuedData['total'];
+        $foodRescuedFromOrders = $foodRescuedData['from_orders'];
+        $foodRescuedFromDonations = $foodRescuedData['from_donations'];
         
         // Format food rescued
         $foodRescuedFormatted = $totalFoodRescued >= 1000 
@@ -2039,33 +2644,14 @@ class DashboardController extends Controller
             : number_format($totalFoodRescued);
         
         // ============================================
-        // MONTHLY ACTIVITY DATA (Last 6 months)
+        // MONTHLY ACTIVITY DATA (CACHED)
         // ============================================
-        $monthlyActivity = [];
-        $months = [];
-        
-        for ($i = 5; $i >= 0; $i--) {
-            $date = Carbon::now()->subMonths($i);
-            $monthStart = $date->copy()->startOfMonth();
-            $monthEnd = $date->copy()->endOfMonth();
-            
-            $monthName = $date->format('M Y');
-            $months[] = $monthName;
-            
-            // Count activities for this month
-            $monthlyActivity[] = [
-                'month' => $monthName,
-                'users' => Consumer::whereBetween('created_at', [$monthStart, $monthEnd])->count() +
-                          Establishment::whereBetween('created_at', [$monthStart, $monthEnd])->count() +
-                          Foodbank::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
-                'orders' => Order::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
-                'donations' => Donation::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
-                'listings' => FoodListing::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
-            ];
-        }
+        $monthlyData = DashboardCacheService::getMonthlyActivity();
+        $monthlyActivity = $monthlyData['activity'];
+        $months = $monthlyData['months'];
         
         // ============================================
-        // RECENT ACTIVITY
+        // RECENT ACTIVITY (NOT CACHED - changes frequently)
         // ============================================
         $recentConsumers = Consumer::orderBy('created_at', 'desc')->limit(3)->get();
         $recentEstablishments = Establishment::orderBy('created_at', 'desc')->limit(3)->get();
@@ -2074,15 +2660,59 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
         
+        // Combine all activities and sort by created_at descending (newest first)
+        $allActivities = collect();
+        
+        // Add establishments with type identifier
+        foreach ($recentEstablishments as $establishment) {
+            $allActivities->push([
+                'type' => 'establishment',
+                'data' => $establishment,
+                'created_at' => $establishment->created_at,
+            ]);
+        }
+        
+        // Add consumers with type identifier
+        foreach ($recentConsumers as $consumer) {
+            $allActivities->push([
+                'type' => 'consumer',
+                'data' => $consumer,
+                'created_at' => $consumer->created_at,
+            ]);
+        }
+        
+        // Add donations with type identifier
+        foreach ($recentDonations as $donation) {
+            $allActivities->push([
+                'type' => 'donation',
+                'data' => $donation,
+                'created_at' => $donation->created_at,
+            ]);
+        }
+        
+        // Sort by created_at descending (newest first) and take top 5
+        $recentActivities = $allActivities->sortByDesc('created_at')->take(5)->values();
+        
         // ============================================
-        // USER ENGAGEMENT
+        // USER ENGAGEMENT (CACHED)
         // ============================================
-        $thirtyDaysAgo = Carbon::now()->subDays(30);
-        $activeConsumers = Consumer::where('created_at', '>=', $thirtyDaysAgo)->count();
-        $activeEstablishments = Establishment::where('created_at', '>=', $thirtyDaysAgo)->count();
-        $activeFoodbanks = Foodbank::where('created_at', '>=', $thirtyDaysAgo)->count();
-        $totalActiveUsers = $activeConsumers + $activeEstablishments + $activeFoodbanks;
-        $engagementPercentage = $totalUsers > 0 ? round(($totalActiveUsers / $totalUsers) * 100) : 0;
+        $engagementData = Cache::remember('dashboard:admin:engagement', DashboardCacheService::CACHE_TTL * 60, function () use ($totalUsers) {
+            $thirtyDaysAgo = Carbon::now()->subDays(30);
+            $activeConsumers = Consumer::where('created_at', '>=', $thirtyDaysAgo)->count();
+            $activeEstablishments = Establishment::where('created_at', '>=', $thirtyDaysAgo)->count();
+            $activeFoodbanks = Foodbank::where('created_at', '>=', $thirtyDaysAgo)->count();
+            $totalActiveUsers = $activeConsumers + $activeEstablishments + $activeFoodbanks;
+            $engagementPercentage = $totalUsers > 0 ? round(($totalActiveUsers / $totalUsers) * 100) : 0;
+            
+            return [
+                'active_consumers' => $activeConsumers,
+                'active_establishments' => $activeEstablishments,
+                'active_foodbanks' => $activeFoodbanks,
+                'total_active_users' => $totalActiveUsers,
+                'engagement_percentage' => $engagementPercentage,
+            ];
+        });
+        $engagementPercentage = $engagementData['engagement_percentage'];
         
         return view('admin.dashboard', compact(
             'user',
@@ -2106,6 +2736,7 @@ class DashboardController extends Controller
             'recentConsumers',
             'recentEstablishments',
             'recentDonations',
+            'recentActivities',
             'engagementPercentage'
         ));
     }
@@ -2445,31 +3076,52 @@ class DashboardController extends Controller
     }
     
     /**
-     * Delete personal content (reviews, food listings)
+     * Delete personal content (reviews, food listings, notifications)
      */
     private function deletePersonalContent($model, $role)
     {
+        $userId = $model->getKey();
+        
         if ($role === 'consumer') {
             // Delete reviews written by consumer
-            Review::where('consumer_id', $model->consumer_id)->delete();
+            Review::where('consumer_id', $userId)->delete();
+            
+            // Delete notifications for consumer
+            Notification::where('user_id', $userId)
+                ->where('user_type', 'consumer')
+                ->delete();
         } elseif ($role === 'establishment') {
             // Delete food listings created by establishment
-            FoodListing::where('establishment_id', $model->establishment_id)->delete();
+            FoodListing::where('establishment_id', $userId)->delete();
             
             // Delete reviews about this establishment (personal opinions)
-            Review::where('establishment_id', $model->establishment_id)->delete();
+            Review::where('establishment_id', $userId)->delete();
+            
+            // Delete notifications for establishment
+            Notification::where('user_id', $userId)
+                ->where('user_type', 'establishment')
+                ->delete();
         } elseif ($role === 'foodbank') {
-            // Foodbanks don't have personal content to delete
+            // Delete notifications for foodbank
+            Notification::where('user_id', $userId)
+                ->where('user_type', 'foodbank')
+                ->delete();
         }
     }
     
     /**
-     * Anonymize critical business records (orders, donations, transactions)
+     * Anonymize critical business records (orders, donations, transactions, stock ledger)
      */
     private function anonymizeCriticalRecords($model, $role, $userId, $userName)
     {
         if ($role === 'consumer') {
             // Anonymize orders
+            $orders = Order::where('consumer_id', $userId)->get();
+            foreach ($orders as $order) {
+                // Delete stock ledger entries for these orders
+                StockLedger::where('order_id', $order->id)->delete();
+            }
+            
             Order::where('consumer_id', $userId)
                 ->update([
                     'consumer_id' => null,
@@ -2477,6 +3129,13 @@ class DashboardController extends Controller
                     'customer_phone' => null,
                 ]);
         } elseif ($role === 'establishment') {
+            // Get orders before anonymizing
+            $orders = Order::where('establishment_id', $userId)->get();
+            foreach ($orders as $order) {
+                // Delete stock ledger entries for these orders
+                StockLedger::where('order_id', $order->id)->delete();
+            }
+            
             // Anonymize orders
             Order::where('establishment_id', $userId)
                 ->update([
@@ -2523,7 +3182,6 @@ class DashboardController extends Controller
         $searchQuery = $request->get('search', '');
         $statusFilter = $request->get('status', 'all');
         $verifiedFilter = $request->get('verified', 'all');
-        $violationsFilter = $request->get('violations', 'all');
         
         // Optimized query with eager loading
         $establishmentsQuery = Establishment::withCount([
@@ -2556,16 +3214,7 @@ class DashboardController extends Controller
         
         // Apply verified filter
         if ($verifiedFilter !== 'all') {
-            $establishmentsQuery->where('verified', $verifiedFilter === 'verified');
-        }
-        
-        // Apply violations filter
-        if ($violationsFilter !== 'all') {
-            if ($violationsFilter === 'has_violations') {
-                $establishmentsQuery->where('violations_count', '>', 0);
-            } else {
-                $establishmentsQuery->where('violations_count', 0);
-            }
+            $establishmentsQuery->where('verification_status', $verifiedFilter);
         }
         
         // Get establishments with pagination for large datasets
@@ -2582,7 +3231,6 @@ class DashboardController extends Controller
         // Format establishments data
         $formattedEstablishments = $establishments->map(function($establishment) use ($ratings) {
             $ratingData = $ratings->get($establishment->establishment_id);
-            $violations = $establishment->violations ?? [];
             
             return [
                 'id' => $establishment->establishment_id,
@@ -2594,9 +3242,7 @@ class DashboardController extends Controller
                 'business_type' => $establishment->business_type,
                 'username' => $establishment->username,
                 'status' => $establishment->status ?? 'active',
-                'verified' => $establishment->verified ?? false,
-                'violations_count' => $establishment->violations_count ?? 0,
-                'violations' => $violations,
+                'verified' => ($establishment->verification_status ?? 'unverified') === 'verified',
                 'active_listings' => $establishment->active_listings_count ?? 0,
                 'total_listings' => $establishment->total_listings_count ?? 0,
                 'avg_rating' => $ratingData ? round($ratingData->avg_rating, 1) : 0,
@@ -2609,11 +3255,10 @@ class DashboardController extends Controller
         // Statistics
         $stats = [
             'total' => Establishment::count(),
-            'verified' => Establishment::where('verified', true)->count(),
-            'unverified' => Establishment::where('verified', false)->count(),
+            'verified' => Establishment::where('verification_status', 'verified')->count(),
+            'unverified' => Establishment::where('verification_status', 'unverified')->count(),
             'active' => Establishment::where('status', 'active')->count(),
             'suspended' => Establishment::where('status', 'suspended')->count(),
-            'with_violations' => Establishment::where('violations_count', '>', 0)->count(),
         ];
         
         return view('admin.establishments', compact(
@@ -2622,9 +3267,99 @@ class DashboardController extends Controller
             'stats',
             'searchQuery',
             'statusFilter',
-            'verifiedFilter',
-            'violationsFilter'
+            'verifiedFilter'
         ));
+    }
+
+    /**
+     * Admin - Get Establishment Details
+     */
+    public function getEstablishmentDetails($id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+
+        try {
+            $establishment = Establishment::withCount([
+                'foodListings as active_listings_count' => function($query) {
+                    $query->where('food_listings.status', 'active');
+                },
+                'foodListings as total_listings_count',
+                'orders as total_orders_count',
+                'reviews as total_reviews_count'
+            ])->find($id);
+
+            if (!$establishment) {
+                return response()->json(['success' => false, 'message' => 'Establishment not found.'], 404);
+            }
+
+            // Calculate average rating
+            $ratingData = Review::where('establishment_id', $establishment->establishment_id)
+                ->selectRaw('AVG(rating) as avg_rating, COUNT(*) as total_reviews')
+                ->first();
+
+            // Get recent orders (last 5)
+            $recentOrders = $establishment->orders()
+                ->with(['foodListing', 'consumer'])
+                ->orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get();
+
+            // Format establishment data
+            $details = [
+                'id' => $establishment->establishment_id,
+                'business_name' => $establishment->business_name,
+                'owner_fname' => $establishment->owner_fname,
+                'owner_lname' => $establishment->owner_lname,
+                'owner_name' => $establishment->owner_fname . ' ' . $establishment->owner_lname,
+                'email' => $establishment->email,
+                'username' => $establishment->username,
+                'phone_no' => $establishment->phone_no,
+                'address' => $establishment->address,
+                'formatted_address' => $establishment->formatted_address,
+                'latitude' => $establishment->latitude,
+                'longitude' => $establishment->longitude,
+                'business_type' => $establishment->business_type,
+                'status' => $establishment->status ?? 'active',
+                'verification_status' => $establishment->verification_status ?? 'unverified',
+                'verified' => ($establishment->verification_status ?? 'unverified') === 'verified',
+                'profile_image' => $establishment->profile_image,
+                'bir_file' => $establishment->bir_file,
+                'registered_at' => $establishment->created_at ? $establishment->created_at->format('F j, Y g:i A') : 'N/A',
+                'updated_at' => $establishment->updated_at ? $establishment->updated_at->format('F j, Y g:i A') : 'N/A',
+                'active_listings' => $establishment->active_listings_count ?? 0,
+                'total_listings' => $establishment->total_listings_count ?? 0,
+                'total_orders' => $establishment->total_orders_count ?? 0,
+                'avg_rating' => $ratingData ? round($ratingData->avg_rating, 1) : 0,
+                'total_reviews' => $ratingData ? $ratingData->total_reviews : 0,
+                'violations_count' => $establishment->violations_count ?? 0,
+                'violations' => $establishment->violations ?? [],
+                'recent_orders' => $recentOrders->map(function($order) {
+                    return [
+                        'order_number' => $order->order_number,
+                        'item_name' => $order->foodListing->name ?? 'N/A',
+                        'quantity' => $order->quantity,
+                        'total_price' => $order->total_price,
+                        'status' => $order->status,
+                        'created_at' => $order->created_at->format('M j, Y g:i A'),
+                        'customer_name' => $order->customer_name,
+                    ];
+                })->toArray(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $details
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching establishment details: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch establishment details.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
     }
     
     /**
@@ -2647,6 +3382,7 @@ class DashboardController extends Controller
                 return response()->json(['success' => false, 'message' => 'Establishment not found.'], 404);
             }
             
+            $oldStatus = $establishment->status;
             $establishment->status = $request->status;
             $establishment->save();
             
@@ -2656,6 +3392,44 @@ class DashboardController extends Controller
                 'deleted' => 'deleted',
                 default => 'updated'
             };
+            
+            // Log action
+            \App\Models\SystemLog::log(
+                'admin_action',
+                'establishment_status_updated',
+                "Admin {$action} establishment: {$establishment->business_name}",
+                'info',
+                'success',
+                [
+                    'establishment_id' => $establishment->establishment_id,
+                    'establishment_name' => $establishment->business_name,
+                    'old_status' => $oldStatus,
+                    'new_status' => $request->status,
+                    'admin_id' => session('user_id'),
+                    'admin_email' => session('user_email'),
+                ]
+            );
+            
+            // Send notification
+            if ($request->status === 'suspended') {
+                \App\Models\Notification::createNotification(
+                    'establishment',
+                    $establishment->establishment_id,
+                    'account_suspended',
+                    'Account Suspended',
+                    "Your establishment account has been suspended by an administrator.",
+                    ['establishment_id' => $establishment->establishment_id]
+                );
+            } elseif ($request->status === 'active' && $oldStatus === 'suspended') {
+                \App\Models\Notification::createNotification(
+                    'establishment',
+                    $establishment->establishment_id,
+                    'account_unsuspended',
+                    'Account Unsuspended',
+                    "Your establishment account has been reactivated.",
+                    ['establishment_id' => $establishment->establishment_id]
+                );
+            }
             
             return response()->json([
                 'success' => true,
@@ -2680,7 +3454,7 @@ class DashboardController extends Controller
         }
         
         $request->validate([
-            'verified' => 'required|boolean'
+            'verification_status' => 'required|in:verified,unverified'
         ]);
         
         try {
@@ -2690,10 +3464,87 @@ class DashboardController extends Controller
                 return response()->json(['success' => false, 'message' => 'Establishment not found.'], 404);
             }
             
-            $establishment->verified = $request->verified;
+            $oldStatus = $establishment->verification_status ?? 'unverified';
+            $newStatus = $request->verification_status;
+            
+            // Update verification status
+            $establishment->verification_status = $newStatus;
+            // Also update legacy verified field for backward compatibility
+            $establishment->verified = ($newStatus === 'verified');
             $establishment->save();
             
-            $action = $request->verified ? 'verified' : 'unverified';
+            // Hide/restore food listings based on verification status
+            if ($oldStatus === 'verified' && $newStatus === 'unverified') {
+                // Hide all active food listings (set to inactive)
+                FoodListing::where('establishment_id', $establishment->establishment_id)
+                    ->where('status', 'active')
+                    ->update(['status' => 'inactive']);
+                
+                // Send notification to establishment about unverification
+                try {
+                    Notification::createNotification(
+                        'establishment',
+                        $establishment->establishment_id,
+                        'account_unverified',
+                        'Account Unverified',
+                        "Your establishment account verification has been removed. Your food listings have been hidden and you may have limited access to certain features.",
+                        [
+                            'establishment_id' => $establishment->establishment_id,
+                            'data' => [
+                                'business_name' => $establishment->business_name,
+                                'verification_status' => 'unverified',
+                            ]
+                        ]
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send unverification notification: ' . $e->getMessage());
+                }
+            } elseif ($oldStatus === 'unverified' && $newStatus === 'verified') {
+                // Restore all inactive food listings (set to active)
+                FoodListing::where('establishment_id', $establishment->establishment_id)
+                    ->where('status', 'inactive')
+                    ->update(['status' => 'active']);
+                
+                // Send notification to establishment about verification
+                try {
+                    Notification::createNotification(
+                        'establishment',
+                        $establishment->establishment_id,
+                        'account_verified',
+                        'Account Verified',
+                        "Congratulations! Your establishment account has been verified by an administrator. You now have full access to all features, including posting food listings and managing your business.",
+                        [
+                            'establishment_id' => $establishment->establishment_id,
+                            'data' => [
+                                'business_name' => $establishment->business_name,
+                                'verification_status' => 'verified',
+                            ]
+                        ]
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send verification notification: ' . $e->getMessage());
+                }
+            }
+            
+            // Determine action for logging and response
+            $action = $newStatus === 'verified' ? 'verified' : 'unverified';
+            
+            // Log the action
+            \App\Models\SystemLog::log(
+                'admin_action',
+                'establishment_verification_updated',
+                "Admin {$action} establishment: {$establishment->business_name}",
+                'info',
+                'success',
+                [
+                    'establishment_id' => $establishment->establishment_id,
+                    'establishment_name' => $establishment->business_name,
+                    'old_verification_status' => $oldStatus,
+                    'new_verification_status' => $newStatus,
+                    'admin_id' => session('user_id'),
+                    'admin_email' => session('user_email'),
+                ]
+            );
             
             return response()->json([
                 'success' => true,
@@ -2872,8 +3723,6 @@ class DashboardController extends Controller
                 'days_until_expiry' => $daysUntilExpiry,
                 'status' => $listing->status,
                 'image_path' => $listing->image_path,
-                'pickup_available' => $listing->pickup_available,
-                'delivery_available' => $listing->delivery_available,
                 'establishment' => $listing->establishment ? [
                     'id' => $listing->establishment->establishment_id,
                     'name' => $listing->establishment->business_name,
@@ -2922,12 +3771,13 @@ class DashboardController extends Controller
         ]);
         
         try {
-            $listing = FoodListing::find($id);
+            $listing = FoodListing::with('establishment')->find($id);
             
             if (!$listing) {
                 return response()->json(['success' => false, 'message' => 'Food listing not found.'], 404);
             }
             
+            $oldStatus = $listing->status;
             $listing->status = $request->status;
             $listing->save();
             
@@ -2938,15 +3788,97 @@ class DashboardController extends Controller
                 default => 'updated'
             };
             
+            // Log the action in System Logs
+            $establishmentName = $listing->establishment 
+                ? ($listing->establishment->business_name ?? 'Unknown') 
+                : 'Unknown';
+            
+            SystemLog::log(
+                'food_listing_management',
+                'food_listing_' . $request->status,
+                "Food listing {$action} by admin: {$listing->name} (ID: {$listing->id}) from {$establishmentName}",
+                $request->status === 'inactive' ? 'warning' : 'info',
+                'success',
+                [
+                    'food_listing_id' => $listing->id,
+                    'food_listing_name' => $listing->name,
+                    'establishment_id' => $listing->establishment_id,
+                    'establishment_name' => $establishmentName,
+                    'old_status' => $oldStatus,
+                    'new_status' => $request->status,
+                    'action' => $action,
+                    'admin_id' => session('user_id'),
+                    'admin_email' => session('user_email'),
+                ]
+            );
+            
+            // Send notification to establishment when item is disabled
+            if ($request->status === 'inactive' && $listing->establishment_id) {
+                try {
+                    Notification::createNotification(
+                        'establishment',
+                        $listing->establishment_id,
+                        'food_listing_disabled',
+                        'Food Item Disabled',
+                        "Your food item '{$listing->name}' has been disabled by an administrator. It will no longer be visible to customers.",
+                        [
+                            'data' => [
+                                'food_listing_id' => $listing->id,
+                                'food_listing_name' => $listing->name,
+                                'reason' => 'Disabled by administrator',
+                            ]
+                        ]
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send notification to establishment about disabled food listing: ' . $e->getMessage(), [
+                        'food_listing_id' => $listing->id,
+                        'establishment_id' => $listing->establishment_id
+                    ]);
+                    // Don't fail the request if notification fails
+                }
+            }
+            
+            // Send notification to establishment when item is enabled
+            if ($request->status === 'active' && $oldStatus === 'inactive' && $listing->establishment_id) {
+                try {
+                    Notification::createNotification(
+                        'establishment',
+                        $listing->establishment_id,
+                        'food_listing_enabled',
+                        'Food Item Enabled',
+                        "Your food item '{$listing->name}' has been enabled and is now visible to customers.",
+                        [
+                            'data' => [
+                                'food_listing_id' => $listing->id,
+                                'food_listing_name' => $listing->name,
+                            ]
+                        ]
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send notification to establishment about enabled food listing: ' . $e->getMessage(), [
+                        'food_listing_id' => $listing->id,
+                        'establishment_id' => $listing->establishment_id
+                    ]);
+                    // Don't fail the request if notification fails
+                }
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => "Food listing {$action} successfully."
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error updating food listing status', [
+                'food_listing_id' => $id,
+                'status' => $request->status,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update food listing status.',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while updating the food listing status.'
             ], 500);
         }
     }
@@ -2961,24 +3893,81 @@ class DashboardController extends Controller
         }
         
         try {
-            $listing = FoodListing::find($id);
+            $listing = FoodListing::with('establishment')->find($id);
             
             if (!$listing) {
                 return response()->json(['success' => false, 'message' => 'Food listing not found.'], 404);
             }
             
+            // Store information before deletion
+            $listingName = $listing->name;
+            $listingId = $listing->id;
+            $establishmentId = $listing->establishment_id;
+            $establishmentName = $listing->establishment 
+                ? ($listing->establishment->business_name ?? 'Unknown') 
+                : 'Unknown';
+            
             // Delete the listing
             $listing->delete();
+            
+            // Log the action in System Logs
+            SystemLog::log(
+                'food_listing_management',
+                'food_listing_deleted',
+                "Food listing deleted by admin: {$listingName} (ID: {$listingId}) from {$establishmentName}",
+                'warning',
+                'success',
+                [
+                    'food_listing_id' => $listingId,
+                    'food_listing_name' => $listingName,
+                    'establishment_id' => $establishmentId,
+                    'establishment_name' => $establishmentName,
+                    'admin_id' => session('user_id'),
+                    'admin_email' => session('user_email'),
+                ]
+            );
+            
+            // Send notification to establishment
+            if ($establishmentId) {
+                try {
+                    Notification::createNotification(
+                        'establishment',
+                        $establishmentId,
+                        'food_listing_deleted',
+                        'Food Item Deleted',
+                        "Your food item '{$listingName}' has been permanently deleted by an administrator. This action cannot be undone.",
+                        [
+                            'data' => [
+                                'food_listing_id' => $listingId,
+                                'food_listing_name' => $listingName,
+                                'reason' => 'Deleted by administrator',
+                            ]
+                        ]
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send notification to establishment about deleted food listing: ' . $e->getMessage(), [
+                        'food_listing_id' => $listingId,
+                        'establishment_id' => $establishmentId
+                    ]);
+                    // Don't fail the request if notification fails
+                }
+            }
             
             return response()->json([
                 'success' => true,
                 'message' => 'Food listing deleted successfully.'
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error deleting food listing', [
+                'food_listing_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete food listing.',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while deleting the food listing.'
             ], 500);
         }
     }
@@ -3130,11 +4119,11 @@ class DashboardController extends Controller
         }
         
         $request->validate([
-            'reason' => 'required|string|max:500'
+            'reason' => 'nullable|string|max:500'
         ]);
         
         try {
-            $order = Order::find($id);
+            $order = Order::with(['consumer', 'establishment', 'foodListing'])->find($id);
             
             if (!$order) {
                 return response()->json(['success' => false, 'message' => 'Order not found.'], 404);
@@ -3148,20 +4137,110 @@ class DashboardController extends Controller
                 return response()->json(['success' => false, 'message' => 'Cannot cancel a completed order.'], 400);
             }
             
+            $oldStatus = $order->status;
+            $cancellationReason = $request->reason 
+                ? 'Admin Force Cancel: ' . $request->reason 
+                : 'Admin Force Cancel';
+            
             DB::beginTransaction();
             try {
-                // Restore stock using StockService (idempotent)
-                $stockService = new \App\Services\StockService();
-                $stockResult = $stockService->restoreStock($order, 'Admin Force Cancel: ' . $request->reason);
-                
-                if (!$stockResult['success']) {
-                    throw new \Exception($stockResult['message']);
+                // Only restore stock if it was actually deducted (i.e., order was accepted)
+                // If order is still pending, no stock was deducted, so nothing to restore
+                if ($order->stock_deducted) {
+                    $stockService = new \App\Services\StockService();
+                    $stockResult = $stockService->restoreStock($order, $cancellationReason);
+                    
+                    // Log the result but don't fail if stock wasn't deducted
+                    if (!$stockResult['success'] && strpos($stockResult['message'] ?? '', 'already restored') === false) {
+                        // Only throw if it's a real error, not if stock was never deducted
+                        if (strpos($stockResult['message'] ?? '', 'never deducted') === false) {
+                            throw new \Exception($stockResult['message']);
+                        }
+                    }
                 }
                 
                 $order->status = 'cancelled';
                 $order->cancelled_at = now();
-                $order->cancellation_reason = 'Admin Force Cancel: ' . $request->reason;
+                $order->cancellation_reason = $cancellationReason;
                 $order->save();
+                
+                // Log the action in System Logs
+                $consumerName = $order->consumer 
+                    ? ($order->consumer->fname . ' ' . $order->consumer->lname) 
+                    : ($order->customer_name ?? 'Unknown');
+                $establishmentName = $order->establishment 
+                    ? ($order->establishment->business_name ?? 'Unknown') 
+                    : 'Unknown';
+                
+                SystemLog::log(
+                    'order_management',
+                    'order_force_cancelled',
+                    "Order force cancelled by admin: Order #{$order->order_number} (ID: {$order->id}) - Consumer: {$consumerName}, Establishment: {$establishmentName}",
+                    'warning',
+                    'success',
+                    [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'consumer_id' => $order->consumer_id,
+                        'consumer_name' => $consumerName,
+                        'establishment_id' => $order->establishment_id,
+                        'establishment_name' => $establishmentName,
+                        'old_status' => $oldStatus,
+                        'new_status' => 'cancelled',
+                        'cancellation_reason' => $cancellationReason,
+                        'admin_id' => session('user_id'),
+                        'admin_email' => session('user_email'),
+                    ]
+                );
+                
+                // Send notifications to consumer and establishment
+                try {
+                    if ($order->consumer_id) {
+                        Notification::createNotification(
+                            'consumer',
+                            $order->consumer_id,
+                            'order_cancelled',
+                            'Order Cancelled',
+                            "Your order #{$order->order_number} has been cancelled by an administrator." . ($request->reason ? " Reason: {$request->reason}" : ''),
+                            [
+                                'order_id' => $order->id,
+                                'data' => [
+                                    'order_number' => $order->order_number,
+                                    'cancellation_reason' => $cancellationReason,
+                                ]
+                            ]
+                        );
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send notification to consumer about cancelled order: ' . $e->getMessage(), [
+                        'order_id' => $order->id,
+                        'consumer_id' => $order->consumer_id
+                    ]);
+                }
+                
+                try {
+                    if ($order->establishment_id) {
+                        Notification::createNotification(
+                            'establishment',
+                            $order->establishment_id,
+                            'order_cancelled',
+                            'Order Cancelled',
+                            "Order #{$order->order_number} has been cancelled by an administrator." . ($request->reason ? " Reason: {$request->reason}" : ''),
+                            [
+                                'order_id' => $order->id,
+                                'data' => [
+                                    'order_number' => $order->order_number,
+                                    'cancellation_reason' => $cancellationReason,
+                                ]
+                            ]
+                        );
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send notification to establishment about cancelled order: ' . $e->getMessage(), [
+                        'order_id' => $order->id,
+                        'establishment_id' => $order->establishment_id
+                    ]);
+                }
                 
                 DB::commit();
                 
@@ -3171,16 +4250,28 @@ class DashboardController extends Controller
                 ]);
             } catch (\Exception $e) {
                 DB::rollBack();
+                \Log::error('Error force cancelling order', [
+                    'order_id' => $id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                
                 return response()->json([
                     'success' => false,
                     'message' => 'Failed to cancel order: ' . $e->getMessage()
                 ], 500);
             }
         } catch (\Exception $e) {
+            \Log::error('Error in forceCancelOrder', [
+                'order_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to cancel order.',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while cancelling the order.'
             ], 500);
         }
     }
@@ -3404,7 +4495,6 @@ class DashboardController extends Controller
                 'start_time' => $request->start_time ? ($request->start_time instanceof \Carbon\Carbon ? $request->start_time->toDateTimeString() : $request->start_time) : null,
                 'end_time' => $request->end_time ? ($request->end_time instanceof \Carbon\Carbon ? $request->end_time->toDateTimeString() : $request->end_time) : null,
                 'address' => $request->address,
-                'delivery_option' => $request->delivery_option,
                 'contact_name' => $request->contact_name,
                 'phone_number' => $request->phone_number,
                 'email' => $request->email,
@@ -3803,6 +4893,328 @@ class DashboardController extends Controller
         return view('admin.reports', compact('user'));
     }
 
+    /**
+     * Admin - SavEats Company Earnings
+     */
+    public function adminEarnings(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Build query for completed orders with platform fees
+        $query = Order::where('status', 'completed')
+            ->with(['establishment', 'foodListing', 'consumer']);
+        
+        // Apply filters
+        if ($request->filled('establishment_id')) {
+            $query->where('establishment_id', $request->establishment_id);
+        }
+        
+        if ($request->filled('date_from')) {
+            $query->where('completed_at', '>=', $request->date_from);
+        }
+        
+        if ($request->filled('date_to')) {
+            $query->where('completed_at', '<=', $request->date_to . ' 23:59:59');
+        }
+        
+        // Get all orders for statistics
+        $allOrders = Order::where('status', 'completed')->get();
+        
+        // Backfill platform fees for orders without them
+        $ordersWithoutFee = $allOrders->filter(function($order) {
+            return is_null($order->platform_fee) || $order->platform_fee == 0;
+        });
+        
+        foreach ($ordersWithoutFee as $order) {
+            $platformFee = round($order->total_price * 0.05, 2);
+            $netEarnings = round($order->total_price - $platformFee, 2);
+            $order->platform_fee = $platformFee;
+            $order->net_earnings = $netEarnings;
+            $order->save();
+        }
+        
+        // Get filtered orders with pagination
+        $orders = $query->orderBy('completed_at', 'desc')
+            ->paginate(20)
+            ->through(function ($order) {
+                $platformFee = $order->platform_fee ?? round($order->total_price * 0.05, 2);
+                $netEarnings = $order->net_earnings ?? round($order->total_price - $platformFee, 2);
+                
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'establishment_name' => $order->establishment->business_name ?? 'Unknown',
+                    'establishment_id' => $order->establishment_id,
+                    'item_name' => $order->foodListing->name ?? 'Unknown Item',
+                    'quantity' => $order->quantity,
+                    'total_price' => (float) $order->total_price,
+                    'platform_fee' => (float) $platformFee,
+                    'net_earnings' => (float) $netEarnings,
+                    'completed_at' => $order->completed_at ? $order->completed_at->format('Y-m-d H:i:s') : null,
+                    'completed_at_display' => $order->completed_at ? $order->completed_at->format('M d, Y g:i A') : 'N/A',
+                ];
+            });
+        
+        // Calculate totals
+        $totalGrossRevenue = $allOrders->sum('total_price');
+        $totalPlatformFees = $allOrders->sum(function($order) {
+            return $order->platform_fee ?? round($order->total_price * 0.05, 2);
+        });
+        $totalNetEarnings = $allOrders->sum(function($order) {
+            return $order->net_earnings ?? round($order->total_price * 0.95, 2);
+        });
+        
+        // Get unique establishments for filter
+        $establishments = Establishment::whereIn('establishment_id', $allOrders->pluck('establishment_id')->unique())
+            ->get(['establishment_id', 'business_name'])
+            ->map(function ($est) {
+                return ['id' => $est->establishment_id, 'name' => $est->business_name];
+            });
+        
+        // Calculate daily earnings (last 30 days)
+        $dailyEarnings = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dayFees = Order::where('status', 'completed')
+                ->whereDate('completed_at', $date->toDateString())
+                ->get()
+                ->sum(function($order) {
+                    return $order->platform_fee ?? round($order->total_price * 0.05, 2);
+                });
+            
+            $dailyEarnings[] = [
+                'label' => $date->format('M d'),
+                'value' => (float) $dayFees
+            ];
+        }
+        
+        // Calculate monthly earnings (last 12 months)
+        $monthlyEarnings = [];
+        $monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        for ($i = 11; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            $monthFees = Order::where('status', 'completed')
+                ->whereYear('completed_at', $date->year)
+                ->whereMonth('completed_at', $date->month)
+                ->get()
+                ->sum(function($order) {
+                    return $order->platform_fee ?? round($order->total_price * 0.05, 2);
+                });
+            
+            $monthlyEarnings[] = [
+                'label' => $monthLabels[$date->month - 1],
+                'value' => (float) $monthFees
+            ];
+        }
+        
+        return view('admin.earnings', compact(
+            'user',
+            'orders',
+            'totalGrossRevenue',
+            'totalPlatformFees',
+            'totalNetEarnings',
+            'establishments',
+            'dailyEarnings',
+            'monthlyEarnings'
+        ));
+    }
+
+    /**
+     * Export Admin Earnings
+     */
+    public function exportAdminEarnings(Request $request, $type)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+
+        // Build query with same filters as adminEarnings
+        $query = Order::where('status', 'completed')
+            ->with(['establishment', 'foodListing']);
+
+        if ($request->filled('establishment_id')) {
+            $query->where('establishment_id', $request->establishment_id);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->where('completed_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->where('completed_at', '<=', $request->date_to . ' 23:59:59');
+        }
+
+        $orders = $query->orderBy('completed_at', 'desc')->get();
+
+        switch ($type) {
+            case 'csv':
+                return $this->exportAdminEarningsToCsv($orders);
+            case 'excel':
+                return $this->exportAdminEarningsToExcel($orders);
+            case 'pdf':
+                return $this->exportAdminEarningsToPdf($orders);
+            default:
+                return redirect()->back()->with('error', 'Invalid export type.');
+        }
+    }
+
+    /**
+     * Export Admin Earnings to CSV
+     */
+    private function exportAdminEarningsToCsv($orders)
+    {
+        $filename = 'saveats_earnings_' . date('Y-m-d_His') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function() use ($orders) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Headers
+            fputcsv($file, [
+                'Order Number',
+                'Establishment',
+                'Item Name',
+                'Quantity',
+                'Gross Amount',
+                'Platform Fee (5%)',
+                'Net to Establishment',
+                'Date Completed'
+            ]);
+
+            // Data rows
+            foreach ($orders as $order) {
+                $platformFee = $order->platform_fee ?? round($order->total_price * 0.05, 2);
+                $netEarnings = $order->net_earnings ?? round($order->total_price - $platformFee, 2);
+                
+                fputcsv($file, [
+                    $order->order_number,
+                    $order->establishment->business_name ?? 'Unknown',
+                    $order->foodListing->name ?? 'Unknown Item',
+                    $order->quantity,
+                    $order->total_price,
+                    $platformFee,
+                    $netEarnings,
+                    $order->completed_at ? $order->completed_at->format('Y-m-d H:i:s') : 'N/A'
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export Admin Earnings to Excel
+     */
+    private function exportAdminEarningsToExcel($orders)
+    {
+        $filename = 'saveats_earnings_' . date('Y-m-d_His') . '.xlsx';
+        
+        $data = [];
+        
+        // Headers
+        $data[] = [
+            'Order Number',
+            'Establishment',
+            'Item Name',
+            'Quantity',
+            'Gross Amount',
+            'Platform Fee (5%)',
+            'Net to Establishment',
+            'Date Completed'
+        ];
+        
+        // Data rows
+        foreach ($orders as $order) {
+            $platformFee = $order->platform_fee ?? round($order->total_price * 0.05, 2);
+            $netEarnings = $order->net_earnings ?? round($order->total_price - $platformFee, 2);
+            
+            $data[] = [
+                $order->order_number,
+                $order->establishment->business_name ?? 'Unknown',
+                $order->foodListing->name ?? 'Unknown Item',
+                $order->quantity,
+                $order->total_price,
+                $platformFee,
+                $netEarnings,
+                $order->completed_at ? $order->completed_at->format('Y-m-d H:i:s') : 'N/A'
+            ];
+        }
+        
+        return Excel::create($filename, function($excel) use ($data) {
+            $excel->sheet('SavEats Earnings', function($sheet) use ($data) {
+                $sheet->fromArray($data, null, 'A1', false, false);
+                
+                // Style the header row
+                $sheet->row(1, function($row) {
+                    $row->setFontWeight('bold');
+                    $row->setBackground('#ef4444');
+                    $row->setFontColor('#ffffff');
+                });
+                
+                // Auto-size columns
+                foreach(range('A', 'H') as $column) {
+                    $sheet->getColumnDimension($column)->setAutoSize(true);
+                }
+            });
+        })->export('xlsx');
+    }
+
+    /**
+     * Export Admin Earnings to PDF
+     */
+    private function exportAdminEarningsToPdf($orders)
+    {
+        $data = $orders->map(function ($order) {
+            $platformFee = $order->platform_fee ?? round($order->total_price * 0.05, 2);
+            $netEarnings = $order->net_earnings ?? round($order->total_price - $platformFee, 2);
+            
+            return [
+                'order_number' => $order->order_number,
+                'establishment_name' => $order->establishment->business_name ?? 'Unknown',
+                'item_name' => $order->foodListing->name ?? 'Unknown Item',
+                'quantity' => $order->quantity,
+                'total_price' => (float) $order->total_price,
+                'platform_fee' => (float) $platformFee,
+                'net_earnings' => (float) $netEarnings,
+                'completed_at' => $order->completed_at ? $order->completed_at->format('F d, Y H:i') : 'N/A',
+            ];
+        })->toArray();
+
+        $totalGross = $orders->sum('total_price');
+        $totalFees = $orders->sum(function($order) {
+            return $order->platform_fee ?? round($order->total_price * 0.05, 2);
+        });
+        $totalNet = $orders->sum(function($order) {
+            return $order->net_earnings ?? round($order->total_price * 0.95, 2);
+        });
+
+        $filename = 'saveats_earnings_' . date('Y-m-d_His') . '.pdf';
+        
+        $pdf = Pdf::loadView('admin.earnings-pdf', [
+            'data' => $data,
+            'totalGross' => $totalGross,
+            'totalFees' => $totalFees,
+            'totalNet' => $totalNet,
+            'exportDate' => now()->format('F d, Y'),
+            'totalTransactions' => count($data)
+        ]);
+        
+        return $pdf->download($filename);
+    }
+
 
     /**
      * Admin - Review Management
@@ -3950,9 +5362,41 @@ class DashboardController extends Controller
         
         try {
             $review = Review::with(['consumer', 'establishment'])->findOrFail($id);
+            $wasFlagged = $review->flagged;
             $review->flagged = !$review->flagged;
             $review->flagged_at = $review->flagged ? now() : null;
             $review->save();
+            
+            // Log the action in System Logs
+            $action = $review->flagged ? 'flagged' : 'unflagged';
+            $consumerName = $review->consumer 
+                ? ($review->consumer->fname . ' ' . $review->consumer->lname) 
+                : 'Unknown';
+            $establishmentName = $review->establishment 
+                ? ($review->establishment->business_name ?? 'Unknown') 
+                : 'Unknown';
+            
+            SystemLog::log(
+                'review_management',
+                'review_' . $action,
+                "Review {$action} by admin: Review ID {$review->id} from {$consumerName} for {$establishmentName}",
+                $review->flagged ? 'warning' : 'info',
+                'success',
+                [
+                    'review_id' => $review->id,
+                    'consumer_id' => $review->consumer_id,
+                    'consumer_name' => $consumerName,
+                    'establishment_id' => $review->establishment_id,
+                    'establishment_name' => $establishmentName,
+                    'food_listing_id' => $review->food_listing_id,
+                    'rating' => $review->rating,
+                    'action' => $action,
+                    'flagged' => $review->flagged,
+                    'flagged_at' => $review->flagged_at?->toDateTimeString(),
+                    'admin_id' => session('user_id'),
+                    'admin_email' => session('user_email'),
+                ]
+            );
             
             // Notify admin when review is flagged (not when unflagged)
             if ($review->flagged) {
@@ -3973,6 +5417,137 @@ class DashboardController extends Controller
                 'success' => false,
                 'message' => 'Failed to update review flag status.',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin - Get Review Details
+     */
+    public function getReviewDetails($id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied.'
+            ], 403);
+        }
+        
+        try {
+            \Log::info('Fetching review details', ['review_id' => $id]);
+            $review = Review::with([
+                'consumer' => function($query) {
+                    $query->select('consumer_id', 'fname', 'lname', 'email', 'phone_no', 'address', 'created_at');
+                },
+                'establishment' => function($query) {
+                    $query->select('establishment_id', 'business_name', 'email', 'phone_no', 'address', 'created_at');
+                },
+                'foodListing' => function($query) {
+                    $query->select('id', 'name', 'description', 'original_price', 'discount_percentage', 'image_path');
+                },
+                'order' => function($query) {
+                    $query->select('id', 'order_number', 'status', 'total_price', 'delivery_method', 'created_at');
+                }
+            ])->find($id);
+            
+            if (!$review) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Review not found.'
+                ], 404);
+            }
+            
+            // Format image and video paths
+            $imagePath = null;
+            if ($review->image_path) {
+                try {
+                    // Check if it's already a full URL
+                    if (filter_var($review->image_path, FILTER_VALIDATE_URL)) {
+                        $imagePath = $review->image_path;
+                    } else {
+                        $imagePath = Storage::url($review->image_path);
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to generate image URL for review ' . $review->id . ': ' . $e->getMessage());
+                    $imagePath = $review->image_path; // Fallback to original path
+                }
+            }
+            
+            $videoPath = null;
+            if ($review->video_path) {
+                try {
+                    // Check if it's already a full URL
+                    if (filter_var($review->video_path, FILTER_VALIDATE_URL)) {
+                        $videoPath = $review->video_path;
+                    } else {
+                        $videoPath = Storage::url($review->video_path);
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to generate video URL for review ' . $review->id . ': ' . $e->getMessage());
+                    $videoPath = $review->video_path; // Fallback to original path
+                }
+            }
+            
+            // Format the review data
+            $reviewData = [
+                'id' => $review->id,
+                'rating' => $review->rating,
+                'description' => $review->description,
+                'image_path' => $imagePath,
+                'video_path' => $videoPath,
+                'flagged' => $review->flagged ?? false,
+                'flagged_at' => $review->flagged_at ? $review->flagged_at->format('M d, Y h:i A') : null,
+                'created_at' => $review->created_at ? $review->created_at->format('M d, Y h:i A') : 'N/A',
+                'updated_at' => $review->updated_at ? $review->updated_at->format('M d, Y h:i A') : 'N/A',
+                'consumer' => $review->consumer ? [
+                    'name' => trim(($review->consumer->fname ?? '') . ' ' . ($review->consumer->lname ?? '')) ?: 'N/A',
+                    'email' => $review->consumer->email ?? 'N/A',
+                    'phone_no' => $review->consumer->phone_no ?? null,
+                    'address' => $review->consumer->address ?? null,
+                    'member_since' => $review->consumer->created_at ? $review->consumer->created_at->format('M d, Y') : 'N/A',
+                ] : null,
+                'establishment' => $review->establishment ? [
+                    'name' => $review->establishment->business_name ?? 'N/A',
+                    'email' => $review->establishment->email ?? 'N/A',
+                    'phone_no' => $review->establishment->phone_no ?? null,
+                    'address' => $review->establishment->address ?? null,
+                    'member_since' => $review->establishment->created_at ? $review->establishment->created_at->format('M d, Y') : 'N/A',
+                ] : null,
+                'food_listing' => $review->foodListing ? [
+                    'id' => $review->foodListing->id,
+                    'name' => $review->foodListing->name,
+                    'description' => $review->foodListing->description,
+                    'original_price' => $review->foodListing->original_price,
+                    'discount_percentage' => $review->foodListing->discount_percentage,
+                    'image_url' => $review->foodListing->image_path ? Storage::url($review->foodListing->image_path) : null,
+                ] : null,
+                'order' => $review->order ? [
+                    'id' => $review->order->id,
+                    'order_number' => $review->order->order_number ?? 'N/A',
+                    'status' => $review->order->status ?? 'N/A',
+                    'total_price' => $review->order->total_price ?? 0,
+                    'delivery_method' => $review->order->delivery_method ?? null,
+                    'created_at' => $review->order->created_at ? $review->order->created_at->format('M d, Y h:i A') : 'N/A',
+                ] : null,
+            ];
+            
+            \Log::info('Review details formatted successfully', ['review_id' => $id]);
+            
+            return response()->json([
+                'success' => true,
+                'review' => $reviewData
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching review details', [
+                'review_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch review details.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while fetching review details.'
             ], 500);
         }
     }
@@ -4058,7 +5633,7 @@ class DashboardController extends Controller
         
         // Apply verified filter
         if ($verifiedFilter !== 'all') {
-            $foodbanksQuery->where('verified', $verifiedFilter === 'verified');
+            $foodbanksQuery->where('verification_status', $verifiedFilter);
         }
         
         // Get foodbanks
@@ -4076,7 +5651,7 @@ class DashboardController extends Controller
                 'registration_number' => $foodbank->registration_number,
                 'username' => $foodbank->username,
                 'status' => $foodbank->status ?? 'active',
-                'verified' => $foodbank->verified ?? false,
+                'verified' => ($foodbank->verification_status ?? 'unverified') === 'verified',
                 'total_requests' => $foodbank->total_requests_count ?? 0,
                 'total_donations' => $foodbank->total_donations_count ?? 0,
                 'registered_at' => $foodbank->created_at,
@@ -4087,8 +5662,8 @@ class DashboardController extends Controller
         // Statistics
         $stats = [
             'total' => Foodbank::count(),
-            'verified' => Foodbank::where('verified', true)->count(),
-            'unverified' => Foodbank::where('verified', false)->count(),
+            'verified' => Foodbank::where('verification_status', 'verified')->count(),
+            'unverified' => Foodbank::where('verification_status', 'unverified')->count(),
             'active' => Foodbank::where('status', 'active')->count(),
             'suspended' => Foodbank::where('status', 'suspended')->count(),
         ];
@@ -4256,7 +5831,7 @@ class DashboardController extends Controller
         }
         
         $request->validate([
-            'verified' => 'required|boolean'
+            'verification_status' => 'required|in:verified,unverified'
         ]);
         
         try {
@@ -4266,10 +5841,29 @@ class DashboardController extends Controller
                 return response()->json(['success' => false, 'message' => 'Foodbank not found.'], 404);
             }
             
-            $foodbank->verified = $request->verified;
+            $oldStatus = $foodbank->verification_status ?? 'unverified';
+            $newStatus = $request->verification_status;
+            
+            // Update verification status
+            $foodbank->verification_status = $newStatus;
+            // Also update legacy verified field for backward compatibility
+            $foodbank->verified = ($newStatus === 'verified');
             $foodbank->save();
             
-            $action = $request->verified ? 'verified' : 'unverified';
+            // Hide/restore donation requests based on verification status
+            if ($oldStatus === 'verified' && $newStatus === 'unverified') {
+                // Hide all active donation requests (set status to expired for foodbank's own requests)
+                DonationRequest::where('foodbank_id', $foodbank->foodbank_id)
+                    ->whereNull('establishment_id') // Only foodbank's own requests
+                    ->whereIn('status', ['pending', 'active'])
+                    ->update(['status' => 'expired']);
+            } elseif ($oldStatus === 'unverified' && $newStatus === 'verified') {
+                // Note: We can't automatically restore expired requests as they may have actually expired
+                // This is a design decision - once hidden, they stay hidden
+                // New requests will work once verified
+            }
+            
+            $action = $newStatus === 'verified' ? 'verified' : 'unverified';
             
             // Log action
             \App\Models\SystemLog::log(
@@ -4281,14 +5875,15 @@ class DashboardController extends Controller
                 [
                     'foodbank_id' => $foodbank->foodbank_id,
                     'foodbank_name' => $foodbank->organization_name,
-                    'verified' => $request->verified,
+                    'verification_status' => $newStatus,
+                    'old_status' => $oldStatus,
                     'admin_id' => session('user_id'),
                     'admin_email' => session('user_email'),
                 ]
             );
             
             // Send notification
-            if ($request->verified) {
+            if ($newStatus === 'verified') {
                 \App\Models\Notification::createNotification(
                     'foodbank',
                     $foodbank->foodbank_id,
@@ -4453,5 +6048,274 @@ class DashboardController extends Controller
             'statusFilter',
             'typeFilter'
         ));
+    }
+    
+    /**
+     * Admin - View Deletion Requests
+     */
+    public function adminDeletionRequests(Request $request)
+    {
+        if (session('user_type') !== 'admin') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        
+        // Get filter parameters
+        $statusFilter = $request->get('status', 'all');
+        $roleFilter = $request->get('role', 'all');
+        $searchQuery = $request->get('search', '');
+        
+        // Build query
+        $query = DeletionRequest::query();
+        
+        // Apply status filter
+        if ($statusFilter !== 'all') {
+            $query->where('status', $statusFilter);
+        }
+        
+        // Apply role filter
+        if ($roleFilter !== 'all') {
+            $query->where('user_type', $roleFilter);
+        }
+        
+        // Apply search filter
+        if ($searchQuery) {
+            $query->where(function($q) use ($searchQuery) {
+                $q->where('reason', 'like', "%{$searchQuery}%")
+                  ->orWhere('admin_notes', 'like', "%{$searchQuery}%");
+            });
+        }
+        
+        // Get requests with user information
+        $requests = $query->orderBy('created_at', 'desc')->get()->map(function($request) {
+            $userModel = $request->getUser();
+            $userName = 'Unknown';
+            $userEmail = 'N/A';
+            
+            if ($userModel) {
+                if ($request->user_type === 'consumer') {
+                    $userName = ($userModel->fname ?? '') . ' ' . ($userModel->lname ?? '');
+                    $userEmail = $userModel->email ?? 'N/A';
+                } elseif ($request->user_type === 'establishment') {
+                    $userName = $userModel->business_name ?? (($userModel->owner_fname ?? '') . ' ' . ($userModel->owner_lname ?? ''));
+                    $userEmail = $userModel->email ?? 'N/A';
+                } elseif ($request->user_type === 'foodbank') {
+                    $userName = $userModel->organization_name ?? 'Foodbank';
+                    $userEmail = $userModel->email ?? 'N/A';
+                }
+            }
+            
+            return [
+                'id' => $request->id,
+                'user_id' => $request->user_id,
+                'user_type' => $request->user_type,
+                'user_name' => $userName,
+                'user_email' => $userEmail,
+                'reason' => $request->reason,
+                'status' => $request->status,
+                'admin_notes' => $request->admin_notes,
+                'approved_by' => $request->approved_by,
+                'approved_at' => $request->approved_at,
+                'created_at' => $request->created_at,
+                'updated_at' => $request->updated_at,
+            ];
+        });
+        
+        // Statistics
+        $stats = [
+            'total' => DeletionRequest::count(),
+            'pending' => DeletionRequest::where('status', 'pending')->count(),
+            'approved' => DeletionRequest::where('status', 'approved')->count(),
+            'rejected' => DeletionRequest::where('status', 'rejected')->count(),
+        ];
+        
+        return view('admin.deletion-requests', compact(
+            'user',
+            'requests',
+            'stats',
+            'statusFilter',
+            'roleFilter',
+            'searchQuery'
+        ));
+    }
+    
+    /**
+     * Admin - Approve Deletion Request
+     */
+    public function approveDeletionRequest(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        try {
+            DB::beginTransaction();
+            
+            $deletionRequest = DeletionRequest::find($id);
+            
+            if (!$deletionRequest) {
+                return response()->json(['success' => false, 'message' => 'Deletion request not found.'], 404);
+            }
+            
+            if ($deletionRequest->status !== 'pending') {
+                return response()->json(['success' => false, 'message' => 'This request has already been processed.'], 400);
+            }
+            
+            $userId = $deletionRequest->user_id;
+            $userType = $deletionRequest->user_type;
+            
+            // Get user model
+            $model = match($userType) {
+                'consumer' => Consumer::find($userId),
+                'establishment' => Establishment::find($userId),
+                'foodbank' => Foodbank::find($userId),
+                default => null
+            };
+            
+            if (!$model) {
+                return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+            }
+            
+            $userName = $this->getUserName($model, $userType);
+            
+            // Step 1: Delete personal content
+            $this->deletePersonalContent($model, $userType);
+            
+            // Step 2: Anonymize critical business records
+            $this->anonymizeCriticalRecords($model, $userType, $userId, $userName);
+            
+            // Step 3: Delete the user record
+            $model->delete();
+            
+            // Step 4: Update deletion request
+            $deletionRequest->status = 'approved';
+            // approved_by is UUID type, but admin users have integer IDs
+            // Store admin ID in admin_notes metadata instead, or leave null
+            $deletionRequest->approved_by = null; // Admin users use integer IDs, not UUIDs
+            $deletionRequest->approved_at = now();
+            $adminNotes = $request->input('admin_notes', '');
+            $adminId = session('user_id');
+            $deletionRequest->admin_notes = $adminNotes . ($adminNotes ? "\n\n" : '') . "Approved by Admin ID: {$adminId}";
+            $deletionRequest->save();
+            
+            // Step 5: Log the action in System Logs
+            SystemLog::log(
+                'account_deletion',
+                'account_deleted',
+                "Account deletion approved and user account permanently deleted: {$userName} ({$userType})",
+                'critical',
+                'success',
+                [
+                    'deletion_request_id' => $deletionRequest->id,
+                    'deleted_user_id' => $userId,
+                    'deleted_user_type' => $userType,
+                    'deleted_user_name' => $userName,
+                    'approved_by_admin_id' => session('user_id'),
+                    'admin_notes' => $request->input('admin_notes'),
+                ]
+            );
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Account deletion approved and account removed successfully.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Deletion request approval failed: ' . $e->getMessage(), [
+                'request_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to approve deletion request: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Admin - Decline Deletion Request
+     */
+    public function declineDeletionRequest(Request $request, $id)
+    {
+        if (session('user_type') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Access denied.'], 403);
+        }
+        
+        try {
+            $deletionRequest = DeletionRequest::find($id);
+            
+            if (!$deletionRequest) {
+                return response()->json(['success' => false, 'message' => 'Deletion request not found.'], 404);
+            }
+            
+            if ($deletionRequest->status !== 'pending') {
+                return response()->json(['success' => false, 'message' => 'This request has already been processed.'], 400);
+            }
+            
+            // Get user information for logging
+            $userModel = $deletionRequest->getUser();
+            $userName = 'Unknown';
+            $userEmail = 'N/A';
+            
+            if ($userModel) {
+                if ($deletionRequest->user_type === 'consumer') {
+                    $userName = ($userModel->fname ?? '') . ' ' . ($userModel->lname ?? '');
+                    $userEmail = $userModel->email ?? 'N/A';
+                } elseif ($deletionRequest->user_type === 'establishment') {
+                    $userName = $userModel->business_name ?? (($userModel->owner_fname ?? '') . ' ' . ($userModel->owner_lname ?? ''));
+                    $userEmail = $userModel->email ?? 'N/A';
+                } elseif ($deletionRequest->user_type === 'foodbank') {
+                    $userName = $userModel->organization_name ?? 'Foodbank';
+                    $userEmail = $userModel->email ?? 'N/A';
+                }
+            }
+            
+            $deletionRequest->status = 'rejected';
+            // approved_by is UUID type, but admin users have integer IDs
+            // Store admin ID in admin_notes metadata instead, or leave null
+            $deletionRequest->approved_by = null; // Admin users use integer IDs, not UUIDs
+            $deletionRequest->approved_at = now();
+            $adminNotes = $request->input('admin_notes', '');
+            $adminId = session('user_id');
+            $deletionRequest->admin_notes = $adminNotes . ($adminNotes ? "\n\n" : '') . "Declined by Admin ID: {$adminId}";
+            $deletionRequest->save();
+            
+            // Log the action in System Logs
+            SystemLog::log(
+                'account_deletion',
+                'deletion_request_declined',
+                "Deletion request declined for user: {$userName} ({$deletionRequest->user_type})",
+                'info',
+                'success',
+                [
+                    'deletion_request_id' => $deletionRequest->id,
+                    'user_id' => $deletionRequest->user_id,
+                    'user_type' => $deletionRequest->user_type,
+                    'user_name' => $userName,
+                    'user_email' => $userEmail,
+                    'declined_by_admin_id' => session('user_id'),
+                    'admin_notes' => $request->input('admin_notes'),
+                ]
+            );
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Deletion request declined successfully.'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Deletion request decline failed: ' . $e->getMessage(), [
+                'request_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to decline deletion request: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

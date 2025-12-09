@@ -13,6 +13,8 @@ use Illuminate\Http\Request;
 use App\Models\Consumer;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 class FoodListingController extends Controller
 {
@@ -275,7 +277,7 @@ class FoodListingController extends Controller
 
         // Organize orders by status
         $userOrders = [
-            'upcoming' => $orders->whereIn('status', ['pending', 'accepted'])->map(function ($order) {
+            'upcoming' => $orders->whereIn('status', ['pending', 'accepted', 'pending_delivery_confirmation', 'on_the_way'])->map(function ($order) {
                 return [
                     'order_id' => 'ID#' . $order->id,
                     'order_id_raw' => $order->id, // For JavaScript
@@ -307,6 +309,7 @@ class FoodListingController extends Controller
                     'pickup_time' => $order->pickup_start_time && $order->pickup_end_time ? 
                         $order->pickup_start_time . '-' . $order->pickup_end_time : 'TBD',
                     'status' => $order->status,
+                    'completed_date' => $order->completed_at ? \Carbon\Carbon::parse($order->completed_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A') : null,
                     'has_rating' => $order->review !== null,
                     'rating' => $order->review ? [
                         'rating' => $order->review->rating,
@@ -331,7 +334,7 @@ class FoodListingController extends Controller
                     'pickup_time' => $order->pickup_start_time && $order->pickup_end_time ? 
                         $order->pickup_start_time . '-' . $order->pickup_end_time : 'TBD',
                     'status' => $order->status,
-                    'cancelled_date' => $order->cancelled_at ? $order->cancelled_at->format('M d, Y H:i') : null,
+                    'cancelled_date' => $order->cancelled_at ? \Carbon\Carbon::parse($order->cancelled_at)->setTimezone('Asia/Manila')->format('M d, Y h:i A') : null,
                     'cancellation_reason' => $order->cancellation_reason ?? 'No reason provided'
                 ];
             })->values()->toArray()
@@ -350,6 +353,11 @@ class FoodListingController extends Controller
         
         // Get the specific food listing with establishment relationship
         $foodListing = FoodListing::with('establishment')->findOrFail($id);
+        
+        // Prevent access to inactive items for non-admin users
+        if ($foodListing->status !== 'active' && session('user_type') !== 'admin') {
+            return redirect()->route('food-listing.index')->with('error', 'This food item is no longer available.');
+        }
         
         // Get establishment data
         $establishment = $foodListing->establishment;
@@ -396,6 +404,7 @@ class FoodListingController extends Controller
                 'date' => $review->created_at->format('Y-m-d'),
                 'image_path' => $review->image_path ? Storage::url($review->image_path) : null,
                 'video_path' => $review->video_path ? Storage::url($review->video_path) : null,
+                'flagged' => $review->flagged ?? false,
             ];
         })->toArray();
 
@@ -494,10 +503,20 @@ class FoodListingController extends Controller
                            ($foodItem->establishment->owner_fname . ' ' . $foodItem->establishment->owner_lname) ?? 
                            'Unknown Store';
         
-        // Get establishment address with fallback
-        $establishmentAddress = $foodItem->establishment->address ?? 
+        // Get establishment address - prefer formatted_address from pinned location
+        $establishmentAddress = $foodItem->establishment->formatted_address ?? 
+                              $foodItem->establishment->address ?? 
                               $foodItem->address ?? 
                               'Location not specified';
+        
+        // Get store coordinates - use Cebu City center as default if not available
+        // Cebu City coordinates: 10.3157, 123.8854
+        $storeLat = $foodItem->establishment->latitude ?? 10.3157;
+        $storeLng = $foodItem->establishment->longitude ?? 123.8854;
+        
+        // Ensure coordinates are valid numbers
+        $storeLat = is_numeric($storeLat) ? (float) $storeLat : 10.3157;
+        $storeLng = is_numeric($storeLng) ? (float) $storeLng : 123.8854;
         
         return view('consumer.order-confirmation', compact(
             'foodItem', 
@@ -507,6 +526,8 @@ class FoodListingController extends Controller
             'discountPercentage',
             'establishmentName',
             'establishmentAddress',
+            'storeLat',
+            'storeLng',
             'userData'
         ));
     }
@@ -520,6 +541,16 @@ class FoodListingController extends Controller
         $phoneNumber = $request->get('phone', '');
         $startTime = $request->get('startTime', '');
         $endTime = $request->get('endTime', '');
+        
+        // Delivery data
+        $deliveryAddress = $request->get('deliveryAddress', '');
+        $deliveryLat = $request->get('deliveryLat');
+        $deliveryLng = $request->get('deliveryLng');
+        $deliveryDistance = $request->get('deliveryDistance');
+        $deliveryFee = $request->get('deliveryFee', 0);
+        $deliveryETA = $request->get('deliveryETA', '');
+        $deliveryInstructions = $request->get('deliveryInstructions', '');
+        $fullName = $request->get('fullName', '');
         
         if (!$productId) {
             return redirect()->route('consumer.food-listing');
@@ -546,8 +577,9 @@ class FoodListingController extends Controller
         // Calculate prices
         $unitPrice = $discountedPrice > 0 ? $discountedPrice : $originalPrice;
         $subtotal = $unitPrice * $quantity;
-        $deliveryFee = $receiveMethod === 'delivery' ? 57.00 : 0.00;
-        $total = $subtotal + $deliveryFee;
+        // Delivery fee is informational estimate only - NOT included in total
+        $deliveryFeeAmount = 0.00; // Always 0 - fee is estimate only
+        $total = $subtotal; // Total does NOT include delivery fee
         
         return view('consumer.payment-options', compact(
             'foodItem', 
@@ -564,7 +596,15 @@ class FoodListingController extends Controller
             'endTime',
             'unitPrice',
             'subtotal',
+            'deliveryFeeAmount',
+            'deliveryAddress',
+            'deliveryLat',
+            'deliveryLng',
+            'deliveryDistance',
             'deliveryFee',
+            'deliveryETA',
+            'deliveryInstructions',
+            'fullName',
             'total'
         ));
     }
@@ -572,6 +612,99 @@ class FoodListingController extends Controller
     /**
      * Place order from payment options page
      */
+    /**
+     * Proxy endpoint for Nominatim geocoding to handle CORS
+     */
+    public function geocodeAddress(Request $request)
+    {
+        $query = $request->get('q');
+        
+        if (empty($query) || strlen($query) < 3) {
+            return response()->json(['error' => 'Query too short'], 400);
+        }
+        
+        // Rate limiting: max 1 request per second per IP
+        $key = 'nominatim_' . $request->ip();
+        if (Cache::has($key)) {
+            return response()->json(['error' => 'Rate limit exceeded. Please wait a moment.'], 429);
+        }
+        Cache::put($key, true, 1); // 1 second cache
+        
+        try {
+            // Improve query format - try with and without "Philippines" suffix
+            $queryFormatted = trim($query);
+            if (!preg_match('/philippines|ph|cebu/i', $queryFormatted)) {
+                $queryFormatted .= ', Cebu, Philippines';
+            }
+            
+            $url = 'https://nominatim.openstreetmap.org/search?format=json&q=' . 
+                   urlencode($queryFormatted) . 
+                   '&countrycodes=ph&limit=10&addressdetails=1&dedupe=1';
+            
+            \Log::info('Nominatim geocoding request: ' . $url);
+            
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'User-Agent' => 'SavEats Application/1.0 (contact: admin@saveats.com)',
+                    'Accept' => 'application/json',
+                    'Accept-Language' => 'en-US,en;q=0.9',
+                ])
+                ->get($url);
+            
+            if ($response->successful()) {
+                $results = $response->json();
+                // Ensure we return an array, even if empty
+                if (!is_array($results)) {
+                    \Log::warning('Nominatim returned non-array response: ' . json_encode($results));
+                    return response()->json([]);
+                }
+                \Log::info('Nominatim geocoding success: ' . count($results) . ' results for query: ' . $query);
+                return response()->json($results);
+            } else {
+                \Log::error('Nominatim API error: ' . $response->status() . ' - ' . $response->body());
+                return response()->json(['error' => 'Geocoding service error'], 500);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Nominatim geocoding error: ' . $e->getMessage());
+            return response()->json(['error' => 'Geocoding service unavailable: ' . $e->getMessage()], 500);
+        }
+    }
+    
+    /**
+     * Proxy endpoint for Nominatim reverse geocoding
+     */
+    public function reverseGeocode(Request $request)
+    {
+        $lat = $request->get('lat');
+        $lng = $request->get('lng');
+        
+        if (empty($lat) || empty($lng)) {
+            return response()->json(['error' => 'Coordinates required'], 400);
+        }
+        
+        try {
+            $url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' . 
+                   urlencode($lat) . '&lon=' . urlencode($lng) . 
+                   '&zoom=18&addressdetails=1';
+            
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'User-Agent' => 'SavEats Application (contact: ' . config('app.email', 'admin@saveats.com') . ')',
+                    'Accept' => 'application/json',
+                ])
+                ->get($url);
+            
+            if ($response->successful()) {
+                return response()->json($response->json());
+            } else {
+                return response()->json(['error' => 'Reverse geocoding service error'], 500);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Nominatim reverse geocoding error: ' . $e->getMessage());
+            return response()->json(['error' => 'Reverse geocoding service unavailable'], 500);
+        }
+    }
+
     public function placeOrder(Request $request)
     {
         // Validate request and return JSON errors if validation fails
@@ -579,10 +712,17 @@ class FoodListingController extends Controller
             'food_listing_id' => 'required|exists:food_listings,id',
             'quantity' => 'required|integer|min:1',
             'delivery_method' => 'required|in:pickup,delivery',
+            'delivery_type' => 'nullable|in:pickup,delivery',
             'payment_method' => 'required|in:cash,card,ewallet',
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
             'delivery_address' => 'nullable|string|max:500',
+            'delivery_lat' => 'nullable|numeric|between:-90,90',
+            'delivery_lng' => 'nullable|numeric|between:-180,180',
+            'delivery_distance' => 'nullable|numeric|min:0',
+            'delivery_fee' => 'nullable|numeric|min:0',
+            'delivery_eta' => 'nullable|string|max:50',
+            'delivery_instructions' => 'nullable|string|max:1000',
             'pickup_start_time' => 'nullable|string|max:5',
             'pickup_end_time' => 'nullable|string|max:5',
         ]);
@@ -637,13 +777,17 @@ class FoodListingController extends Controller
             $originalPrice = (float) $foodItem->original_price;
             $discountPercentage = (float) $foodItem->discount_percentage;
             $unitPrice = $this->calculateDiscountedPrice($originalPrice, $discountPercentage);
-            $totalPrice = $unitPrice * $request->quantity;
+            $subtotal = $unitPrice * $request->quantity;
+            
+            // Delivery fee is informational estimate only - NOT included in order total
+            $deliveryFee = 0; // Always 0 - fee is estimate only, not charged
+            $totalPrice = $subtotal; // Total does NOT include delivery fee
 
             // Use database transaction to ensure atomicity
             DB::beginTransaction();
             try {
                 // Create order
-                $order = Order::create([
+                $orderData = [
                     'order_number' => Order::generateOrderNumber(),
                     'consumer_id' => $consumerId,
                     'establishment_id' => $foodItem->establishment_id,
@@ -652,24 +796,40 @@ class FoodListingController extends Controller
                     'unit_price' => $unitPrice,
                     'total_price' => $totalPrice,
                     'delivery_method' => $request->delivery_method,
+                    'delivery_type' => $request->delivery_type ?? $request->delivery_method,
                     'payment_method' => $request->payment_method,
                     'payment_status' => 'confirmed', // Payment confirmed at order placement (immediate payment)
-                    'status' => 'pending',
+                    'status' => $request->delivery_method === 'delivery' ? 'pending_delivery_confirmation' : 'pending',
                     'customer_name' => $request->customer_name,
                     'customer_phone' => $request->customer_phone,
-                    'delivery_address' => $request->delivery_address,
                     'pickup_start_time' => $this->formatTimeForDatabase($request->pickup_start_time),
                     'pickup_end_time' => $this->formatTimeForDatabase($request->pickup_end_time),
-                ]);
-
-                // Deduct stock immediately after payment confirmation
-                $stockService = new \App\Services\StockService();
-                $stockResult = $stockService->deductStock($order, $request->quantity);
+                ];
                 
-                if (!$stockResult['success']) {
-                    throw new \Exception($stockResult['message']);
+                // Add delivery fields if delivery method
+                if ($request->delivery_method === 'delivery') {
+                    // Validate required delivery fields
+                    if (empty($request->delivery_address)) {
+                        throw new \Exception('Delivery address is required');
+                    }
+                    if (empty($request->delivery_lat) || empty($request->delivery_lng)) {
+                        throw new \Exception('Delivery coordinates are required');
+                    }
+                    
+                    $orderData['delivery_address'] = $request->delivery_address;
+                    $orderData['delivery_lat'] = (float) $request->delivery_lat;
+                    $orderData['delivery_lng'] = (float) $request->delivery_lng;
+                    $orderData['delivery_distance'] = $request->delivery_distance ? (float) $request->delivery_distance : null;
+                    $orderData['delivery_fee'] = 0; // Delivery fee is informational estimate only - not stored
+                    $orderData['delivery_eta'] = $request->delivery_eta;
+                    $orderData['delivery_instructions'] = $request->delivery_instructions;
                 }
+                
+                $order = Order::create($orderData);
 
+                // Stock will be deducted when establishment accepts the order
+                // No stock deduction at order placement - order is pending acceptance
+                
                 DB::commit();
                 
                 // Reload order with relationships for notification
@@ -684,7 +844,7 @@ class FoodListingController extends Controller
                 }
             } catch (\Exception $e) {
                 DB::rollBack();
-                // If order creation fails, quantity is automatically restored by rollback
+                // Order creation failed - no stock was deducted, so nothing to restore
                 throw $e;
             }
 
@@ -780,10 +940,14 @@ class FoodListingController extends Controller
                 'order_number' => $order->order_number,
                 'status' => $order->status,
                 'effective_status' => $order->effective_status,
-                'created_at' => $order->created_at->format('F d, Y | g:i A'),
+                'created_at' => \Carbon\Carbon::parse($order->created_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A'),
+                'accepted_at' => $order->accepted_at ? \Carbon\Carbon::parse($order->accepted_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A') : null,
+                'out_for_delivery_at' => $order->out_for_delivery_at ? \Carbon\Carbon::parse($order->out_for_delivery_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A') : null,
+                'completed_at' => $order->completed_at ? \Carbon\Carbon::parse($order->completed_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A') : null,
+                'cancelled_at' => $order->cancelled_at ? \Carbon\Carbon::parse($order->cancelled_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A') : null,
                 'payment_method' => ucfirst($order->payment_method),
                 'delivery_method' => ucfirst($order->delivery_method),
-                'customer_name' => $order->customer_name,
+                'customer_name' => urldecode($order->customer_name ?? ''),
                 'customer_phone' => $order->customer_phone,
                 'customer_email' => $userData->email ?? 'N/A',
                 'delivery_address' => $order->delivery_address,
@@ -798,11 +962,70 @@ class FoodListingController extends Controller
                     ]
                 ],
                 'subtotal' => (float) $order->total_price,
-                'delivery_fee' => $order->delivery_method === 'delivery' ? 57.00 : 0.00,
-                'total' => (float) $order->total_price + ($order->delivery_method === 'delivery' ? 57.00 : 0.00),
+                'delivery_fee' => 0.00,
+                'total' => (float) $order->total_price,
                 'store_name' => $order->establishment->business_name ?? ($order->establishment->owner_fname . ' ' . $order->establishment->owner_lname),
                 'store_address' => $order->establishment->address ?? $order->foodListing->address ?? 'N/A',
             ]
+        ]);
+    }
+
+    /**
+     * Confirm delivery for consumer
+     */
+    public function confirmDelivery(Request $request, $id)
+    {
+        $consumerId = session('user_id');
+        if (!$consumerId) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $order = Order::with(['foodListing', 'establishment'])
+            ->where('id', $id)
+            ->where('consumer_id', $consumerId)
+            ->where('delivery_method', 'delivery')
+            ->whereIn('status', ['on_the_way', 'pending_delivery_confirmation'])
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Order not found or cannot be confirmed'
+            ], 404);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Calculate 5% platform fee and net earnings
+            $platformFeeRate = 0.05; // 5%
+            $platformFee = round($order->total_price * $platformFeeRate, 2);
+            $netEarnings = round($order->total_price - $platformFee, 2);
+
+            $order->status = 'completed';
+            $order->completed_at = now('Asia/Manila');
+            $order->platform_fee = $platformFee;
+            $order->net_earnings = $netEarnings;
+            $order->save();
+
+            // Reload order with relationships for notification
+            $order->load(['consumer', 'establishment', 'foodListing']);
+
+            DB::commit();
+
+            // Send notification to establishment
+            \App\Services\NotificationService::notifyOrderCompleted($order);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to confirm delivery: ' . $e->getMessage(),
+                'message' => 'Failed to confirm delivery: ' . $e->getMessage()
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Delivery confirmed successfully. Thank you for your order!'
         ]);
     }
 
@@ -958,12 +1181,19 @@ class FoodListingController extends Controller
 
         DB::beginTransaction();
         try {
-            // Restore stock using StockService (idempotent)
-            $stockService = new \App\Services\StockService();
-            $stockResult = $stockService->restoreStock($order, $request->input('reason', 'Cancelled by customer'));
-            
-            if (!$stockResult['success']) {
-                throw new \Exception($stockResult['message']);
+            // Only restore stock if it was actually deducted (i.e., order was accepted)
+            // If order is still pending, no stock was deducted, so nothing to restore
+            if ($order->stock_deducted) {
+                $stockService = new \App\Services\StockService();
+                $stockResult = $stockService->restoreStock($order, $request->input('reason', 'Cancelled by customer'));
+                
+                // Log the result but don't fail if stock wasn't deducted
+                if (!$stockResult['success'] && strpos($stockResult['message'], 'already restored') === false) {
+                    // Only throw if it's a real error, not if stock was never deducted
+                    if (strpos($stockResult['message'], 'never deducted') === false) {
+                        throw new \Exception($stockResult['message']);
+                    }
+                }
             }
 
             // Update order status

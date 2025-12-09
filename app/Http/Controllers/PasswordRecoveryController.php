@@ -18,9 +18,9 @@ use App\Models\SystemLog;
 /**
  * Password Recovery Controller
  * 
- * SECURITY NOTE: Admin accounts are STRICTLY EXCLUDED from all recovery flows.
- * Admin recovery must be done only by system owner via CLI or direct DB update.
- * This is enforced via middleware and controller-level checks.
+ * Handles password reset requests for all user types: consumer, establishment, foodbank, and admin.
+ * Uses secure token-based email reset links with 1-hour expiration.
+ * All recovery attempts are logged to System Logs for security monitoring.
  */
 class PasswordRecoveryController extends Controller
 {
@@ -44,45 +44,47 @@ class PasswordRecoveryController extends Controller
         $email = $request->input('email');
         $ipAddress = $request->ip();
 
-        // Check if it's an admin email
-        $adminUser = User::where('email', $email)->where('role', 'admin')->first();
-        if ($adminUser) {
-            $this->logRecoveryAttempt(null, null, 'email', 'failed', 'admin_blocked', $ipAddress);
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Password recovery is not available for this account type.');
-        }
-
-        // Find user in non-admin tables
+        // Find user in all tables (including admin)
         $user = null;
         $userType = null;
 
-        $user = Consumer::where('email', $email)->first();
-        if ($user) {
-            $userType = 'consumer';
+        // Check admin first
+        $adminUser = User::where('email', $email)->where('role', 'admin')->first();
+        if ($adminUser) {
+            $user = $adminUser;
+            $userType = 'admin';
         } else {
-            $user = Establishment::where('email', $email)->first();
+            // Check consumer
+            $user = Consumer::where('email', $email)->first();
             if ($user) {
-                $userType = 'establishment';
+                $userType = 'consumer';
             } else {
-                $user = Foodbank::where('email', $email)->first();
+                // Check establishment
+                $user = Establishment::where('email', $email)->first();
                 if ($user) {
-                    $userType = 'foodbank';
+                    $userType = 'establishment';
+                } else {
+                    // Check foodbank
+                    $user = Foodbank::where('email', $email)->first();
+                    if ($user) {
+                        $userType = 'foodbank';
+                    }
                 }
             }
         }
 
         if (!$user || !$userType) {
             // Don't reveal if user exists - security best practice
-            $this->logRecoveryAttempt(null, null, 'email', 'failed', 'user_not_found', $ipAddress);
+            $this->logRecoveryAttempt(null, null, 'email', 'failed', 'user_not_found', $ipAddress, $email);
             return redirect()->back()
-                ->with('message', 'If an account exists with that email, a recovery link has been sent.');
+                ->with('message', 'If an account exists with that email, a password reset link has been sent.');
         }
 
         // Rate limiting: max 3 requests per hour per email
         $key = 'password_reset_' . $email;
         if (RateLimiter::tooManyAttempts($key, 3)) {
-            $this->logRecoveryAttempt($user->{$user->getKeyName()}, $userType, 'email', 'failed', 'rate_limited', $ipAddress);
+            $userId = $userType === 'admin' ? $user->id : $user->{$user->getKeyName()};
+            $this->logRecoveryAttempt($userId, $userType, 'email', 'failed', 'rate_limited', $ipAddress, $email);
             return redirect()->back()
                 ->with('error', 'Too many reset attempts. Please try again later.');
         }
@@ -100,10 +102,15 @@ class PasswordRecoveryController extends Controller
         // Generate secure token
         $token = Str::random(64);
         
-        // Create reset token record
+        // Get user ID based on type
+        $userId = $userType === 'admin' 
+            ? $user->id 
+            : $user->{$user->getKeyName()};
+        
+        // Create reset token record - store hashed token for security
         PasswordResetToken::create([
             'user_type' => $userType,
-            'user_id' => $user->{$user->getKeyName()},
+            'user_id' => $userId,
             'email' => $email,
             'token' => Hash::make($token),
             'recovery_method' => 'email',
@@ -111,23 +118,30 @@ class PasswordRecoveryController extends Controller
             'ip_address' => $ipAddress,
         ]);
 
-        // Send email (you'll need to create the email template)
+        // Send email using Laravel Mail
         try {
             Mail::send('emails.password-reset', [
                 'token' => $token,
                 'user' => $user,
                 'userType' => $userType,
-            ], function ($message) use ($email, $user) {
+                'resetUrl' => route('password-recovery.reset', ['token' => $token]),
+            ], function ($message) use ($email) {
                 $message->to($email)
                     ->subject('Password Reset Request - SavEats');
             });
 
-            $this->logRecoveryAttempt($user->{$user->getKeyName()}, $userType, 'email', 'success', 'email_sent', $ipAddress);
+            $this->logRecoveryAttempt($userId, $userType, 'email', 'success', 'email_sent', $ipAddress, $email);
 
             return redirect()->route('login')
                 ->with('success', 'If an account exists with that email, a password reset link has been sent.');
         } catch (\Exception $e) {
-            $this->logRecoveryAttempt($user->{$user->getKeyName()}, $userType, 'email', 'failed', 'email_send_failed', $ipAddress);
+            \Log::error('Password reset email failed', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $this->logRecoveryAttempt($userId, $userType, 'email', 'failed', 'email_send_failed: ' . $e->getMessage(), $ipAddress, $email);
             
             return redirect()->back()
                 ->with('error', 'Failed to send reset email. Please try again later.');
@@ -139,22 +153,33 @@ class PasswordRecoveryController extends Controller
      */
     public function showResetPassword(Request $request, $token)
     {
-        // Find valid token - need to check all tokens and verify hash
+        $ipAddress = $request->ip();
+        
+        // Find valid token - check all unused, non-expired tokens and verify hash
         $resetTokens = PasswordResetToken::where('used', false)
             ->where('expires_at', '>', now())
+            ->where('recovery_method', 'email')
             ->get();
         
         $resetToken = null;
         foreach ($resetTokens as $tokenRecord) {
-            if (Hash::check($token, $tokenRecord->token) || $tokenRecord->token === $token) {
+            // Check if the provided token matches the hashed token in database
+            if (Hash::check($token, $tokenRecord->token)) {
                 $resetToken = $tokenRecord;
                 break;
             }
         }
 
-        if (!$resetToken || !$resetToken->isValid()) {
+        if (!$resetToken) {
+            $this->logRecoveryAttempt(null, null, 'email', 'failed', 'invalid_token', $ipAddress);
             return redirect()->route('password-recovery.forgot')
-                ->with('error', 'Invalid or expired reset token.');
+                ->with('error', 'Invalid or expired reset token. Please request a new password reset link.');
+        }
+
+        if (!$resetToken->isValid()) {
+            $this->logRecoveryAttempt($resetToken->user_id, $resetToken->user_type, 'email', 'failed', 'expired_token', $ipAddress, $resetToken->email);
+            return redirect()->route('password-recovery.forgot')
+                ->with('error', 'This reset link has expired. Please request a new password reset link.');
         }
 
         return view('auth.reset-password', [
@@ -174,42 +199,51 @@ class PasswordRecoveryController extends Controller
             'password' => 'required|min:8|confirmed',
         ]);
 
-        // Find valid token - need to check all tokens and verify hash
+        // Find valid token - check tokens for this email and verify hash
         $resetTokens = PasswordResetToken::where('email', $request->email)
             ->where('used', false)
             ->where('expires_at', '>', now())
+            ->where('recovery_method', 'email')
             ->get();
         
         $resetToken = null;
         foreach ($resetTokens as $tokenRecord) {
-            if (Hash::check($request->token, $tokenRecord->token) || $tokenRecord->token === $request->token) {
+            // Verify the token matches the hashed token in database
+            if (Hash::check($request->token, $tokenRecord->token)) {
                 $resetToken = $tokenRecord;
                 break;
             }
         }
 
-        if (!$resetToken || !$resetToken->isValid()) {
-            $this->logRecoveryAttempt(null, null, 'email', 'failed', 'invalid_token', $request->ip());
+        if (!$resetToken) {
+            $this->logRecoveryAttempt(null, null, 'email', 'failed', 'invalid_token', $request->ip(), $request->email);
             return redirect()->route('password-recovery.forgot')
-                ->with('error', 'Invalid or expired reset token.');
+                ->with('error', 'Invalid or expired reset token. Please request a new password reset link.');
+        }
+
+        if (!$resetToken->isValid()) {
+            $this->logRecoveryAttempt($resetToken->user_id, $resetToken->user_type, 'email', 'failed', 'expired_token', $request->ip(), $request->email);
+            return redirect()->route('password-recovery.forgot')
+                ->with('error', 'This reset link has expired. Please request a new password reset link.');
         }
 
         // Get user
         $user = $this->getUserByType($resetToken->user_type, $resetToken->user_id);
         if (!$user) {
-            $this->logRecoveryAttempt($resetToken->user_id, $resetToken->user_type, 'email', 'failed', 'user_not_found', $request->ip());
+            $this->logRecoveryAttempt($resetToken->user_id, $resetToken->user_type, 'email', 'failed', 'user_not_found', $request->ip(), $request->email);
             return redirect()->route('password-recovery.forgot')
-                ->with('error', 'User not found.');
+                ->with('error', 'User account not found. Please contact support.');
         }
 
-        // Update password
+        // Update password with secure hash
         $user->password = Hash::make($request->password);
         $user->save();
 
-        // Mark token as used
+        // Mark token as used to prevent reuse
         $resetToken->markAsUsed();
 
-        $this->logRecoveryAttempt($resetToken->user_id, $resetToken->user_type, 'email', 'success', 'password_reset', $request->ip());
+        // Log successful password reset
+        $this->logRecoveryAttempt($resetToken->user_id, $resetToken->user_type, 'email', 'success', 'password_reset', $request->ip(), $request->email);
 
         return redirect()->route('login')
             ->with('success', 'Your password has been reset successfully. Please login with your new password.');
@@ -357,6 +391,8 @@ class PasswordRecoveryController extends Controller
                 return Establishment::find($userId);
             case 'foodbank':
                 return Foodbank::find($userId);
+            case 'admin':
+                return User::where('id', $userId)->where('role', 'admin')->first();
             default:
                 return null;
         }
@@ -365,23 +401,26 @@ class PasswordRecoveryController extends Controller
     /**
      * Log recovery attempt to system logs
      */
-    private function logRecoveryAttempt($userId, $userType, $method, $status, $reason, $ipAddress)
+    private function logRecoveryAttempt($userId, $userType, $method, $status, $reason, $ipAddress, $email = null)
     {
+        $description = sprintf(
+            'Password recovery: %s via %s - %s%s',
+            $status,
+            $method,
+            $reason,
+            $userId ? " (User ID: {$userId}, Type: {$userType})" : ' (Email: ' . ($email ?? 'Unknown') . ')'
+        );
+
         SystemLog::log(
             'password_recovery',
             'password_recovery_attempt',
-            sprintf(
-                'Password recovery attempt: %s via %s - %s (%s)',
-                $status,
-                $method,
-                $reason,
-                $userId ? "User ID: {$userId}" : 'Unknown user'
-            ),
-            $status === 'success' ? 'info' : 'warning',
+            $description,
+            $status === 'success' ? 'info' : ($status === 'failed' ? 'warning' : 'error'),
             $status,
             [
                 'user_id' => $userId,
                 'user_type' => $userType,
+                'user_email' => $email,
                 'recovery_method' => $method,
                 'status' => $status,
                 'reason' => $reason,

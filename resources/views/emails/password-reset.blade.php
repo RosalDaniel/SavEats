@@ -18,7 +18,7 @@
         <p>We received a request to reset your password for your SavEats account. Click the button below to reset your password:</p>
         
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{{ route('password-recovery.reset', ['token' => $token]) }}" 
+            <a href="{{ $resetUrl ?? route('password-recovery.reset', ['token' => $token]) }}" 
                style="background: #347928; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
                 Reset Password
             </a>
@@ -26,8 +26,8 @@
         
         <p style="color: #6b7280; font-size: 0.875rem;">
             Or copy and paste this link into your browser:<br>
-            <a href="{{ route('password-recovery.reset', ['token' => $token]) }}" style="color: #347928; word-break: break-all;">
-                {{ route('password-recovery.reset', ['token' => $token]) }}
+            <a href="{{ $resetUrl ?? route('password-recovery.reset', ['token' => $token]) }}" style="color: #347928; word-break: break-all;">
+                {{ $resetUrl ?? route('password-recovery.reset', ['token' => $token]) }}
             </a>
         </p>
         

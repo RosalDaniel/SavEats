@@ -14,11 +14,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Export button functionality
-    const exportBtn = document.querySelector('.export-btn');
-    if (exportBtn) {
-        exportBtn.addEventListener('click', function() {
-            showExportOptions();
+    // Export dropdown functionality
+    const exportBtn = document.getElementById('exportEarningsBtn');
+    const exportMenu = document.getElementById('exportEarningsMenu');
+    if (exportBtn && exportMenu) {
+        exportBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            exportMenu.classList.toggle('show');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!exportBtn.contains(e.target) && !exportMenu.contains(e.target)) {
+                exportMenu.classList.remove('show');
+            }
         });
     }
     
@@ -200,89 +209,6 @@ function updateChart(period) {
     initializeChart(period);
 }
 
-// Show export options dropdown
-function showExportOptions() {
-    // Remove existing menu if any
-    const existingMenu = document.querySelector('.export-menu');
-    if (existingMenu) {
-        existingMenu.remove();
-        return;
-    }
-    
-    // Create a simple dropdown menu
-    const exportMenu = document.createElement('div');
-    exportMenu.className = 'export-menu';
-    exportMenu.innerHTML = `
-        <div class="export-option" onclick="exportToCSV()">Export to CSV</div>
-        <div class="export-option" onclick="exportToPDF()">Export to PDF</div>
-        <div class="export-option" onclick="exportToExcel()">Export to Excel</div>
-    `;
-    
-    // Style the menu
-    exportMenu.style.cssText = `
-        position: absolute;
-        background: white;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        z-index: 1000;
-        min-width: 150px;
-        padding: 4px 0;
-    `;
-    
-    // Style export options
-    const options = exportMenu.querySelectorAll('.export-option');
-    options.forEach(option => {
-        option.style.cssText = `
-            padding: 8px 16px;
-            cursor: pointer;
-            font-size: 14px;
-            color: #374151;
-        `;
-        option.addEventListener('mouseenter', function() {
-            this.style.backgroundColor = '#f3f4f6';
-        });
-        option.addEventListener('mouseleave', function() {
-            this.style.backgroundColor = 'transparent';
-        });
-    });
-    
-    // Position the menu
-    const exportBtn = document.querySelector('.export-btn');
-    const rect = exportBtn.getBoundingClientRect();
-    exportMenu.style.top = (rect.bottom + 5) + 'px';
-    exportMenu.style.left = rect.left + 'px';
-    
-    // Add to document
-    document.body.appendChild(exportMenu);
-    
-    // Remove menu when clicking outside
-    document.addEventListener('click', function removeMenu(e) {
-        if (!exportMenu.contains(e.target) && !exportBtn.contains(e.target)) {
-            exportMenu.remove();
-            document.removeEventListener('click', removeMenu);
-        }
-    });
-}
-
-// Export functions
-function exportToCSV() {
-    console.log('Exporting to CSV');
-    // TODO: Implement CSV export
-    alert('CSV export functionality coming soon!');
-}
-
-function exportToPDF() {
-    console.log('Exporting to PDF');
-    // TODO: Implement PDF export
-    alert('PDF export functionality coming soon!');
-}
-
-function exportToExcel() {
-    console.log('Exporting to Excel');
-    // TODO: Implement Excel export
-    alert('Excel export functionality coming soon!');
-}
 
 // Toggle filter menu
 function toggleFilterMenu(button) {

@@ -32,7 +32,7 @@ class StockService
     }
 
     /**
-     * Deduct stock from food listing after payment confirmation
+     * Deduct stock from food listing when order is accepted
      * Uses row-level locking to prevent overselling
      * 
      * @param Order $order
@@ -60,13 +60,13 @@ class StockService
             $reservedStockBefore = $foodListing->reserved_stock ?? 0;
             $soldStockBefore = $foodListing->sold_stock ?? 0;
 
-            // Validate available stock
+            // Validate available stock (available = quantity - reserved_stock)
             $availableStock = $foodListing->quantity - ($foodListing->reserved_stock ?? 0);
             if ($availableStock < $quantity) {
                 throw new \Exception("Insufficient stock. Available: {$availableStock}, Requested: {$quantity}");
             }
 
-            // Deduct stock: reduce quantity directly (payment confirmed)
+            // Deduct stock: reduce quantity directly when order is accepted
             $newQuantity = $foodListing->quantity - $quantity;
             if ($newQuantity < 0) {
                 throw new \Exception("Stock cannot go below zero. Current: {$foodListing->quantity}, Requested: {$quantity}");
@@ -89,18 +89,17 @@ class StockService
                 'reserved_stock_after' => $reservedStockBefore,
                 'sold_stock_before' => $soldStockBefore,
                 'sold_stock_after' => $foodListing->sold_stock,
-                'reason' => 'Order payment confirmed',
-                'notes' => "Stock deducted for order #{$order->order_number}",
+                'reason' => 'Order accepted by establishment',
+                'notes' => "Stock deducted when order #{$order->order_number} was accepted",
             ]);
 
-            // Mark order as having stock deducted and payment confirmed
+            // Mark order as having stock deducted
             $order->stock_deducted = true;
             $order->stock_deducted_at = now();
-            $order->payment_status = 'confirmed';
-            $order->payment_confirmed_at = $order->payment_confirmed_at ?? now();
+            // Don't modify payment_status here - it should already be set
             $order->save();
 
-            Log::info('Stock deducted', [
+            Log::info('Stock deducted on order acceptance', [
                 'order_id' => $order->id,
                 'food_listing_id' => $foodListing->id,
                 'quantity' => $quantity,

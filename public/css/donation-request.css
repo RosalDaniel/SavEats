@@ -496,7 +496,7 @@
     right: 12px;
     top: 50%;
     transform: translateY(-50%);
-    color: #2d6a3d;
+    color: #2d5016;
     font-size: 18px;
     pointer-events: none;
 }
@@ -513,7 +513,7 @@
     height: 42px;
     border: none;
     border-radius: 6px;
-    background-color: #2d6a3d;
+    background-color: #2d5016;
     color: white;
     font-size: 20px;
     cursor: pointer;
@@ -663,12 +663,12 @@ select.icon-input {
 }
 
 .btn-primary {
-    background: #4a7c59;
+    background: #2d5016;
     color: white;
 }
 
 .btn-primary:hover {
-    background: #2d5016;
+    background: #2d6a3d;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(74, 124, 89, 0.3);
 }
@@ -930,6 +930,15 @@ select.icon-input {
     align-items: center;
     justify-content: center;
     gap: 12px;
+}
+
+.foodbank-logo .logo-image {
+    max-width: 120px;
+    max-height: 120px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
 }
 
 .logo-icon {

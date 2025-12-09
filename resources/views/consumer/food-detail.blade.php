@@ -165,18 +165,22 @@
                             @endfor
                         </div>
                     </div>
-                    @if(!empty($review['comment']))
-                        <p class="review-comment">{{ $review['comment'] }}</p>
-                    @endif
-                    @if(!empty($review['image_path']))
-                        <div class="review-media">
-                            <img src="{{ $review['image_path'] }}" alt="Review image" class="review-image">
-                        </div>
-                    @endif
-                    @if(!empty($review['video_path']))
-                        <div class="review-media">
-                            <video src="{{ $review['video_path'] }}" controls class="review-video"></video>
-                        </div>
+                    @if(!empty($review['flagged']) && $review['flagged'])
+                        <p class="review-hidden-tag">This review is hidden.</p>
+                    @else
+                        @if(!empty($review['comment']))
+                            <p class="review-comment">{{ $review['comment'] }}</p>
+                        @endif
+                        @if(!empty($review['image_path']))
+                            <div class="review-media">
+                                <img src="{{ $review['image_path'] }}" alt="Review image" class="review-image">
+                            </div>
+                        @endif
+                        @if(!empty($review['video_path']))
+                            <div class="review-media">
+                                <video src="{{ $review['video_path'] }}" controls class="review-video"></video>
+                            </div>
+                        @endif
                     @endif
                 </div>
                 @endforeach

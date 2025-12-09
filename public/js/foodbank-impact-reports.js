@@ -276,7 +276,7 @@ function initializeContributorsList() {
                 <div class="contributor-info">
                     <div class="contributor-name">${escapeHtml(contributor.establishment_name)}</div>
                     <div class="contributor-stats">
-                        <span class="contributor-quantity">${contributor.total_quantity.toLocaleString()} items</span>
+                        <span class="contributor-quantity">${contributor.completed_requests.toLocaleString()} ${contributor.completed_requests === 1 ? 'request' : 'requests'}</span>
                         <span class="contributor-percentage">${contributor.percentage}%</span>
                     </div>
                     <div class="contributor-bar-container">
@@ -307,24 +307,10 @@ function escapeHtml(text) {
 // Initialize action buttons
 function initializeActionButtons() {
     const exportBtn = document.getElementById('exportBtn');
-    const shareBtn = document.getElementById('shareBtn');
-    const printBtn = document.getElementById('printBtn');
 
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
             showToast('Exporting comprehensive impact report...', 'success');
-        });
-    }
-
-    if (shareBtn) {
-        shareBtn.addEventListener('click', () => {
-            showToast('Share functionality coming soon!', 'info');
-        });
-    }
-
-    if (printBtn) {
-        printBtn.addEventListener('click', () => {
-            window.print();
         });
     }
 }

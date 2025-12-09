@@ -266,6 +266,34 @@ body {
     color: #333;
 }
 
+.price-column {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.delivery-fee-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.delivery-fee-label {
+    font-size: 12px;
+    color: #999;
+    font-weight: 500;
+}
+
+.delivery-fee-price span:last-child {
+    color: #333;
+    font-weight: 600;
+}
+
 .table-total {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr;
@@ -367,6 +395,14 @@ body {
 /* Map Section */
 .map-section {
     margin: 20px 0 0 0;
+}
+
+#pickupMap,
+#deliveryMap {
+    width: 100%;
+    height: 300px;
+    border-radius: 8px;
+    border: 2px solid #e5e7eb;
 }
 
 #map {
@@ -563,6 +599,183 @@ body {
     }
 }
 
+/* Delivery UI Styles */
+.delivery-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.delivery-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.delivery-form input[type="text"],
+.delivery-form input[type="tel"],
+.delivery-form textarea {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'Afacad', Arial, sans-serif;
+    transition: border-color 0.3s ease;
+}
+
+.delivery-form input:focus,
+.delivery-form textarea:focus {
+    outline: none;
+    border-color: #4a7c59;
+}
+
+.delivery-form textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.required {
+    color: #ef4444;
+}
+
+.address-search-container {
+    position: relative;
+}
+
+.address-suggestions,
+.autocomplete-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 99999; /* High z-index to appear above map */
+    display: none;
+    pointer-events: auto; /* Ensure clicks work */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.suggestion-item {
+    padding: 8px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background-color 0.2s ease;
+    font-size: 14px;
+    pointer-events: auto; /* Ensure clicks work */
+    user-select: none; /* Prevent text selection */
+}
+
+.suggestion-item:hover,
+.suggestion-item.selected {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.delivery-map-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#deliveryMap {
+    width: 100%;
+    height: 300px;
+    min-height: 300px;
+    border-radius: 8px;
+    border: 2px solid #e5e7eb;
+    position: relative;
+    z-index: 1; /* Lower than suggestions */
+    pointer-events: auto; /* Ensure map interactions work */
+    background-color: #f3f4f6; /* Light gray background while loading */
+    display: block !important; /* Ensure it's always visible when parent is visible */
+}
+
+/* Ensure Leaflet markers are draggable */
+.leaflet-marker-draggable {
+    cursor: move !important;
+    pointer-events: auto !important;
+}
+
+.leaflet-marker-icon {
+    cursor: move !important;
+    pointer-events: auto !important;
+}
+
+/* Ensure route polyline is visible and red */
+.leaflet-pane.leaflet-overlay-pane svg path.leaflet-interactive {
+    stroke: #ef4444 !important; /* Red color for route */
+    stroke-width: 4px !important;
+    stroke-opacity: 0.8 !important;
+}
+
+.delivery-info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 2px solid #e5e7eb;
+    margin-top: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #666;
+    font-size: 15px;
+}
+
+.info-value {
+    font-weight: 700;
+    color: #2d5016;
+    font-size: 16px;
+}
+
+.pickup-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    #deliveryMap {
+        height: 250px;
+    }
+    
+    .delivery-info {
+        padding: 12px;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+}
+
 @media (max-width: 480px) {
     .pricing-info {
         flex-direction: column;
@@ -588,5 +801,9 @@ body {
     .placeholder-text {
         font-size: 14px;
         max-width: 150px;
+    }
+    
+    #deliveryMap {
+        height: 250px;
     }
 }

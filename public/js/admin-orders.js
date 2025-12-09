@@ -11,11 +11,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmForceCancelBtn = document.getElementById('confirmForceCancelBtn');
     const forceCancelForm = document.getElementById('forceCancelForm');
     
-    const resolveDisputeModal = document.getElementById('resolveDisputeModal');
-    const closeResolveDisputeModal = document.getElementById('closeResolveDisputeModal');
-    const cancelResolveDisputeBtn = document.getElementById('cancelResolveDisputeBtn');
-    const confirmResolveDisputeBtn = document.getElementById('confirmResolveDisputeBtn');
-    const resolveDisputeForm = document.getElementById('resolveDisputeForm');
     
     // Close order details modal handlers
     if (closeOrderDetailsModal) {
@@ -75,42 +70,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Close resolve dispute modal handlers
-    if (closeResolveDisputeModal) {
-        closeResolveDisputeModal.addEventListener('click', function() {
-            closeResolveDisputeModalFunc();
-        });
-    }
-    
-    if (cancelResolveDisputeBtn) {
-        cancelResolveDisputeBtn.addEventListener('click', function() {
-            closeResolveDisputeModalFunc();
-        });
-    }
-    
-    if (resolveDisputeModal) {
-        resolveDisputeModal.addEventListener('click', function(e) {
-            if (e.target === resolveDisputeModal) {
-                closeResolveDisputeModalFunc();
-            }
-        });
-    }
-    
-    // Resolve dispute form submission
-    if (confirmResolveDisputeBtn) {
-        confirmResolveDisputeBtn.addEventListener('click', function() {
-            if (resolveDisputeForm) {
-                resolveDisputeForm.dispatchEvent(new Event('submit'));
-            }
-        });
-    }
-    
-    if (resolveDisputeForm) {
-        resolveDisputeForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            submitResolveDispute();
-        });
-    }
     
     // Automatic filtering
     initializeAutoFilter();
@@ -226,15 +185,37 @@ function viewOrderDetails(orderId, orderData) {
     html += `<div class="detail-item"><div class="detail-label">Status</div><div class="detail-value"><span class="status-badge status-${orderData.status}">${orderData.status}</span></div></div>`;
     html += `<div class="detail-item"><div class="detail-label">Delivery Method</div><div class="detail-value">${orderData.delivery_method || 'N/A'}</div></div>`;
     html += `<div class="detail-item"><div class="detail-label">Payment Method</div><div class="detail-value">${orderData.payment_method || 'N/A'}</div></div>`;
-    html += `<div class="detail-item"><div class="detail-label">Created</div><div class="detail-value">${new Date(orderData.created_at).toLocaleString()}</div></div>`;
+    // Format date with timezone (assuming UTC from server, convert to Asia/Manila)
+    const formatDateTime = (dateString) => {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return dateString;
+            // Convert to Asia/Manila timezone (UTC+8)
+            const manilaDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+            return date.toLocaleString('en-US', { 
+                timeZone: 'Asia/Manila',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        } catch (e) {
+            return dateString;
+        }
+    };
+    
+    html += `<div class="detail-item"><div class="detail-label">Created</div><div class="detail-value">${formatDateTime(orderData.created_at)}</div></div>`;
     if (orderData.accepted_at) {
-        html += `<div class="detail-item"><div class="detail-label">Accepted</div><div class="detail-value">${new Date(orderData.accepted_at).toLocaleString()}</div></div>`;
+        html += `<div class="detail-item"><div class="detail-label">Accepted</div><div class="detail-value">${formatDateTime(orderData.accepted_at)}</div></div>`;
     }
     if (orderData.completed_at) {
-        html += `<div class="detail-item"><div class="detail-label">Completed</div><div class="detail-value">${new Date(orderData.completed_at).toLocaleString()}</div></div>`;
+        html += `<div class="detail-item"><div class="detail-label">Completed</div><div class="detail-value">${formatDateTime(orderData.completed_at)}</div></div>`;
     }
     if (orderData.cancelled_at) {
-        html += `<div class="detail-item"><div class="detail-label">Cancelled</div><div class="detail-value">${new Date(orderData.cancelled_at).toLocaleString()}</div></div>`;
+        html += `<div class="detail-item"><div class="detail-label">Cancelled</div><div class="detail-value">${formatDateTime(orderData.cancelled_at)}</div></div>`;
         if (orderData.cancellation_reason) {
             html += `<div class="detail-item"><div class="detail-label">Cancellation Reason</div><div class="detail-value">${orderData.cancellation_reason}</div></div>`;
         }
@@ -331,8 +312,8 @@ function submitForceCancel() {
     const orderId = document.getElementById('cancelOrderId').value;
     const reason = document.getElementById('cancelReason').value;
     
-    if (!orderId || !reason.trim()) {
-        showToast('Please provide a cancellation reason', 'error');
+    if (!orderId) {
+        showToast('Order ID is required', 'error');
         return;
     }
     
@@ -378,90 +359,6 @@ function submitForceCancel() {
     });
 }
 
-// Resolve dispute
-function resolveDispute(orderId) {
-    const modal = document.getElementById('resolveDisputeModal');
-    const form = document.getElementById('resolveDisputeForm');
-    
-    if (!modal || !form) return;
-    
-    document.getElementById('disputeOrderId').value = orderId;
-    form.reset();
-    document.getElementById('disputeOrderId').value = orderId;
-    
-    modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
-}
-
-// Close resolve dispute modal
-function closeResolveDisputeModalFunc() {
-    const modal = document.getElementById('resolveDisputeModal');
-    if (modal) {
-        modal.classList.remove('show');
-        document.body.style.overflow = '';
-    }
-    
-    const form = document.getElementById('resolveDisputeForm');
-    if (form) {
-        form.reset();
-    }
-}
-
-// Submit resolve dispute
-function submitResolveDispute() {
-    const orderId = document.getElementById('disputeOrderId').value;
-    const resolution = document.getElementById('disputeResolution').value;
-    const notes = document.getElementById('disputeNotes').value;
-    
-    if (!orderId || !resolution) {
-        showToast('Please select a resolution', 'error');
-        return;
-    }
-    
-    // Show loading state
-    const confirmBtn = document.getElementById('confirmResolveDisputeBtn');
-    const originalText = confirmBtn ? confirmBtn.textContent : 'Resolve Dispute';
-    if (confirmBtn) {
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Resolving...';
-    }
-    
-    fetch(`/admin/orders/${orderId}/resolve-dispute`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        },
-        body: JSON.stringify({ 
-            resolution: resolution,
-            notes: notes 
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast(data.message || 'Dispute resolved successfully', 'success');
-            closeResolveDisputeModalFunc();
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showToast(data.message || 'Failed to resolve dispute', 'error');
-            if (confirmBtn) {
-                confirmBtn.disabled = false;
-                confirmBtn.textContent = originalText;
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('An error occurred while resolving the dispute', 'error');
-        if (confirmBtn) {
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = originalText;
-        }
-    });
-}
 
 // Toast notification
 function showToast(message, type = 'info') {

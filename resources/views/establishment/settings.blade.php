@@ -25,12 +25,6 @@
             </svg>
             <span>Business</span>
         </div>
-        <div class="nav-item" data-tab="notifications">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
-            </svg>
-            <span>Notifications</span>
-        </div>
         <div class="nav-item" data-tab="security">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C15.4,11.5 16,12.4 16,13V16C16,16.6 15.6,17 15,17H9C8.4,17 8,16.6 8,16V13C8,12.4 8.4,11.5 9,11.5V10C9,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.2,9.2 10.2,10V11.5H13.8V10C13.8,9.2 12.8,8.2 12,8.2Z"/>
@@ -126,80 +120,6 @@
                         <label>Auto-approve Orders</label>
                         <label class="toggle-switch">
                             <input type="checkbox" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Notifications Settings -->
-        <div class="settings-section" id="notifications">
-            <div class="section-header">
-                <h2>Notification Settings</h2>
-                <p>Choose how you want to be notified</p>
-            </div>
-
-            <div class="settings-card">
-                <div class="card-header">
-                    <h3>Order Notifications</h3>
-                </div>
-                <div class="card-content">
-                    <div class="toggle-item">
-                        <div class="toggle-info">
-                            <h4>New Orders</h4>
-                            <p>Get notified when you receive new orders</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="toggle-item">
-                        <div class="toggle-info">
-                            <h4>Order Cancellations</h4>
-                            <p>Get notified when orders are cancelled</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="toggle-item">
-                        <div class="toggle-info">
-                            <h4>Low Inventory</h4>
-                            <p>Get notified when food items are running low</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="settings-card">
-                <div class="card-header">
-                    <h3>Business Notifications</h3>
-                </div>
-                <div class="card-content">
-                    <div class="toggle-item">
-                        <div class="toggle-info">
-                            <h4>Earnings Updates</h4>
-                            <p>Get daily earnings summaries</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="toggle-item">
-                        <div class="toggle-info">
-                            <h4>Platform Updates</h4>
-                            <p>Get notified about new features and updates</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox">
                             <span class="slider"></span>
                         </label>
                     </div>

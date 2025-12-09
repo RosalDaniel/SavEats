@@ -50,7 +50,20 @@
             </header>
 
             <div class="content">
+                @php
+                    $foodbankId = session('user_id');
+                    $foodbank = $foodbankId ? \App\Models\Foodbank::find($foodbankId) : null;
+                    $isVerified = $foodbank && $foodbank->isVerified();
+                @endphp
+                @if(!$isVerified)
+                <div style="display: flex; align-items: center; justify-content: center; min-height: 60vh; padding: 40px;">
+                    <div style="text-align: center; font-size: 18px; color: #856404; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 30px 40px; max-width: 600px;">
+                        Your account is not verified. Please wait for admin approval.
+                    </div>
+                </div>
+                @else
                 @yield('content')
+                @endif
             </div>
         </main>
     </div>

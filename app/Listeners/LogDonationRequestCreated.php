@@ -40,7 +40,7 @@ class LogDonationRequestCreated
                 'unit' => $request->unit ?? 'pcs',
                 'category' => $request->category,
                 'status' => $request->status,
-                'pickup_method' => $request->pickup_method ?? $request->delivery_option ?? 'pickup',
+                'pickup_method' => $request->pickup_method ?? 'pickup',
                 'scheduled_date' => $request->scheduled_date ? $request->scheduled_date->format('Y-m-d') : null,
             ]
         );

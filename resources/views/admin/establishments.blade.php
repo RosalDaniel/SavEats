@@ -52,17 +52,6 @@
             </div>
         </div>
         
-        <div class="stat-card">
-            <div class="stat-icon violations">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                </svg>
-            </div>
-            <div class="stat-content">
-                <h3>With Violations</h3>
-                <p class="stat-number">{{ number_format($stats['with_violations'] ?? 0) }}</p>
-            </div>
-        </div>
     </div>
 
     <!-- Combined Filters and Establishments Table Section -->
@@ -97,15 +86,6 @@
                     <option value="unverified" {{ ($verifiedFilter ?? 'all') === 'unverified' ? 'selected' : '' }}>Unverified</option>
                 </select>
             </div>
-            
-            <div class="filter-group">
-                <label for="violations">Violations</label>
-                <select id="violations" name="violations" class="filter-select">
-                    <option value="all" {{ ($violationsFilter ?? 'all') === 'all' ? 'selected' : '' }}>All</option>
-                    <option value="has_violations" {{ ($violationsFilter ?? 'all') === 'has_violations' ? 'selected' : '' }}>Has Violations</option>
-                    <option value="no_violations" {{ ($violationsFilter ?? 'all') === 'no_violations' ? 'selected' : '' }}>No Violations</option>
-                </select>
-            </div>
         </div>
 
         <div class="table-header">
@@ -122,7 +102,6 @@
                         <th>Verified</th>
                         <th>Listings</th>
                         <th>Rating</th>
-                        <th>Violations</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -131,7 +110,6 @@
                     <tr data-establishment-id="{{ $establishment['id'] }}" 
                         data-status="{{ $establishment['status'] ?? 'active' }}" 
                         data-verified="{{ $establishment['verified'] ? 'true' : 'false' }}"
-                        data-violations-count="{{ $establishment['violations_count'] ?? 0 }}"
                         data-search-text="{{ strtolower($establishment['business_name'] . ' ' . $establishment['email'] . ' ' . $establishment['owner_name']) }}">
                         <td>
                             <div class="establishment-info">
@@ -199,16 +177,12 @@
                             @endif
                         </td>
                         <td>
-                            @if($establishment['violations_count'] > 0)
-                            <button class="btn-violations" onclick="viewViolations('{{ $establishment['id'] }}', {{ json_encode($establishment['violations']) }})">
-                                {{ $establishment['violations_count'] }} violation(s)
-                            </button>
-                            @else
-                            <span class="no-violations">None</span>
-                            @endif
-                        </td>
-                        <td>
                             <div class="action-buttons">
+                                <button class="btn-action btn-view" onclick="viewEstablishmentDetails('{{ $establishment['id'] }}')" title="View Details">
+                                    <svg viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                                    </svg>
+                                </button>
                                 @if(!$establishment['verified'])
                                 <button class="btn-action btn-verify" onclick="toggleVerification('{{ $establishment['id'] }}', true)" title="Verify">
                                     <svg viewBox="0 0 24 24" fill="currentColor">
@@ -218,7 +192,7 @@
                                 @else
                                 <button class="btn-action btn-unverify" onclick="toggleVerification('{{ $establishment['id'] }}', false)" title="Unverify">
                                     <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                        <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/>
                                     </svg>
                                 </button>
                                 @endif
@@ -235,11 +209,6 @@
                                     </svg>
                                 </button>
                                 @endif
-                                <button class="btn-action btn-violation" onclick="addViolation('{{ $establishment['id'] }}')" title="Add Violation">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                                    </svg>
-                                </button>
                                 <button class="btn-action btn-delete" onclick="deleteEstablishment('{{ $establishment['id'] }}')" title="Delete">
                                     <svg viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
@@ -250,7 +219,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="no-establishments">No establishments found.</td>
+                        <td colspan="7" class="no-establishments">No establishments found.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -259,58 +228,24 @@
     </div>
 </div>
 
-<!-- Violations Modal -->
-<div class="modal-overlay" id="violationsModal">
-    <div class="modal modal-violations">
+<!-- Establishment Details Modal -->
+<div class="modal-overlay" id="establishmentDetailsModal">
+    <div class="modal modal-establishment-details">
         <div class="modal-header">
-            <h2 id="violationsModalTitle">Violations</h2>
-            <button class="modal-close" id="closeViolationsModal" aria-label="Close modal">&times;</button>
+            <h2 id="establishmentDetailsModalTitle">Establishment Details</h2>
+            <button class="modal-close" id="closeEstablishmentDetailsModal" aria-label="Close modal">&times;</button>
         </div>
-        <div class="modal-body" id="violationsModalBody">
-            <!-- Content will be populated by JavaScript -->
+        <div class="modal-body" id="establishmentDetailsModalBody">
+            <div class="loading-spinner" id="establishmentDetailsLoading">
+                <div class="spinner"></div>
+                <p>Loading establishment details...</p>
+            </div>
+            <div id="establishmentDetailsContent" style="display: none;">
+                <!-- Content will be populated by JavaScript -->
+            </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" id="closeViolationsModalBtn">Close</button>
-        </div>
-    </div>
-</div>
-
-<!-- Add Violation Modal -->
-<div class="modal-overlay" id="addViolationModal">
-    <div class="modal modal-add-violation">
-        <div class="modal-header">
-            <h2>Add Violation</h2>
-            <button class="modal-close" id="closeAddViolationModal" aria-label="Close modal">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="addViolationForm">
-                <input type="hidden" id="violationEstablishmentId" name="establishment_id">
-                
-                <div class="form-group">
-                    <label for="violationType">Violation Type</label>
-                    <input type="text" id="violationType" name="violation_type" class="form-input" 
-                           placeholder="e.g., Food Safety, Policy Violation" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="violationSeverity">Severity</label>
-                    <select id="violationSeverity" name="severity" class="form-input" required>
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="violationDescription">Description</label>
-                    <textarea id="violationDescription" name="description" class="form-input" 
-                              rows="4" placeholder="Describe the violation..." required></textarea>
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" id="cancelAddViolationBtn">Cancel</button>
-            <button class="btn btn-primary" id="saveViolationBtn">Add Violation</button>
+            <button class="btn btn-secondary" id="closeEstablishmentDetailsModalBtn">Close</button>
         </div>
     </div>
 </div>

@@ -7,9 +7,15 @@
 @section('styles')
 <link href="https://fonts.googleapis.com/css2?family=Afacad&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ asset('css/order-management.css') }}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 @endsection
 
 @section('content')
+@if(!($isVerified ?? true))
+<div style="padding: 16px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; color: #856404; font-size: 14px; margin-bottom: 20px;">
+    Your account is not verified. Please wait for admin approval.
+</div>
+@endif
 <div class="orders-container">
     <!-- Tab Navigation -->
     <div class="order-tabs">
@@ -48,8 +54,18 @@
                             <span class="detail-value">ID#{{ $order['id'] }}</span>
                         </div>
                         <div class="detail-row">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value">
+                                @if($order['status'] === 'pending_delivery_confirmation')
+                                    Pending Delivery Confirmation
+                                @else
+                                    Pending
+                                @endif
+                            </span>
+                        </div>
+                        <div class="detail-row">
                             <span class="detail-label">Customer Name:</span>
-                            <span class="detail-value">{{ $order['customer_name'] }}</span>
+                            <span class="detail-value">{{ urldecode($order['customer_name'] ?? '') }}</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Delivery Method:</span>
@@ -58,10 +74,10 @@
                     </div>
                     
                     <div class="order-actions">
-                        <button class="btn-accept" onclick="acceptOrder('{{ $order['id'] }}')">
+                        <button class="btn-accept" onclick="acceptOrder('{{ $order['id'] }}')" @if(!($isVerified ?? true)) disabled style="opacity: 0.5; cursor: not-allowed;" title="Your account is not verified. Please wait for admin approval." @endif>
                             Accept Order
                         </button>
-                        <button class="btn-cancel" onclick="cancelOrder('{{ $order['id'] }}')">
+                        <button class="btn-cancel" onclick="cancelOrder('{{ $order['id'] }}')" @if(!($isVerified ?? true)) disabled style="opacity: 0.5; cursor: not-allowed;" title="Your account is not verified. Please wait for admin approval." @endif>
                             Cancel Order
                         </button>
                         <button class="btn-view" onclick="viewOrderDetails('{{ $order['id'] }}')">
@@ -83,7 +99,7 @@
         <div class="tab-content" id="accepted-orders" style="display: none;">
             @if(isset($orders) && count($orders) > 0)
                 @foreach($orders as $order)
-                @if($order['status'] === 'accepted' && !$order['is_missed_pickup'])
+                @if(($order['status'] === 'accepted' || $order['status'] === 'pending_delivery_confirmation' || $order['status'] === 'on_the_way') && !$order['is_missed_pickup'])
                 <div class="order-card accepted-order-card">
                     <div class="accepted-order-header">
                         <div class="accepted-product-info">
@@ -97,6 +113,18 @@
                         <div class="accepted-detail-row">
                             <span class="accepted-detail-label">Order ID:</span>
                             <span class="accepted-detail-value">ID#{{ $order['id'] }}</span>
+                        </div>
+                        <div class="accepted-detail-row">
+                            <span class="accepted-detail-label">Status:</span>
+                            <span class="accepted-detail-value">
+                                @if($order['status'] === 'pending_delivery_confirmation')
+                                    Pending Delivery Confirmation
+                                @elseif($order['status'] === 'on_the_way')
+                                    On The Way
+                                @else
+                                    Accepted
+                                @endif
+                            </span>
                         </div>
                         <div class="accepted-detail-row">
                             <span class="accepted-detail-label">Contact No.</span>
@@ -124,9 +152,15 @@
                         <button class="btn-view-details" onclick="viewOrderDetails('{{ $order['id'] }}')">
                             View Details
                         </button>
-                        <button class="btn-confirm-{{ strtolower($order['delivery_method']) }}" onclick="markComplete('{{ $order['id'] }}')">
-                            {{ $order['delivery_method'] === 'Pickup' ? 'Pick-Up Confirmed' : 'Delivery Confirmed' }}
+                        @if($order['delivery_method'] === 'Pickup' && $order['status'] === 'accepted')
+                        <button class="btn-confirm-pickup" onclick="markComplete('{{ $order['id'] }}')">
+                            Pick-Up Confirmed
                         </button>
+                        @elseif($order['delivery_method'] === 'Delivery' && ($order['status'] === 'pending_delivery_confirmation' || $order['status'] === 'accepted'))
+                        <button class="btn-out-for-delivery" onclick="markOutForDelivery('{{ $order['id'] }}')">
+                            Mark Out for Delivery
+                        </button>
+                        @endif
                     </div>
                 </div>
                 @endif
@@ -163,7 +197,7 @@
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Customer Name:</span>
-                            <span class="detail-value">{{ $order['customer_name'] }}</span>
+                            <span class="detail-value">{{ urldecode($order['customer_name'] ?? '') }}</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Delivery Method:</span>
@@ -217,7 +251,7 @@
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Customer Name:</span>
-                            <span class="detail-value">{{ $order['customer_name'] }}</span>
+                            <span class="detail-value">{{ urldecode($order['customer_name'] ?? '') }}</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Delivery Method:</span>
@@ -262,7 +296,7 @@
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Customer Name:</span>
-                            <span class="detail-value">{{ $order['customer_name'] }}</span>
+                            <span class="detail-value">{{ urldecode($order['customer_name'] ?? '') }}</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Delivery Method:</span>
@@ -288,8 +322,30 @@
     </div>
 </div>
 
+<!-- Order Details Modal -->
+<div class="modal-overlay" id="orderDetailsModal" style="display: none;">
+    <div class="modal modal-order-details">
+        <div class="modal-header">
+            <h2 id="orderDetailsModalTitle">Order Details</h2>
+            <button class="modal-close" id="closeOrderDetailsModal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body" id="orderDetailsModalBody">
+            <div id="orderDetailsLoading" style="text-align: center; padding: 40px;">
+                <p>Loading order details...</p>
+            </div>
+            <div id="orderDetailsContent" style="display: none;">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+        <div class="modal-footer" id="orderDetailsModalFooter" style="display: none;">
+            <!-- Action buttons will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="{{ asset('js/order-management.js') }}"></script>
 @endsection

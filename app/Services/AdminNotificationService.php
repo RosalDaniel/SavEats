@@ -185,5 +185,32 @@ class AdminNotificationService
             ]
         );
     }
+
+    /**
+     * Notify admin about delivery intervention request
+     */
+    public static function notifyAdminInterventionRequested(Order $order)
+    {
+        $establishmentName = $order->establishment ? $order->establishment->business_name : 'Unknown';
+        $consumerName = $order->consumer ? ($order->consumer->fname . ' ' . $order->consumer->lname) : 'Unknown';
+        
+        AdminNotification::createNotification(
+            'delivery_intervention_request',
+            'Delivery Intervention Requested',
+            "Establishment {$establishmentName} has requested admin intervention for order #{$order->order_number} (Consumer: {$consumerName}). Reason: {$order->admin_intervention_reason}",
+            'high',
+            [
+                'order_id' => $order->id,
+                'user_type' => 'establishment',
+                'user_id' => $order->establishment_id,
+                'data' => [
+                    'order_number' => $order->order_number,
+                    'establishment_name' => $establishmentName,
+                    'consumer_name' => $consumerName,
+                    'reason' => $order->admin_intervention_reason,
+                ]
+            ]
+        );
+    }
 }
 

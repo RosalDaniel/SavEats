@@ -77,7 +77,7 @@
                 </div>
             </div>
             <div class="donation-actions">
-                <button class="btn-sm btn-primary">Track Delivery</button>
+                <button class="btn-sm btn-primary">Track Pickup</button>
                 <button class="btn-sm btn-warning">Contact Donor</button>
             </div>
         </div>

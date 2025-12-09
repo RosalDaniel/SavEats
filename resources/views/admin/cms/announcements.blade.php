@@ -82,16 +82,10 @@
                         <option value="archived">Archived</option>
                     </select>
                 </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="announcementPublishedAt">Published At</label>
-                    <input type="datetime-local" id="announcementPublishedAt" name="published_at">
                 </div>
                 <div class="form-group">
                     <label for="announcementExpiresAt">Expires At</label>
                     <input type="datetime-local" id="announcementExpiresAt" name="expires_at">
-                </div>
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeAnnouncementModal()">Cancel</button>

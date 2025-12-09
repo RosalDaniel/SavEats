@@ -44,9 +44,35 @@
         }
         
         grid.innerHTML = filteredPartners.map(p => {
-            const stars = Array(5).fill().map((_, i) => 
-                `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`
-            ).join('');
+            // Handle rating - show stars dynamically or "No ratings"
+            const rating = p.rating || 0;
+            const hasRating = rating > 0;
+            
+            // Generate stars based on rating (filled, half-filled, or empty)
+            let starsHtml = '';
+            if (hasRating) {
+                const fullStars = Math.floor(rating);
+                const hasHalfStar = rating % 1 >= 0.5;
+                const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+                
+                // Filled stars
+                for (let i = 0; i < fullStars; i++) {
+                    starsHtml += `<svg viewBox="0 0 24 24" class="star filled"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="#FFD700"/></svg>`;
+                }
+                
+                // Half star if needed
+                if (hasHalfStar) {
+                    starsHtml += `<svg viewBox="0 0 24 24" class="star half"><path d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27V2z" fill="#FFD700"/><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2v15.27z" fill="#E0E0E0"/></svg>`;
+                }
+                
+                // Empty stars
+                for (let i = 0; i < emptyStars; i++) {
+                    starsHtml += `<svg viewBox="0 0 24 24" class="star empty"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="#E0E0E0"/></svg>`;
+                }
+            } else {
+                // No ratings - show empty stars or message
+                starsHtml = '<span class="no-ratings">No ratings</span>';
+            }
             
             // Escape HTML and handle UUID strings
             const partnerId = typeof p.id === 'string' ? `'${p.id}'` : p.id;
@@ -74,8 +100,8 @@
                             ${escapeHtml(p.location)}
                         </div>
                         <div class="partner-rating">
-                            <div class="stars">${stars}</div>
-                            <span class="rating-value">${p.rating}</span>
+                            <div class="stars">${starsHtml}</div>
+                            ${hasRating ? `<span class="rating-value">${rating.toFixed(1)}</span>` : ''}
                         </div>
                         <div class="partner-stats">
                             <div class="stat-item">
@@ -136,7 +162,7 @@
                 <div class="detail-row"><span class="detail-label">Owner:</span><span class="detail-value">${escapeHtml(partner.owner || 'N/A')}</span></div>
                 <div class="detail-row"><span class="detail-label">Email:</span><span class="detail-value">${escapeHtml(partner.email || 'N/A')}</span></div>
                 <div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value">${escapeHtml(partner.phone || 'N/A')}</span></div>
-                <div class="detail-row"><span class="detail-label">Rating:</span><span class="detail-value">${partner.rating} ⭐</span></div>
+                <div class="detail-row"><span class="detail-label">Rating:</span><span class="detail-value">${partner.rating && partner.rating > 0 ? partner.rating.toFixed(1) + ' ⭐' : 'No ratings'}</span></div>
             </div>
             <div class="detail-section">
                 <h3>Partnership Statistics</h3>
@@ -182,7 +208,12 @@
         if (sort === 'name') {
             filteredPartners.sort((a, b) => a.name.localeCompare(b.name));
         } else if (sort === 'rating') {
-            filteredPartners.sort((a, b) => b.rating - a.rating);
+            // Sort by rating, treating 0/null ratings as lowest
+            filteredPartners.sort((a, b) => {
+                const ratingA = a.rating || 0;
+                const ratingB = b.rating || 0;
+                return ratingB - ratingA; // Descending order (highest first)
+            });
         } else if (sort === 'donations') {
             filteredPartners.sort((a, b) => b.donations - a.donations);
         }
@@ -203,20 +234,21 @@
         }, 3000);
     }
 
-    // Update stats
+    // Update stats - show total partners (not filtered)
     function updateStats() {
         const totalPartners = document.getElementById('totalPartners');
         
-        // Use stats from backend if available, otherwise calculate from partners
-        if (window.stats) {
-            if (totalPartners) {
-                totalPartners.textContent = window.stats.totalPartners || partners.length;
-            }
+        if (!totalPartners) return;
+        
+        // Use stats from backend if available, otherwise calculate from partners array
+        if (window.stats && window.stats.totalPartners !== undefined) {
+            totalPartners.textContent = window.stats.totalPartners;
+        } else if (partners && partners.length > 0) {
+            // Fallback to calculating from partners array
+            totalPartners.textContent = partners.length;
         } else {
-            // Fallback to calculating from partners
-            if (totalPartners) {
-                totalPartners.textContent = partners.length;
-            }
+            // Default to 0 if no data
+            totalPartners.textContent = '0';
         }
     }
 
@@ -229,8 +261,6 @@
         const closeModal = document.getElementById('closeModal');
         const closeModalBtn = document.getElementById('closeModalBtn');
         const detailModal = document.getElementById('detailModal');
-        const addPartnerBtn = document.getElementById('addPartnerBtn');
-        const exportBtn = document.getElementById('exportBtn');
         const contactPartnerBtn = document.getElementById('contactPartnerBtn');
 
         if (searchInput) {
@@ -262,18 +292,6 @@
                 if (e.target === detailModal) {
                     detailModal.classList.remove('show');
                 }
-            });
-        }
-
-        if (addPartnerBtn) {
-            addPartnerBtn.addEventListener('click', () => {
-                showToast('Add Partner feature coming soon!', 'info');
-            });
-        }
-
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                showToast('Export feature coming soon!', 'info');
             });
         }
 

@@ -42,22 +42,248 @@ function initializeAnimations() {
 function initializeInteractions() {
     // Button click handlers
     document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-primary') && e.target.textContent === 'Rate') {
-            e.preventDefault();
-            showNotification('Rating submitted successfully!', 'success');
-        }
-        
-        if (e.target.classList.contains('btn-secondary') && e.target.textContent === 'View Store') {
-            e.preventDefault();
-            showNotification('Opening store details...', 'info');
-        }
-
         if (e.target.classList.contains('see-all-link')) {
-            e.preventDefault();
-            showNotification('Loading all donations...', 'info');
+            // Let the link work normally - it should navigate to donation history
         }
     });
 
+    // Initialize modal close handlers
+    const closeModalBtn = document.getElementById('closeDonationModal');
+    const closeModalBtn2 = document.getElementById('closeDonationModalBtn');
+    const modal = document.getElementById('donationDetailsModal');
+
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeDonationModal);
+    }
+
+    if (closeModalBtn2) {
+        closeModalBtn2.addEventListener('click', closeDonationModal);
+    }
+
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeDonationModal();
+            }
+        });
+    }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal && modal.classList.contains('show')) {
+            closeDonationModal();
+        }
+    });
+}
+
+// View donation details function
+window.viewDonationDetails = function(id) {
+    const donations = window.recentDonations || [];
+    const donation = donations.find(d => d.id === id || String(d.id) === String(id));
+    
+    if (!donation) {
+        showNotification('Donation not found', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('donationDetailsModal');
+    const modalBody = document.getElementById('modalDonationBody');
+    const modalNumber = document.getElementById('modalDonationNumber');
+
+    if (!modal || !modalBody || !modalNumber) return;
+
+    modalNumber.textContent = `Donation ${donation.donation_number || donation.id}`;
+
+    // Escape HTML helper
+    const escapeHtml = (text) => {
+        if (!text) return 'N/A';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+
+    // Build timeline events
+    const timelineEvents = [];
+    timelineEvents.push({
+        event: 'Donation Created',
+        date: donation.created_at_display || donation.formatted_date,
+        description: 'Donation record was created in the system'
+    });
+
+    if (donation.status === 'collected' && donation.collected_at_display && donation.collected_at_display !== 'N/A') {
+        timelineEvents.push({
+            event: 'Donation Collected',
+            date: donation.collected_at_display,
+            description: `Collected by ${donation.handler_name || 'Foodbank'}`
+        });
+    }
+
+    if (donation.status === 'cancelled') {
+        timelineEvents.push({
+            event: 'Donation Cancelled',
+            date: donation.collected_at_display !== 'N/A' ? donation.collected_at_display : donation.created_at_display,
+            description: 'Donation was cancelled'
+        });
+    }
+
+    if (donation.status === 'expired') {
+        timelineEvents.push({
+            event: 'Donation Expired',
+            date: donation.expiry_date_display !== 'N/A' ? donation.expiry_date_display : donation.created_at_display,
+            description: 'Donation has expired'
+        });
+    }
+
+    modalBody.innerHTML = `
+        <div class="donation-detail-content">
+            <!-- Alerts Section -->
+            ${donation.is_urgent || donation.is_nearing_expiry ? `
+            <div class="alert-section">
+                ${donation.is_urgent ? '<div class="alert alert-urgent">⚠️ Urgent: This donation requires immediate attention</div>' : ''}
+                ${donation.is_nearing_expiry ? '<div class="alert alert-expiry">⏰ Expiring Soon: This item is nearing its expiry date</div>' : ''}
+            </div>
+            ` : ''}
+
+            <!-- Basic Information -->
+            <div class="detail-section">
+                <h3>Basic Information</h3>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Donation ID:</span>
+                        <span class="detail-value">${escapeHtml(donation.donation_number || donation.id)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Establishment:</span>
+                        <span class="detail-value">${escapeHtml(donation.establishment_name)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Item Name:</span>
+                        <span class="detail-value">${escapeHtml(donation.item_name)}</span>
+                    </div>
+                    ${donation.category ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Category:</span>
+                        <span class="detail-value">${escapeHtml(donation.category)}</span>
+                    </div>
+                    ` : ''}
+                    <div class="detail-item">
+                        <span class="detail-label">Quantity:</span>
+                        <span class="detail-value">${donation.quantity} ${donation.unit}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value"><span class="status-badge status-${donation.status}">${donation.status_display || escapeHtml(donation.status)}</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Description -->
+            ${donation.description ? `
+            <div class="detail-section">
+                <h3>Description</h3>
+                <p class="detail-description">${escapeHtml(donation.description)}</p>
+            </div>
+            ` : ''}
+
+            <!-- Schedule & Logistics -->
+            ${donation.scheduled_date_display ? `
+            <div class="detail-section">
+                <h3>Schedule & Logistics</h3>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Scheduled Date:</span>
+                        <span class="detail-value">${escapeHtml(donation.scheduled_date_display)}</span>
+                    </div>
+                    ${donation.scheduled_time ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Scheduled Time:</span>
+                        <span class="detail-value">${escapeHtml(donation.scheduled_time)}</span>
+                    </div>
+                    ` : ''}
+                    ${donation.pickup_method_display ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Pickup Method:</span>
+                        <span class="detail-value">${escapeHtml(donation.pickup_method_display)}</span>
+                    </div>
+                    ` : ''}
+                    ${donation.expiry_date_display && donation.expiry_date_display !== 'N/A' ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Expiry Date:</span>
+                        <span class="detail-value">${escapeHtml(donation.expiry_date_display)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- Collection Information -->
+            ${donation.status === 'collected' && donation.collected_at_display ? `
+            <div class="detail-section">
+                <h3>Collection Information</h3>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Collected At:</span>
+                        <span class="detail-value">${escapeHtml(donation.collected_at_display)}</span>
+                    </div>
+                    ${donation.handler_name && donation.handler_name !== 'N/A' ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Handler:</span>
+                        <span class="detail-value">${escapeHtml(donation.handler_name)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- Notes -->
+            ${donation.establishment_notes || donation.foodbank_notes ? `
+            <div class="detail-section">
+                <h3>Notes</h3>
+                ${donation.establishment_notes ? `
+                <div class="note-item">
+                    <span class="note-label">Establishment Notes:</span>
+                    <p class="note-content">${escapeHtml(donation.establishment_notes)}</p>
+                </div>
+                ` : ''}
+                ${donation.foodbank_notes ? `
+                <div class="note-item">
+                    <span class="note-label">Foodbank Notes:</span>
+                    <p class="note-content">${escapeHtml(donation.foodbank_notes)}</p>
+                </div>
+                ` : ''}
+            </div>
+            ` : ''}
+
+            <!-- Timeline -->
+            <div class="detail-section">
+                <h3>Donation Timeline</h3>
+                <div class="timeline">
+                    ${timelineEvents.map((event, index) => `
+                        <div class="timeline-item ${index === timelineEvents.length - 1 ? 'active' : ''}">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-event">${escapeHtml(event.event)}</div>
+                                <div class="timeline-date">${escapeHtml(event.date)}</div>
+                                <div class="timeline-description">${escapeHtml(event.description)}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+};
+
+// Close modal function
+function closeDonationModal() {
+    const modal = document.getElementById('donationDetailsModal');
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+    }
 }
 
 function initializeChart() {
@@ -68,6 +294,11 @@ function initializeChart() {
     const weeklyDataFromServer = window.weeklyChartData || [];
     const labels = weeklyDataFromServer.map(d => d.label);
     const data = weeklyDataFromServer.map(d => d.value);
+
+    // Calculate max value dynamically, with a minimum of 10 and rounded up to nearest 5
+    const maxValue = Math.max(...data, 0);
+    const chartMax = maxValue > 0 ? Math.ceil((maxValue + 2) / 5) * 5 : 10;
+    const stepSize = chartMax <= 10 ? 2 : chartMax <= 20 ? 4 : Math.ceil(chartMax / 5);
 
     const weeklyData = {
         labels: labels.length > 0 ? labels : ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'],
@@ -108,9 +339,9 @@ function initializeChart() {
                 },
                 y: {
                     beginAtZero: true,
-                    max: 20, // Weekly: 0-20 items (matching consumer's daily scale)
+                    max: chartMax,
                     ticks: {
-                        stepSize: 4,
+                        stepSize: stepSize,
                         color: '#6b7280',
                         font: {
                             size: 12,

@@ -278,12 +278,30 @@
 .stars {
     display: flex;
     gap: 3px;
+    align-items: center;
 }
 
 .stars svg {
     width: 18px;
     height: 18px;
+}
+
+.stars svg.star.filled path {
     fill: #ffc107;
+}
+
+.stars svg.star.half path {
+    fill: #ffc107;
+}
+
+.stars svg.star.empty path {
+    fill: #E0E0E0;
+}
+
+.stars .no-ratings {
+    color: #999;
+    font-size: 13px;
+    font-style: italic;
 }
 
 .rating-value {

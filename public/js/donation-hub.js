@@ -4,7 +4,88 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeRequestToDonateForm();
     initializeRequestToDonateFoodbankForm();
     initializeFilters();
+    initializeRequestStatusPolling();
 });
+
+// Initialize polling to check for accepted requests and remove them
+function initializeRequestStatusPolling() {
+    // Poll every 5 seconds to check for status changes
+    setInterval(checkAndRemoveAcceptedRequests, 5000);
+    
+    // Also check immediately on page load
+    checkAndRemoveAcceptedRequests();
+}
+
+// Check for accepted requests and remove them from the UI
+function checkAndRemoveAcceptedRequests() {
+    const requestCards = document.querySelectorAll('.request-card[data-id]');
+    if (requestCards.length === 0) return;
+    
+    // Get all request IDs currently displayed
+    const displayedRequestIds = Array.from(requestCards).map(card => card.getAttribute('data-id'));
+    
+    if (displayedRequestIds.length === 0) return;
+    
+    // Check status of displayed requests
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    fetch('/establishment/donation-request/check-status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ request_ids: displayedRequestIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.accepted_requests) {
+            // Remove cards for accepted requests
+            data.accepted_requests.forEach(requestId => {
+                removeRequestCard(requestId);
+            });
+        }
+    })
+    .catch(error => {
+        // Silently fail - don't interrupt user experience
+        console.debug('Status check failed:', error);
+    });
+}
+
+// Remove a request card from the UI
+function removeRequestCard(requestId) {
+    const card = document.querySelector(`.request-card[data-id="${requestId}"]`);
+    if (card) {
+        // Fade out animation
+        card.style.transition = 'opacity 0.3s ease-out';
+        card.style.opacity = '0';
+        
+        setTimeout(() => {
+            card.remove();
+            
+            // Update the requests array
+            if (window.donationRequests) {
+                window.donationRequests = window.donationRequests.filter(req => req.id !== requestId);
+            }
+            
+            // Update count
+            updateRequestCount();
+            
+            // Re-apply filters to refresh display
+            filterDonationRequests();
+        }, 300);
+    }
+}
+
+// Update request count
+function updateRequestCount() {
+    const requestsCount = document.getElementById('requestsCount');
+    if (requestsCount && window.donationRequests) {
+        const count = window.donationRequests.length;
+        requestsCount.textContent = `${count} Request${count !== 1 ? 's' : ''}`;
+    }
+}
 
 // Initialize Filters
 function initializeFilters() {
@@ -251,9 +332,17 @@ function initializeModals() {
         const form = document.getElementById('requestToDonateForm');
         if (form) {
             const foodbankId = document.getElementById('requestDonateFoodbankId')?.value;
+            const addressInput = document.getElementById('donateEstablishmentAddress');
+            const defaultAddress = addressInput ? (addressInput.getAttribute('data-default-value') || addressInput.value) : '';
+            
             form.reset();
+            
+            // Restore foodbank_id and address after reset
             if (foodbankId) {
                 document.getElementById('requestDonateFoodbankId').value = foodbankId;
+            }
+            if (addressInput && defaultAddress) {
+                addressInput.value = defaultAddress;
             }
             // Clear the fulfill request ID
             window.currentFulfillRequestId = null;
@@ -363,9 +452,8 @@ window.viewRequestDetails = function(id) {
         return zoneLabels[request.distribution_zone] || request.distribution_zone;
     }
 
-    // Get foodbank name and extract first word for logo
+    // Get foodbank name
     const foodbankName = request.foodbank_name || 'Food Bank';
-    const logoTop = foodbankName.split(' ')[0].toUpperCase().substring(0, 4);
 
     // Get modal elements
     const modal = document.getElementById('requestDetailsModal');
@@ -381,7 +469,31 @@ window.viewRequestDetails = function(id) {
     };
 
     setElementText('modalFoodbankName', foodbankName);
-    setElementText('modalLogoTop', logoTop);
+    
+    // Set foodbank profile image
+    const profileImage = document.getElementById('modalFoodbankProfileImage');
+    const profilePlaceholder = document.getElementById('modalFoodbankProfilePlaceholder');
+    
+    if (request.foodbank_profile_image) {
+        // Show profile image
+        if (profileImage) {
+            profileImage.src = `/storage/${request.foodbank_profile_image}`;
+            profileImage.style.display = 'block';
+            profileImage.alt = foodbankName;
+        }
+        if (profilePlaceholder) {
+            profilePlaceholder.style.display = 'none';
+        }
+    } else {
+        // Show placeholder with first letter
+        if (profileImage) {
+            profileImage.style.display = 'none';
+        }
+        if (profilePlaceholder) {
+            profilePlaceholder.textContent = foodbankName.charAt(0).toUpperCase();
+            profilePlaceholder.style.display = 'flex';
+        }
+    }
     setElementText('modalItemName', request.item_name || 'N/A');
     setElementText('modalItemQuantity', `${request.quantity || 0} pcs.`);
     setElementText('modalDescription', request.description || 'No description provided.');
@@ -389,7 +501,7 @@ window.viewRequestDetails = function(id) {
     setElementText('modalAddress', request.address || 'N/A');
     setElementText('modalEmail', request.email || 'N/A');
     setElementText('modalDateAvailable', formatDateAvailable());
-    setElementText('modalDeliveryOption', request.delivery_option_display || 'N/A');
+    // Pickup only - no delivery option
     setElementText('modalDistributionZones', formatDistributionZones());
 
     // Store current request ID for contact function
@@ -675,6 +787,12 @@ window.contactFoodbank = function(id) {
 // Request to Donate
 window.requestToDonate = function(foodbankId, itemDetails = null) {
     console.log('requestToDonate called with:', { foodbankId, itemDetails });
+    
+    // IMPORTANT: Clear fulfill request ID when creating a NEW request
+    // This ensures we create a DonationRequest, not fulfill an existing one
+    window.currentFulfillRequestId = null;
+    console.log('Cleared currentFulfillRequestId for new request');
+    
     const foodbanks = window.foodbanks || [];
     const foodbank = foodbanks.find(f => f.id === foodbankId || String(f.id) === String(foodbankId));
     
@@ -765,10 +883,11 @@ window.requestToDonate = function(foodbankId, itemDetails = null) {
         if (descriptionInput) descriptionInput.value = '';
     }
 
-    // Set minimum date to today
-    const scheduledDateInput = document.getElementById('donateScheduledDate');
-    if (scheduledDateInput) {
-        scheduledDateInput.min = new Date().toISOString().split('T')[0];
+    // Restore establishment address after any potential reset
+    const addressInput = document.getElementById('donateEstablishmentAddress');
+    if (addressInput) {
+        const defaultAddress = addressInput.getAttribute('data-default-value') || addressInput.value;
+        addressInput.value = defaultAddress;
     }
 
     modal.classList.add('show');
@@ -808,9 +927,17 @@ function initializeRequestToDonateForm() {
             // Reset form but preserve foodbank_id
             if (freshForm) {
                 const foodbankId = document.getElementById('requestDonateFoodbankId')?.value;
+                const addressInput = document.getElementById('donateEstablishmentAddress');
+                const defaultAddress = addressInput ? (addressInput.getAttribute('data-default-value') || addressInput.value) : '';
+                
                 freshForm.reset();
+                
+                // Restore foodbank_id and address after reset
                 if (foodbankId) {
                     document.getElementById('requestDonateFoodbankId').value = foodbankId;
+                }
+                if (addressInput && defaultAddress) {
+                    addressInput.value = defaultAddress;
                 }
                 
                 // Clear display elements
@@ -854,15 +981,19 @@ function initializeRequestToDonateForm() {
         
         if (finalSubmitBtn) {
             finalSubmitBtn.addEventListener('click', function(e) {
-                console.log('Submit button clicked');
+                console.log('Submit button clicked - starting submission process');
                 e.preventDefault();
                 e.stopPropagation();
                 
                 // Validate form first
+                console.log('Checking form validity...');
                 if (freshForm.checkValidity()) {
+                    console.log('Form is valid, calling submitDonationRequest');
                     submitDonationRequest();
                 } else {
-                    console.log('Form validation failed');
+                    console.log('Form validation failed - showing validation errors');
+                    const invalidFields = freshForm.querySelectorAll(':invalid');
+                    console.log('Invalid fields:', Array.from(invalidFields).map(f => ({ name: f.name, value: f.value, validationMessage: f.validationMessage })));
                     freshForm.reportValidity();
                 }
                 return false;
@@ -911,21 +1042,14 @@ function submitDonationRequest() {
         return;
     }
     
-    // Validate required fields
-    if (!data.item_name || !data.quantity || !data.category || !data.scheduled_date || !data.pickup_method) {
+    // Validate required fields (pickup-only, no scheduled_date or pickup_method needed)
+    if (!data.item_name || !data.quantity || !data.category) {
         showToast('Please fill in all required fields', 'error');
         return;
     }
     
-    // Clean up scheduled_time - remove if empty
-    if (!data.scheduled_time || data.scheduled_time.trim() === '') {
-        delete data.scheduled_time;
-    }
-    
-    // Clean up expiry_date - remove if empty
-    if (!data.expiry_date || data.expiry_date.trim() === '') {
-        delete data.expiry_date;
-    }
+    // Always set pickup_method to 'pickup' for donation requests
+    data.pickup_method = 'pickup';
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     if (!csrfToken) {
@@ -939,9 +1063,14 @@ function submitDonationRequest() {
     let url = '/establishment/donation-request';
     let method = 'POST';
     
+    console.log('Checking fulfillRequestId:', fulfillRequestId);
+    
     if (fulfillRequestId) {
         // Fulfill existing donation request
+        console.log('Fulfilling existing request:', fulfillRequestId);
         url = `/establishment/donation-request/fulfill/${fulfillRequestId}`;
+    } else {
+        console.log('Creating NEW donation request (not fulfilling)');
     }
     
     // Show loading state (disable submit button)
@@ -954,6 +1083,8 @@ function submitDonationRequest() {
 
     // Log data being sent for debugging
     console.log('Submitting donation request:', data);
+    console.log('Request URL:', url);
+    console.log('Request method:', method);
     
     fetch(url, {
         method: method,
@@ -965,6 +1096,8 @@ function submitDonationRequest() {
         body: JSON.stringify(data)
     })
     .then(async response => {
+        console.log('Response received:', response.status, response.statusText);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
         // Check if response is ok (status 200-299)
         if (!response.ok) {
             // Try to parse error response as JSON
@@ -998,10 +1131,21 @@ function submitDonationRequest() {
             }
             // Clear the fulfill request ID
             window.currentFulfillRequestId = null;
-            // Optionally reload the page or update the UI
+            
+            // Check for accepted requests after a short delay (in case foodbank accepts immediately)
             setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+                checkAndRemoveAcceptedRequests();
+            }, 2000);
+            
+            // Also start polling more frequently for a short period
+            let pollCount = 0;
+            const quickPollInterval = setInterval(() => {
+                pollCount++;
+                checkAndRemoveAcceptedRequests();
+                if (pollCount >= 6) { // Poll every 2 seconds for 12 seconds
+                    clearInterval(quickPollInterval);
+                }
+            }, 2000);
         } else {
             showToast(result.message || 'Failed to submit donation request. Please try again.', 'error');
             // Re-enable submit button on error
@@ -1110,18 +1254,6 @@ window.openRequestToDonateFoodbankModal = function(foodbankId) {
     modalTitle.textContent = `Request to Donate to ${foodbank.organization_name}`;
     foodbankIdInput.value = foodbank.id;
 
-    // Set minimum date to today for date inputs
-    const today = new Date().toISOString().split('T')[0];
-    const expiryDateInput = document.getElementById('foodbankDonateExpiryDate');
-    const scheduledDateInput = document.getElementById('foodbankDonateScheduledDate');
-    
-    if (expiryDateInput) {
-        expiryDateInput.min = today;
-    }
-    if (scheduledDateInput) {
-        scheduledDateInput.min = today;
-    }
-
     // Reset form
     const form = document.getElementById('requestToDonateFoodbankForm');
     if (form) {
@@ -1132,6 +1264,11 @@ window.openRequestToDonateFoodbankModal = function(foodbankId) {
         const quantityInput = document.getElementById('foodbankDonateQuantity');
         if (quantityInput) {
             quantityInput.value = 1;
+        }
+        // Restore establishment address (read-only field)
+        const addressInput = document.getElementById('foodbankDonateEstablishmentAddress');
+        if (addressInput) {
+            addressInput.value = addressInput.getAttribute('data-default-value') || addressInput.value;
         }
     }
 
@@ -1192,6 +1329,26 @@ function initializeRequestToDonateFoodbankForm() {
     const form = document.getElementById('requestToDonateFoodbankForm');
     if (form) {
         form.addEventListener('submit', handleRequestToDonateFoodbankSubmit);
+        console.log('Form submission handler attached to requestToDonateFoodbankForm');
+    } else {
+        console.error('Form requestToDonateFoodbankForm not found');
+    }
+    
+    // Also attach click handler to submit button as backup
+    const submitBtn = document.getElementById('submitRequestDonateFoodbank');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Submit button clicked');
+            const form = document.getElementById('requestToDonateFoodbankForm');
+            if (form) {
+                handleRequestToDonateFoodbankSubmit(e);
+            }
+        });
+        console.log('Submit button click handler attached');
+    } else {
+        console.error('Submit button submitRequestDonateFoodbank not found');
     }
 }
 
@@ -1199,53 +1356,71 @@ function initializeRequestToDonateFoodbankForm() {
 function handleRequestToDonateFoodbankSubmit(e) {
     e.preventDefault();
     e.stopPropagation();
+    
+    console.log('handleRequestToDonateFoodbankSubmit called');
 
     const form = document.getElementById('requestToDonateFoodbankForm');
-    if (!form) return;
+    if (!form) {
+        console.error('Form not found in submit handler');
+        showToast('Form not found. Please refresh the page.', 'error');
+        return;
+    }
 
     const submitBtn = document.getElementById('submitRequestDonateFoodbank');
     const originalSubmitText = submitBtn ? submitBtn.textContent : 'Submit Request';
+    
+    console.log('Form found, starting validation');
 
     // Get form data
+    const foodbankId = document.getElementById('requestDonateFoodbankFoodbankId')?.value;
+    const itemName = document.getElementById('foodbankDonateItemName')?.value?.trim();
+    const category = document.getElementById('foodbankDonateCategory')?.value;
+    const quantity = parseInt(document.getElementById('foodbankDonateQuantity')?.value) || 1;
+    const unit = document.getElementById('foodbankDonateUnit')?.value || 'pcs';
+    const description = document.getElementById('foodbankDonateDescription')?.value?.trim() || null;
+    const establishmentNotes = document.getElementById('foodbankDonateNotes')?.value?.trim() || null;
+    
     const formData = {
-        foodbank_id: document.getElementById('requestDonateFoodbankFoodbankId')?.value,
-        item_name: document.getElementById('foodbankDonateItemName')?.value,
-        category: document.getElementById('foodbankDonateCategory')?.value,
-        quantity: parseInt(document.getElementById('foodbankDonateQuantity')?.value) || 1,
-        unit: document.getElementById('foodbankDonateUnit')?.value || 'pcs',
-        description: document.getElementById('foodbankDonateDescription')?.value || null,
-        expiry_date: document.getElementById('foodbankDonateExpiryDate')?.value || null,
-        scheduled_date: document.getElementById('foodbankDonateScheduledDate')?.value,
-        scheduled_time: document.getElementById('foodbankDonateScheduledTime')?.value || null,
-        pickup_method: document.getElementById('foodbankDonatePickupMethod')?.value,
-        establishment_notes: document.getElementById('foodbankDonateNotes')?.value || null,
+        foodbank_id: foodbankId,
+        item_name: itemName,
+        category: category,
+        quantity: quantity,
+        unit: unit,
+        description: description || null,
+        pickup_method: 'pickup', // Always pickup for donation requests
+        establishment_notes: establishmentNotes || null,
     };
 
     // Validate required fields
-    if (!formData.foodbank_id) {
+    console.log('Validating form data:', { foodbankId, itemName, category, quantity });
+    
+    if (!foodbankId) {
+        console.error('Validation failed: Foodbank ID is required');
         showToast('Foodbank ID is required', 'error');
+        document.getElementById('requestDonateFoodbankFoodbankId')?.focus();
         return;
     }
-    if (!formData.item_name || !formData.item_name.trim()) {
+    if (!itemName) {
+        console.error('Validation failed: Item name is required');
         showToast('Item name is required', 'error');
+        document.getElementById('foodbankDonateItemName')?.focus();
         return;
     }
-    if (!formData.category) {
+    if (!category) {
+        console.error('Validation failed: Category is required');
         showToast('Category is required', 'error');
+        document.getElementById('foodbankDonateCategory')?.focus();
         return;
     }
-    if (!formData.quantity || formData.quantity < 1) {
+    if (!quantity || quantity < 1) {
+        console.error('Validation failed: Quantity must be at least 1');
         showToast('Quantity must be at least 1', 'error');
+        document.getElementById('foodbankDonateQuantity')?.focus();
         return;
     }
-    if (!formData.scheduled_date) {
-        showToast('Scheduled date is required', 'error');
-        return;
-    }
-    if (!formData.pickup_method) {
-        showToast('Pickup method is required', 'error');
-        return;
-    }
+    // Pickup method is always 'pickup', no validation needed
+    
+    console.log('Validation passed, preparing to submit');
 
     // Show loading state
     if (submitBtn) {
@@ -1256,8 +1431,20 @@ function handleRequestToDonateFoodbankSubmit(e) {
     // Get CSRF token
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                       document.querySelector('input[name="_token"]')?.value;
+    
+    if (!csrfToken) {
+        console.error('CSRF token not found');
+        showToast('Security token missing. Please refresh the page.', 'error');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalSubmitText;
+        }
+        return;
+    }
 
     // Submit to API
+    console.log('Submitting to /establishment/donation-request with data:', formData);
+    
     fetch('/establishment/donation-request', {
         method: 'POST',
         headers: {
@@ -1267,7 +1454,12 @@ function handleRequestToDonateFoodbankSubmit(e) {
         },
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
+    .then(async response => {
+        console.log('Response status:', response.status);
+        const data = await response.json();
+        console.log('Response data:', data);
+        return data;
+    })
     .then(data => {
         if (data.success) {
             showToast(data.message || 'Donation request submitted successfully!', 'success');
@@ -1282,11 +1474,22 @@ function handleRequestToDonateFoodbankSubmit(e) {
                 }
             }
             
-            // Optionally refresh the page or update UI
+            // Check for accepted requests after a short delay (in case foodbank accepts immediately)
             setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+                checkAndRemoveAcceptedRequests();
+            }, 2000);
+            
+            // Also start polling more frequently for a short period
+            let pollCount = 0;
+            const quickPollInterval = setInterval(() => {
+                pollCount++;
+                checkAndRemoveAcceptedRequests();
+                if (pollCount >= 6) { // Poll every 2 seconds for 12 seconds
+                    clearInterval(quickPollInterval);
+                }
+            }, 2000);
         } else {
+            console.error('Request submission failed:', data);
             showToast(data.message || 'Failed to submit donation request', 'error');
             
             // Handle validation errors
@@ -1300,6 +1503,7 @@ function handleRequestToDonateFoodbankSubmit(e) {
     })
     .catch(error => {
         console.error('Error submitting donation request:', error);
+        console.error('Error details:', error.message, error.stack);
         showToast('An error occurred. Please try again.', 'error');
     })
     .finally(() => {

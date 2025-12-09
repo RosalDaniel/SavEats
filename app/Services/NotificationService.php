@@ -90,6 +90,29 @@ class NotificationService
     }
 
     /**
+     * Create a notification for order out for delivery
+     */
+    public static function notifyOrderOutForDelivery(Order $order)
+    {
+        // Notify consumer that order is out for delivery
+        $establishmentName = $order->establishment ? $order->establishment->business_name : 'the establishment';
+        Notification::createNotification(
+            'consumer',
+            $order->consumer_id,
+            'order_out_for_delivery',
+            'Order Out for Delivery',
+            "Your order #{$order->order_number} is now out for delivery from {$establishmentName}. Please be ready to receive your order.",
+            [
+                'order_id' => $order->id,
+                'data' => [
+                    'order_number' => $order->order_number,
+                    'establishment_name' => $order->establishment ? $order->establishment->business_name : null,
+                ]
+            ]
+        );
+    }
+
+    /**
      * Create a notification for order cancelled
      */
     public static function notifyOrderCancelled(Order $order, $cancelledBy = 'establishment')
@@ -253,6 +276,7 @@ class NotificationService
     {
         $foodbankName = $donationRequest->foodbank ? $donationRequest->foodbank->organization_name : 'the foodbank';
         $establishmentName = $donationRequest->establishment ? $donationRequest->establishment->business_name : 'an establishment';
+        $establishmentAddress = $donationRequest->establishment ? ($donationRequest->establishment->address ?? 'Address not provided') : 'Address not provided';
         
         // Notify establishment
         Notification::createNotification(
@@ -260,30 +284,31 @@ class NotificationService
             $donationRequest->establishment_id,
             'donation_request_accepted',
             'Donation Request Accepted',
-            "Your donation request for {$donationRequest->item_name} has been accepted by {$foodbankName}.",
+            "Your donation request for {$donationRequest->item_name} has been accepted by {$foodbankName}. Please prepare the items for pickup.",
             [
                 'donation_request_id' => $donationRequest->donation_request_id,
                 'data' => [
                     'item_name' => $donationRequest->item_name,
                     'quantity' => $donationRequest->quantity,
-                    'pickup_method' => $donationRequest->pickup_method ?? $donationRequest->delivery_option ?? 'pickup',
+                    'pickup_method' => 'pickup',
                 ]
             ]
         );
         
-        // Notify foodbank (confirmation)
+        // Notify foodbank (confirmation) - include establishment location for pickup
         Notification::createNotification(
             'foodbank',
             $donationRequest->foodbank_id,
             'donation_request_accepted',
             'Donation Request Accepted',
-            "You have accepted the donation request for {$donationRequest->item_name} from {$establishmentName}.",
+            "You have accepted the donation request for {$donationRequest->item_name} from {$establishmentName}. Pickup location: {$establishmentAddress}",
             [
                 'donation_request_id' => $donationRequest->donation_request_id,
                 'data' => [
                     'item_name' => $donationRequest->item_name,
                     'quantity' => $donationRequest->quantity,
                     'establishment_name' => $establishmentName,
+                    'establishment_address' => $establishmentAddress,
                 ]
             ]
         );
@@ -302,7 +327,7 @@ class NotificationService
             $donationRequest->establishment_id,
             'donation_request_declined',
             'Donation Request Declined',
-            "Your donation request for {$donationRequest->item_name} has been declined.",
+            "Your donation request for {$donationRequest->item_name} has been declined by the foodbank.",
             [
                 'donation_request_id' => $donationRequest->donation_request_id,
                 'data' => [
@@ -337,7 +362,6 @@ class NotificationService
     {
         $foodbankName = $donationRequest->foodbank ? $donationRequest->foodbank->organization_name : 'the foodbank';
         $establishmentName = $donationRequest->establishment ? $donationRequest->establishment->business_name : 'an establishment';
-        $method = $donationRequest->pickup_method ?? $donationRequest->delivery_option ?? 'pickup';
         
         // Notify establishment
         Notification::createNotification(
@@ -345,7 +369,7 @@ class NotificationService
             $donationRequest->establishment_id,
             'donation_request_completed',
             'Donation Request Completed',
-            "Your donation request for {$donationRequest->item_name} has been completed. The {$method} was successful!",
+            "Your donation request for {$donationRequest->item_name} has been completed. The pickup was successful!",
             [
                 'donation_request_id' => $donationRequest->donation_request_id,
                 'donation_id' => $donation->donation_id,
@@ -363,7 +387,7 @@ class NotificationService
             $donationRequest->foodbank_id,
             'donation_request_completed',
             'Donation Request Completed',
-            "You have successfully completed the donation request for {$donationRequest->item_name} from {$establishmentName}.",
+            "You have successfully completed the donation request for {$donationRequest->item_name} from {$establishmentName}. Pickup confirmed.",
             [
                 'donation_request_id' => $donationRequest->donation_request_id,
                 'donation_id' => $donation->donation_id,

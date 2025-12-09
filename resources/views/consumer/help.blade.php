@@ -280,8 +280,10 @@
                     </svg>
                 </div>
                 <h4>Email Support</h4>
-                <p>Get help via email within 24 hours</p>
-                <a href="mailto:support@saveats.com" class="contact-btn">Send Email</a>
+                <p class="contact-text">
+                    For assistance, email us at 
+                    <span class="copyable-text" onclick="copyToClipboard('dnpn124@gmail.com', this)" title="Click to copy">dnpn124@gmail.com</span>
+                </p>
             </div>
             
             <div class="contact-option">
@@ -291,8 +293,10 @@
                     </svg>
                 </div>
                 <h4>Phone Support</h4>
-                <p>Call us for immediate assistance</p>
-                <a href="tel:+63212345678" class="contact-btn">Call Now</a>
+                <p class="contact-text">
+                    For urgent concerns, contact SavEats at 
+                    <span class="copyable-text" onclick="copyToClipboard('09123456789', this)" title="Click to copy">09273940559</span>
+                </p>
             </div>
             
             <div class="contact-option">

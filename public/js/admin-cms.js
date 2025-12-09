@@ -186,7 +186,6 @@ function editTerms(id) {
                 document.getElementById('termsVersion').value = term.version || '';
                 document.getElementById('termsContent').value = term.content || '';
                 document.getElementById('termsStatus').value = term.status || 'draft';
-                document.getElementById('termsPublishedAt').value = term.published_at ? formatDateTimeLocal(term.published_at) : '';
                 openTermsModal(id);
             }
         });
@@ -367,7 +366,6 @@ function editPrivacy(id) {
                 document.getElementById('privacyVersion').value = policy.version || '';
                 document.getElementById('privacyContent').value = policy.content || '';
                 document.getElementById('privacyStatus').value = policy.status || 'draft';
-                document.getElementById('privacyPublishedAt').value = policy.published_at ? formatDateTimeLocal(policy.published_at) : '';
                 openPrivacyModal(id);
             }
         });
@@ -517,7 +515,6 @@ function openAnnouncementModal(id = null) {
                 document.getElementById('announcementMessage').value = announcement.message;
                 document.getElementById('announcementAudience').value = announcement.target_audience;
                 document.getElementById('announcementStatus').value = announcement.status;
-                document.getElementById('announcementPublishedAt').value = formatDateTimeLocal(announcement.published_at);
                 document.getElementById('announcementExpiresAt').value = formatDateTimeLocal(announcement.expires_at);
             }
         })
@@ -557,16 +554,15 @@ function saveAnnouncement(event) {
         message: formData.get('message'),
         target_audience: formData.get('target_audience'),
         status: formData.get('status'),
-        published_at: formData.get('published_at') || null,
         expires_at: formData.get('expires_at') || null,
     };
     
-    // Validate expires_at is after published_at
-    if (data.expires_at && data.published_at) {
-        const publishedDate = new Date(data.published_at);
+    // Validate expires_at is in the future if status is active
+    if (data.expires_at && data.status === 'active') {
         const expiresDate = new Date(data.expires_at);
-        if (expiresDate <= publishedDate) {
-            showNotification('Expires date must be after published date.', 'error');
+        const now = new Date();
+        if (expiresDate <= now) {
+            showNotification('Expires date must be in the future.', 'error');
             return;
         }
     }

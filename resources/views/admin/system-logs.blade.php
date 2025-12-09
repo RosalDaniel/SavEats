@@ -145,12 +145,6 @@
             </div>
             <div class="filter-actions">
                 <button class="btn-secondary" onclick="clearFilters()">Clear Filters</button>
-                <button class="btn-primary" onclick="filterDonationEvents()" title="Show only donation-related events">
-                    <svg viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px; margin-right: 5px;">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    Donation Events
-                </button>
                 <div class="export-dropdown">
                     <button class="btn-primary" onclick="toggleExportMenu()">
                         <svg viewBox="0 0 24 24" fill="currentColor">
@@ -159,9 +153,7 @@
                         Export
                     </button>
                     <div class="export-menu" id="exportMenu">
-                        <a href="#" onclick="exportLogs('csv'); return false;">Export as CSV</a>
                         <a href="#" onclick="exportLogs('pdf'); return false;">Export as PDF</a>
-                        <a href="#" onclick="exportLogs('excel'); return false;">Export as Excel</a>
                     </div>
                 </div>
             </div>
@@ -200,9 +192,7 @@
     // Define routes for JavaScript
     const SYSTEM_LOGS_ROUTES = {
         data: '{{ route('admin.system-logs.data') }}',
-        exportCsv: '{{ route('admin.system-logs.export.csv') }}',
-        exportPdf: '{{ route('admin.system-logs.export.pdf') }}',
-        exportExcel: '{{ route('admin.system-logs.export.excel') }}'
+        exportPdf: '{{ route('admin.system-logs.export.pdf') }}'
     };
 </script>
 <script src="{{ asset('js/admin-system-logs.js') }}"></script>

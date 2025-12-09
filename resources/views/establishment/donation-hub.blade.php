@@ -10,6 +10,11 @@
 @endsection
 
 @section('content')
+@if(!($isVerified ?? true))
+<div style="padding: 16px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; color: #856404; font-size: 14px; margin-bottom: 20px;">
+    Your account is not verified. Please wait for admin approval.
+</div>
+@endif
 <!-- Donation Requests Section -->
 <div class="donation-requests-section">
     <div class="section-header">
@@ -58,9 +63,11 @@
         <div class="request-card" data-id="{{ $request['id'] }}">
             <div class="request-card-header">
                 <div class="request-logo-circle">
-                    <div class="logo-wheat-top">🌾</div>
-                    <div class="logo-bread">🍞</div>
-                    <div class="logo-label">{{ ucwords(strtolower(substr($request['foodbank_name'], 0, 6))) }}</div>
+                    @if(isset($request['foodbank_profile_image']) && $request['foodbank_profile_image'])
+                        <img src="{{ asset('storage/' . $request['foodbank_profile_image']) }}" alt="{{ $request['foodbank_name'] }}" class="foodbank-card-profile-image">
+                    @else
+                        <div class="foodbank-card-profile-placeholder">{{ strtoupper(substr($request['foodbank_name'], 0, 1)) }}</div>
+                    @endif
                 </div>
             </div>
             <div class="request-card-body">
@@ -107,9 +114,11 @@
         <div class="foodbank-card" data-id="{{ $foodbank['id'] }}">
             <div class="foodbank-card-header">
                 <div class="foodbank-logo-circle">
-                    <div class="logo-wheat-top">🌾</div>
-                    <div class="logo-bread">🍞</div>
-                    <div class="logo-label">{{ ucwords(strtolower(substr($foodbank['organization_name'], 0, 6))) }}</div>
+                    @if(isset($foodbank['profile_image']) && $foodbank['profile_image'])
+                        <img src="{{ asset('storage/' . $foodbank['profile_image']) }}" alt="{{ $foodbank['organization_name'] }}" class="foodbank-card-profile-image">
+                    @else
+                        <div class="foodbank-card-profile-placeholder">{{ strtoupper(substr($foodbank['organization_name'], 0, 1)) }}</div>
+                    @endif
                 </div>
             </div>
             <div class="foodbank-card-body">
@@ -119,7 +128,7 @@
             <div class="foodbank-card-actions">
                 <button class="btn-view-details-outline" onclick="viewFoodbankDetails('{{ $foodbank['id'] }}')">View Details</button>
                 <button class="btn-contact" onclick="contactFoodbank('{{ $foodbank['id'] }}')">Contact</button>
-                <button class="btn-request-donate" onclick="openRequestToDonateFoodbankModal('{{ $foodbank['id'] }}')">Request to Donate</button>
+                <button class="btn-request-donate" onclick="openRequestToDonateFoodbankModal('{{ $foodbank['id'] }}')" @if(!($isVerified ?? true)) disabled style="opacity: 0.5; cursor: not-allowed;" @endif>Request to Donate</button>
             </div>
         </div>
         @empty
@@ -138,11 +147,8 @@
             <div class="request-details-header">
                 <h2 class="request-foodbank-name" id="modalFoodbankName">Food Bank</h2>
                 <div class="request-foodbank-logo">
-                    <div class="logo-icon">🏢</div>
-                    <div class="logo-text">
-                        <span class="logo-text-top" id="modalLogoTop">CEBU</span>
-                        <span class="logo-text-bottom">FO<span class="logo-icon-inline">🍴</span>D BANK</span>
-                    </div>
+                    <img id="modalFoodbankProfileImage" class="foodbank-profile-image" src="" alt="Food Bank" style="display: none;">
+                    <div class="foodbank-profile-placeholder" id="modalFoodbankProfilePlaceholder" style="display: none;"></div>
                 </div>
             </div>
 
@@ -186,7 +192,7 @@
                 <div class="request-logistic-item">
                     <span class="logistic-icon">📦</span>
                     <div class="logistic-content">
-                        <div class="logistic-text" id="modalDeliveryOption">-</div>
+                        <div class="logistic-text">Pickup Only</div>
                     </div>
                 </div>
                 <div class="request-logistic-item">
@@ -200,8 +206,12 @@
 
             <!-- Action Buttons -->
             <div class="request-details-actions">
-                <button class="btn-contact-outline" id="modalContactFoodbankBtn" onclick="contactFoodbankFromRequest()">Contact Foodbank</button>
-                <button class="btn-donate-now" id="modalDonateNowBtn">Donate Now</button>
+                @if(!($isVerified ?? true))
+                    <div style="padding: 12px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; color: #856404; font-size: 14px; margin-bottom: 12px;">
+                        Your account is not verified. Please wait for admin approval.
+                    </div>
+                @endif
+                <button class="btn-donate-now" id="modalDonateNowBtn" @if(!($isVerified ?? true)) disabled style="opacity: 0.5; cursor: not-allowed;" @endif>Donate Now</button>
             </div>
 
             <!-- Close Button -->
@@ -222,7 +232,12 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" id="closeFoodbankDetailsModalBtn">Close</button>
-            <button class="btn btn-primary" id="requestDonateFromDetailsBtn">Request to Donate</button>
+            @if(!($isVerified ?? true))
+                <div style="padding: 12px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; color: #856404; font-size: 14px; margin-bottom: 12px; width: 100%;">
+                    Your account is not verified. Please wait for admin approval.
+                </div>
+            @endif
+            <button class="btn btn-primary" id="requestDonateFromDetailsBtn" @if(!($isVerified ?? true)) disabled style="opacity: 0.5; cursor: not-allowed;" @endif>Request to Donate</button>
         </div>
     </div>
 </div>
@@ -276,32 +291,24 @@
                     <div class="request-detail-value" id="displayDescription">-</div>
                 </div>
 
-                <div class="form-group">
-                    <label for="donateExpiryDate">Expiry Date</label>
-                    <input type="date" id="donateExpiryDate" name="expiry_date" class="form-input" placeholder="Select expiry date (optional)">
+                <!-- Pickup Location Section -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Pickup Location</h3>
+                    
+                    <div class="form-group">
+                        <label for="donateEstablishmentAddress">Establishment Address</label>
+                        <input type="text" id="donateEstablishmentAddress" class="form-input" value="{{ $establishment->address ?? 'Address not provided' }}" data-default-value="{{ $establishment->address ?? 'Address not provided' }}" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="donateScheduledDate">Scheduled Pickup/Delivery Date *</label>
-                    <input type="date" id="donateScheduledDate" name="scheduled_date" class="form-input" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="donateScheduledTime">Scheduled Time</label>
-                    <input type="time" id="donateScheduledTime" name="scheduled_time" class="form-input" placeholder="Select time (optional)">
-                </div>
-
-                <div class="form-group">
-                    <label for="donatePickupMethod">Pickup Method *</label>
-                    <select id="donatePickupMethod" name="pickup_method" class="form-input" required>
-                        <option value="pickup">Pickup</option>
-                        <option value="delivery">Delivery</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="donateNotes">Notes</label>
-                    <textarea id="donateNotes" name="establishment_notes" class="form-input" rows="3" placeholder="Additional notes for the foodbank (optional)"></textarea>
+                <!-- Pickup Notes Section -->
+                <div class="form-section">
+                    <h3 class="form-section-title">Pickup Notes</h3>
+                    
+                    <div class="form-group">
+                        <label for="donateNotes">Pickup Notes</label>
+                        <textarea id="donateNotes" name="establishment_notes" class="form-input" rows="3" placeholder="Additional notes for pickup (optional)"></textarea>
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -381,42 +388,23 @@
                     </div>
                 </div>
 
-                <!-- Expiry & Schedule Section -->
+                <!-- Pickup Location Section -->
                 <div class="form-section">
-                    <h3 class="form-section-title">Expiry & Schedule</h3>
+                    <h3 class="form-section-title">Pickup Location</h3>
                     
                     <div class="form-group">
-                        <label for="foodbankDonateExpiryDate">Expiry Date</label>
-                        <input type="date" id="foodbankDonateExpiryDate" name="expiry_date" class="form-input" placeholder="Select expiry date (optional)">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="foodbankDonateScheduledDate">Scheduled Pickup/Delivery Date *</label>
-                        <input type="date" id="foodbankDonateScheduledDate" name="scheduled_date" class="form-input" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="foodbankDonateScheduledTime">Scheduled Time</label>
-                        <input type="time" id="foodbankDonateScheduledTime" name="scheduled_time" class="form-input" placeholder="Select time (optional)">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="foodbankDonatePickupMethod">Pickup Method *</label>
-                        <select id="foodbankDonatePickupMethod" name="pickup_method" class="form-input" required>
-                            <option value="">Select Method</option>
-                            <option value="pickup">Pickup</option>
-                            <option value="delivery">Delivery</option>
-                        </select>
+                        <label for="foodbankDonateEstablishmentAddress">Establishment Address</label>
+                        <input type="text" id="foodbankDonateEstablishmentAddress" class="form-input" value="{{ $establishment->address ?? 'Address not provided' }}" data-default-value="{{ $establishment->address ?? 'Address not provided' }}" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
                     </div>
                 </div>
 
-                <!-- Additional Notes Section -->
+                <!-- Pickup Notes Section -->
                 <div class="form-section">
-                    <h3 class="form-section-title">Additional Information</h3>
+                    <h3 class="form-section-title">Pickup Notes</h3>
                     
                     <div class="form-group">
-                        <label for="foodbankDonateNotes">Notes</label>
-                        <textarea id="foodbankDonateNotes" name="establishment_notes" class="form-input" rows="3" placeholder="Additional notes for the foodbank (optional)"></textarea>
+                        <label for="foodbankDonateNotes">Pickup Notes</label>
+                        <textarea id="foodbankDonateNotes" name="establishment_notes" class="form-input" rows="3" placeholder="Additional notes for pickup (optional)"></textarea>
                     </div>
                 </div>
 

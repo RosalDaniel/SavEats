@@ -27,13 +27,14 @@ class DonationRequestService
      */
     public static function acceptRequest(DonationRequest $donationRequest): bool
     {
-        if ($donationRequest->status !== self::STATUS_PENDING) {
+        if (!in_array($donationRequest->status, [self::STATUS_PENDING, self::STATUS_PENDING_CONFIRMATION])) {
             return false;
         }
 
         $donationRequest->status = self::STATUS_ACCEPTED;
         $donationRequest->skipObserverLogging = true; // Prevent duplicate logging from observer
-        $donationRequest->save();
+        // Use saveQuietly to prevent observer from running (and prevent skipObserverLogging from being saved)
+        $donationRequest->saveQuietly();
 
         // Send notifications
         $donationRequest->load(['foodbank', 'establishment']);
@@ -50,13 +51,14 @@ class DonationRequestService
      */
     public static function declineRequest(DonationRequest $donationRequest): bool
     {
-        if ($donationRequest->status !== self::STATUS_PENDING) {
+        if (!in_array($donationRequest->status, [self::STATUS_PENDING, self::STATUS_PENDING_CONFIRMATION])) {
             return false;
         }
 
         $donationRequest->status = self::STATUS_DECLINED;
         $donationRequest->skipObserverLogging = true; // Prevent duplicate logging from observer
-        $donationRequest->save();
+        // Use saveQuietly to prevent observer from running (and prevent skipObserverLogging from being saved)
+        $donationRequest->saveQuietly();
 
         // Send notifications
         $donationRequest->load(['foodbank', 'establishment']);
@@ -69,7 +71,7 @@ class DonationRequestService
     }
 
     /**
-     * Confirm pickup/delivery and mark as completed
+     * Confirm pickup and mark as completed (pickup-only)
      */
     public static function confirmCompletion(DonationRequest $donationRequest, string $method = 'pickup'): ?Donation
     {
@@ -77,6 +79,9 @@ class DonationRequestService
         if (!in_array($donationRequest->status, [self::STATUS_ACCEPTED, self::STATUS_PENDING_CONFIRMATION])) {
             return null;
         }
+
+        // Force method to 'pickup' (delivery is no longer supported)
+        $method = 'pickup';
 
         // Create Donation record
         $donation = Donation::create([
@@ -90,7 +95,7 @@ class DonationRequestService
             'description' => $donationRequest->description,
             'expiry_date' => $donationRequest->expiry_date,
             'status' => 'collected',
-            'pickup_method' => $donationRequest->pickup_method ?? $donationRequest->delivery_option ?? 'pickup',
+            'pickup_method' => 'pickup', // Always pickup
             'scheduled_date' => $donationRequest->scheduled_date ?? $donationRequest->dropoff_date ?? now(),
             'scheduled_time' => $donationRequest->scheduled_time,
             'establishment_notes' => $donationRequest->establishment_notes,
@@ -104,14 +109,15 @@ class DonationRequestService
         $donationRequest->donation_id = $donation->donation_id;
         $donationRequest->fulfilled_at = now();
         $donationRequest->skipObserverLogging = true; // Prevent duplicate logging from observer
-        $donationRequest->save();
+        // Use saveQuietly to prevent observer from running (and prevent skipObserverLogging from being saved)
+        $donationRequest->saveQuietly();
 
         // Send notifications
         $donationRequest->load(['establishment', 'foodbank']);
         NotificationService::notifyDonationRequestCompleted($donationRequest, $donation);
 
-        // Dispatch event for logging
-        event(new DonationRequestCompletedEvent($donationRequest, $donation, $method));
+        // Dispatch event for logging (always with pickup method)
+        event(new DonationRequestCompletedEvent($donationRequest, $donation, 'pickup'));
 
         return $donation;
     }
@@ -159,18 +165,17 @@ class DonationRequestService
             'distribution_zone_display' => $zoneLabels[$request->distribution_zone] ?? $request->distribution_zone ?? 'N/A',
             'dropoff_date' => $request->dropoff_date ? $request->dropoff_date->format('Y-m-d') : null,
             'dropoff_date_display' => $request->dropoff_date ? $request->dropoff_date->format('F d, Y') : 'N/A',
-            'scheduled_date' => $request->scheduled_date ? $request->scheduled_date->format('Y-m-d') : null,
-            'scheduled_date_display' => $request->scheduled_date ? $request->scheduled_date->format('F d, Y') : 'N/A',
-            'scheduled_time' => $request->scheduled_time ? (is_string($request->scheduled_time) ? substr($request->scheduled_time, 0, 5) : $request->scheduled_time->format('H:i')) : null,
-            'scheduled_time_display' => $request->scheduled_time ? (is_string($request->scheduled_time) ? date('g:i A', strtotime($request->scheduled_time)) : $request->scheduled_time->format('g:i A')) : 'N/A',
+            'scheduled_date' => $request->scheduled_date ? ($request->scheduled_date instanceof \Carbon\Carbon ? $request->scheduled_date->format('Y-m-d') : (is_string($request->scheduled_date) ? $request->scheduled_date : date('Y-m-d', strtotime($request->scheduled_date)))) : null,
+            'scheduled_date_display' => $request->scheduled_date ? ($request->scheduled_date instanceof \Carbon\Carbon ? $request->scheduled_date->format('F d, Y') : (is_string($request->scheduled_date) ? date('F d, Y', strtotime($request->scheduled_date)) : 'N/A')) : 'N/A',
+            'scheduled_time' => $request->scheduled_time ? (is_string($request->scheduled_time) ? substr($request->scheduled_time, 0, 5) : ($request->scheduled_time instanceof \Carbon\Carbon ? $request->scheduled_time->format('H:i') : null)) : null,
+            'scheduled_time_display' => $request->scheduled_time ? (is_string($request->scheduled_time) ? date('g:i A', strtotime($request->scheduled_time)) : ($request->scheduled_time instanceof \Carbon\Carbon ? $request->scheduled_time->format('g:i A') : 'N/A')) : 'N/A',
             'time_option' => $request->time_option,
             'start_time' => $request->start_time ? (is_string($request->start_time) ? substr($request->start_time, 0, 5) : $request->start_time->format('H:i')) : null,
             'end_time' => $request->end_time ? (is_string($request->end_time) ? substr($request->end_time, 0, 5) : $request->end_time->format('H:i')) : null,
             'time_display' => $timeDisplay,
             'address' => $request->address,
-            'delivery_option' => $request->delivery_option,
-            'pickup_method' => $request->pickup_method ?? $request->delivery_option ?? 'pickup',
-            'pickup_method_display' => ucfirst($request->pickup_method ?? $request->delivery_option ?? 'pickup'),
+            'pickup_method' => 'pickup',
+            'pickup_method_display' => 'Pickup',
             'establishment_notes' => $request->establishment_notes,
             'contact_name' => $request->contact_name,
             'phone_number' => $request->phone_number,
@@ -183,6 +188,8 @@ class DonationRequestService
             'establishment_name' => $request->establishment ? $request->establishment->business_name : null,
             'foodbank_id' => $request->foodbank_id,
             'foodbank_name' => $request->foodbank ? $request->foodbank->organization_name : null,
+            'foodbank_email' => $request->foodbank ? $request->foodbank->email : null,
+            'foodbank_phone' => $request->foodbank ? $request->foodbank->phone_no : null,
             'fulfilled_by_establishment_id' => $request->fulfilled_by_establishment_id,
             'fulfilled_at' => $request->fulfilled_at ? $request->fulfilled_at->format('Y-m-d H:i:s') : null,
             'fulfilled_at_display' => $request->fulfilled_at ? $request->fulfilled_at->format('F d, Y g:i A') : null,

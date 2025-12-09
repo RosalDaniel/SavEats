@@ -4,6 +4,58 @@ let isEditing = false;
 let currentEditingSection = null;
 let originalData = {};
 
+// Make functions globally accessible immediately (before DOMContentLoaded)
+window.openContactModal = function() {
+    // Wait for DOM if not ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            window.openContactModal();
+        });
+        return;
+    }
+    
+    const modal = document.getElementById('contactModal');
+    
+    if (!modal) {
+        return;
+    }
+    
+    modal.classList.add('active');
+    
+    // Force display style to ensure visibility - use !important via setProperty
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('z-index', '10000', 'important');
+    modal.style.setProperty('position', 'fixed', 'important');
+    modal.style.setProperty('top', '0', 'important');
+    modal.style.setProperty('left', '0', 'important');
+    modal.style.setProperty('width', '100%', 'important');
+    modal.style.setProperty('height', '100%', 'important');
+    modal.style.setProperty('background-color', 'rgba(0, 0, 0, 0.5)', 'important');
+    modal.style.setProperty('align-items', 'center', 'important');
+    modal.style.setProperty('justify-content', 'center', 'important');
+    modal.style.setProperty('visibility', 'visible', 'important');
+    modal.style.setProperty('opacity', '1', 'important');
+    
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    
+    // Focus on first input
+    const firstInput = modal.querySelector('input');
+    if (firstInput) {
+        setTimeout(() => firstInput.focus(), 100);
+    }
+};
+
+window.closeContactModal = function() {
+    const modal = document.getElementById('contactModal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto'; // Restore scrolling
+        // Reset form values to original
+        resetContactModal();
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     initializeProfile();
     setupEventListeners();
@@ -42,6 +94,18 @@ function setupEventListeners() {
         input.addEventListener('input', validateField);
         input.addEventListener('blur', validateField);
     });
+
+    // Add event listener for contact edit button (for foodbank and other roles)
+    const editContactBtn = document.getElementById('editContactBtn');
+    if (editContactBtn) {
+        editContactBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.openContactModal === 'function') {
+                window.openContactModal();
+            }
+        });
+    }
 
     // Add modal event listeners
     const contactModal = document.getElementById('contactModal');
@@ -213,14 +277,6 @@ function saveProfilePicture() {
     formData.append('profile_picture', selectedProfilePictureFile);
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
 
-    // Debug: Log what we're sending
-    console.log('Uploading profile picture:', {
-        file: selectedProfilePictureFile,
-        fileName: selectedProfilePictureFile.name,
-        fileSize: selectedProfilePictureFile.size,
-        fileType: selectedProfilePictureFile.type
-    });
-
     fetch('/profile/update', {
         method: 'POST',
         body: formData,
@@ -229,11 +285,9 @@ function saveProfilePicture() {
         }
     })
     .then(response => {
-        console.log('Response status:', response.status);
         return response.json();
     })
     .then(data => {
-        console.log('Response data:', data);
         if (data.success) {
             // Update the main profile image
             const profileImage = document.getElementById('profileImage');
@@ -250,7 +304,6 @@ function saveProfilePicture() {
             showNotification('Profile picture updated successfully!', 'success');
             closeEditProfileModal();
         } else {
-            console.error('Upload failed:', data);
             let errorMessage = data.message || 'Failed to update profile picture';
             if (data.errors) {
                 errorMessage += ': ' + Object.values(data.errors).flat().join(', ');
@@ -259,7 +312,6 @@ function saveProfilePicture() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         showNotification('An error occurred while updating profile picture', 'error');
     })
     .finally(() => {
@@ -290,26 +342,7 @@ function updateSidebarAvatar(imageSrc) {
     }
 }
 
-function openContactModal() {
-    const modal = document.getElementById('contactModal');
-    if (modal) {
-        modal.classList.add('active');
-        // Focus on first input
-        const firstInput = modal.querySelector('input');
-        if (firstInput) {
-            setTimeout(() => firstInput.focus(), 100);
-        }
-    }
-}
-
-function closeContactModal() {
-    const modal = document.getElementById('contactModal');
-    if (modal) {
-        modal.classList.remove('active');
-        // Reset form values to original
-        resetContactModal();
-    }
-}
+// Functions are now defined at the top of the file (above DOMContentLoaded)
 
 function resetContactModal() {
     // Reset modal inputs to current values
@@ -426,13 +459,18 @@ function cancelEdit() {
     showNotification('Changes cancelled', 'info');
 }
 
-function saveContactInfo() {
+// Make function globally accessible
+window.saveContactInfo = function() {
     // Validate modal form
     if (!validateContactModal()) {
         return;
     }
 
-    const confirmBtn = document.querySelector('.btn-confirm');
+    const contactModal = document.getElementById('contactModal');
+    const confirmBtn = contactModal ? contactModal.querySelector('.btn-confirm') : document.querySelector('#contactModal .btn-confirm');
+    if (!confirmBtn) {
+        return;
+    }
     const originalText = confirmBtn.textContent;
     
     // Show loading state
@@ -493,7 +531,6 @@ function saveContactInfo() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         showNotification('An error occurred while updating contact information', 'error');
     })
     .finally(() => {
@@ -610,7 +647,6 @@ function saveAccountInfo() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         showNotification('An error occurred while updating password', 'error');
     })
     .finally(() => {
@@ -898,7 +934,6 @@ function uploadBirFile(file) {
         }
     })
     .catch(error => {
-        console.error('Error uploading BIR file:', error);
         showNotification('Error uploading BIR file', 'error');
         // Reset display
         fileDisplay.querySelector('.file-upload-text').textContent = originalText;
@@ -949,7 +984,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Request account deletion
-function requestAccountDeletion() {
+window.requestAccountDeletion = function() {
     if (!confirm('Are you sure you want to request account deletion? This action will be reviewed by an admin and cannot be undone once approved.')) {
         return;
     }
@@ -983,8 +1018,6 @@ function requestAccountDeletion() {
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else {
-                const text = await response.text();
-                console.error('Server returned non-JSON:', text.substring(0, 200));
                 throw new Error(`Server error (${response.status})`);
             }
 
@@ -1008,7 +1041,6 @@ function requestAccountDeletion() {
             }
         })
         .catch(error => {
-            console.error('Error requesting account deletion:', error);
             alert('An error occurred while submitting the request: ' + error.message);
             if (deleteBtn) {
                 deleteBtn.disabled = false;

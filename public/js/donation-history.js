@@ -240,13 +240,7 @@
             });
         }
 
-        // Clear filters button
-        const clearFiltersBtn = document.getElementById('clearFilters');
-        if (clearFiltersBtn) {
-            clearFiltersBtn.addEventListener('click', () => {
-                window.location.href = '{{ route("foodbank.donation-history") }}';
-            });
-        }
+        // Clear filters button is handled in the inline script in the Blade template
 
         // ESC key to close modal
         document.addEventListener('keydown', (e) => {

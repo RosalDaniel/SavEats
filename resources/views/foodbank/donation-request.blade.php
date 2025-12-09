@@ -130,11 +130,7 @@
                     
                     <div class="order-actions">
                         <button class="btn-view" onclick="viewDonationRequestDetails('{{ $request['id'] }}')">View Details</button>
-                        @if($request['pickup_method'] === 'pickup')
-                            <button class="btn-accept" onclick="confirmPickup('{{ $request['id'] }}')">Confirm Pickup</button>
-                        @else
-                            <button class="btn-accept" onclick="confirmDelivery('{{ $request['id'] }}')">Confirm Delivery</button>
-                        @endif
+                        <button class="btn-accept" onclick="confirmPickup('{{ $request['id'] }}')">Mark as Completed</button>
                     </div>
                 </div>
                 @empty

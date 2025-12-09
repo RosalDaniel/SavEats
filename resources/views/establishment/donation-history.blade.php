@@ -42,19 +42,19 @@
                 </svg>
             </button>
             <div class="export-menu" id="exportMenu">
-                <a href="{{ route('establishment.donation-history.export', array_merge(['type' => 'csv'], request()->only(['status', 'date_from', 'date_to', 'search']))) }}" class="export-option">
+                <a href="{{ route('establishment.donation-history.export', array_merge(['type' => 'csv'], request()->only(['status', 'category', 'date_from', 'date_to', 'search']))) }}" class="export-option">
                     <svg viewBox="0 0 24 24">
                         <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
                     </svg>
                     Export as CSV
                 </a>
-                <a href="{{ route('establishment.donation-history.export', array_merge(['type' => 'excel'], request()->only(['status', 'date_from', 'date_to', 'search']))) }}" class="export-option">
+                <a href="{{ route('establishment.donation-history.export', array_merge(['type' => 'excel'], request()->only(['status', 'category', 'date_from', 'date_to', 'search']))) }}" class="export-option">
                     <svg viewBox="0 0 24 24">
                         <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
                     </svg>
                     Export as Excel
                 </a>
-                <a href="{{ route('establishment.donation-history.export', array_merge(['type' => 'pdf'], request()->only(['status', 'date_from', 'date_to', 'search']))) }}" class="export-option">
+                <a href="{{ route('establishment.donation-history.export', array_merge(['type' => 'pdf'], request()->only(['status', 'category', 'date_from', 'date_to', 'search']))) }}" class="export-option">
                     <svg viewBox="0 0 24 24">
                         <path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zm5 2h1v-1h-1v1zm5-2h1v-1h-1v1z"/>
                     </svg>
@@ -81,11 +81,27 @@
                     <label for="statusFilter">Status</label>
                     <select name="status" id="statusFilter" class="filter-select">
                         <option value="">All Statuses</option>
-                        <option value="pending_pickup" {{ request('status') == 'pending_pickup' ? 'selected' : '' }}>Pending Pickup</option>
-                        <option value="ready_for_collection" {{ request('status') == 'ready_for_collection' ? 'selected' : '' }}>Ready for Collection</option>
-                        <option value="collected" {{ request('status') == 'collected' ? 'selected' : '' }}>Collected</option>
-                        <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                        <option value="expired" {{ request('status') == 'expired' ? 'selected' : '' }}>Expired</option>
+                        <optgroup label="Donation Statuses">
+                            <option value="pending_pickup" {{ request('status') == 'pending_pickup' ? 'selected' : '' }}>Pending Pickup</option>
+                            <option value="ready_for_collection" {{ request('status') == 'ready_for_collection' ? 'selected' : '' }}>Ready for Collection</option>
+                            <option value="collected" {{ request('status') == 'collected' ? 'selected' : '' }}>Collected</option>
+                            <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                            <option value="expired" {{ request('status') == 'expired' ? 'selected' : '' }}>Expired</option>
+                        </optgroup>
+                        <optgroup label="Request Statuses">
+                            <option value="accepted" {{ request('status') == 'accepted' ? 'selected' : '' }}>Accepted</option>
+                            <option value="declined" {{ request('status') == 'declined' ? 'selected' : '' }}>Declined</option>
+                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="categoryFilter">Category</label>
+                    <select name="category" id="categoryFilter" class="filter-select">
+                        <option value="">All Categories</option>
+                        @foreach($categories ?? [] as $category)
+                            <option value="{{ $category }}" {{ request('category') == $category ? 'selected' : '' }}>{{ ucfirst($category) }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div class="filter-group">
@@ -96,9 +112,6 @@
                     <label for="dateToFilter">Date To</label>
                     <input type="date" name="date_to" id="dateToFilter" class="filter-input" value="{{ request('date_to') }}">
                 </div>
-                <div class="filter-group filter-actions">
-                    <button type="submit" class="btn-filter">Apply Filters</button>
-                </div>
             </form>
         </div>
 
@@ -106,7 +119,6 @@
         <div class="donations-section">
         <div class="section-header">
             <h3 class="section-title">Donation History</h3>
-            <span id="resultCount">{{ count($formattedDonations ?? []) }} Donation{{ count($formattedDonations ?? []) !== 1 ? 's' : '' }}</span>
         </div>
 
         <div class="table-container">
@@ -123,7 +135,11 @@
                 </thead>
                 <tbody id="donationsTableBody">
                     @forelse($formattedDonations as $donation)
-                    <tr class="donation-row" data-id="{{ $donation['id'] }}">
+                    <tr class="donation-row" 
+                        data-id="{{ $donation['id'] }}"
+                        data-category="{{ strtolower($donation['category'] ?? '') }}"
+                        data-status="{{ $donation['status'] }}"
+                        data-search-text="{{ strtolower($donation['item_name'] . ' ' . ($donation['foodbank_name'] ?? '')) }}">
                         <td>
                             <div class="item-name">{{ $donation['item_name'] }}</div>
                             @if($donation['category'])
@@ -148,6 +164,18 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- Pagination -->
+        @if($formattedDonations->hasPages())
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Showing {{ $formattedDonations->count() }} of {{ $formattedDonations->total() }} items
+            </div>
+            <div class="pagination-links">
+                {{ $formattedDonations->appends(request()->query())->links('vendor.pagination.custom') }}
+            </div>
+        </div>
+        @endif
         </div>
     </div>
 </div>
@@ -171,7 +199,116 @@
 
 @section('scripts')
 <script>
-    window.donations = @json($formattedDonations ?? []);
+    window.donations = @json($formattedDonations->items() ?? []);
+    
+    // Client-side filtering (no page refresh)
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeAutoFilter();
+        applyFilters();
+    });
+
+    // Initialize automatic filtering
+    function initializeAutoFilter() {
+        const searchInput = document.getElementById('searchInput');
+        const statusSelect = document.getElementById('statusFilter');
+        const categorySelect = document.getElementById('categoryFilter');
+        
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(function() {
+                    applyFilters();
+                }, 300);
+            });
+        }
+        
+        if (statusSelect) {
+            statusSelect.addEventListener('change', applyFilters);
+        }
+        
+        if (categorySelect) {
+            categorySelect.addEventListener('change', applyFilters);
+        }
+    }
+
+    // Apply filters automatically
+    function applyFilters() {
+        const searchInput = document.getElementById('searchInput');
+        const statusSelect = document.getElementById('statusFilter');
+        const categorySelect = document.getElementById('categoryFilter');
+        const tableBody = document.getElementById('donationsTableBody');
+        
+        if (!tableBody) return;
+        
+        const searchValue = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const statusValue = statusSelect ? statusSelect.value : '';
+        const categoryValue = categorySelect ? categorySelect.value : '';
+        
+        const rows = tableBody.querySelectorAll('tr');
+        let visibleCount = 0;
+        
+        rows.forEach(function(row) {
+            if (row.classList.contains('no-data')) {
+                row.style.display = 'none';
+                return;
+            }
+            
+            const searchText = row.getAttribute('data-search-text') || '';
+            const status = row.getAttribute('data-status') || '';
+            const category = row.getAttribute('data-category') || '';
+            
+            // Check search filter
+            const matchesSearch = !searchValue || searchText.includes(searchValue);
+            
+            // Check status filter
+            const matchesStatus = !statusValue || status === statusValue;
+            
+            // Check category filter
+            const matchesCategory = !categoryValue || category === categoryValue.toLowerCase();
+            
+            // Show/hide row based on filters
+            if (matchesSearch && matchesStatus && matchesCategory) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Show "no donations" message if no rows are visible
+        const noDataRow = tableBody.querySelector('.no-data');
+        if (visibleCount === 0 && !noDataRow) {
+            const newRow = document.createElement('tr');
+            newRow.className = 'no-data';
+            newRow.innerHTML = '<td colspan="6" class="no-data">No donations found matching the filters.</td>';
+            tableBody.appendChild(newRow);
+        } else if (visibleCount > 0 && noDataRow) {
+            noDataRow.remove();
+        }
+    }
+    
+    // Keep existing form submission for date filters (they require server-side filtering)
+    (function() {
+        const filterForm = document.getElementById('filterForm');
+        if (!filterForm) return;
+        
+        const dateInputs = filterForm.querySelectorAll('input[type="date"]');
+        
+        dateInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                filterForm.submit();
+            });
+        });
+        
+        // Clear filters button
+        const clearFiltersBtn = document.getElementById('clearFilters');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', function() {
+                window.location.href = '{{ route("establishment.donation-history") }}';
+            });
+        }
+    })();
 </script>
 <script src="{{ asset('js/establishment-donation-history.js') }}"></script>
 @endsection

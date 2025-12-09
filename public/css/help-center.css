@@ -299,6 +299,35 @@
     font-family: 'Afacad', sans-serif;
 }
 
+.contact-text {
+    color: #374151;
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 0;
+    font-family: 'Afacad', sans-serif;
+}
+
+.copyable-text {
+    color: #347928;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    transition: all 0.2s ease;
+    user-select: all;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.copyable-text:hover {
+    background-color: #f0f9ff;
+    color: #1e3a0f;
+}
+
+.copyable-text:active {
+    background-color: #e0f2fe;
+}
+
 .contact-btn {
     background: #2d5016;
     color: white;

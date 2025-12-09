@@ -13,23 +13,8 @@
     <div class="stats-grid">
         <div class="stats-card">
             <h3>Business Partnered</h3>
-            <div class="value" id="totalPartners">0</div>
+            <div class="value" id="totalPartners">{{ $totalPartners ?? 0 }}</div>
         </div>
-    </div>
-
-    <div class="action-buttons">
-        <button class="btn btn-primary" id="addPartnerBtn">
-            <svg viewBox="0 0 24 24">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-            </svg>
-            Add Partner
-        </button>
-        <button class="btn btn-secondary" id="exportBtn">
-            <svg viewBox="0 0 24 24">
-                <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
-            </svg>
-            Export Report
-        </button>
     </div>
 
     <div class="partners-section">

@@ -10,10 +10,23 @@
 @endsection
 
 @section('content')
-<!-- Total Earnings Card -->
-<div class="total-earnings-card">
-    <div class="total-earnings-label">Total Earnings</div>
-    <div class="total-earnings-amount">₱{{ number_format($totalEarnings ?? 0, 2) }}</div>
+<!-- Total Earnings Cards -->
+<div class="earnings-summary-grid">
+    <div class="earnings-card gross">
+        <div class="earnings-label">Total Gross Earnings</div>
+        <div class="earnings-amount">₱{{ number_format($totalGrossEarnings ?? 0, 2) }}</div>
+        <div class="earnings-subtitle">Before platform fee</div>
+    </div>
+    <div class="earnings-card fee">
+        <div class="earnings-label">Platform Fees (5%)</div>
+        <div class="earnings-amount">₱{{ number_format($totalPlatformFees ?? 0, 2) }}</div>
+        <div class="earnings-subtitle">SavEats commission</div>
+    </div>
+    <div class="earnings-card net">
+        <div class="earnings-label">Net Earnings</div>
+        <div class="earnings-amount">₱{{ number_format($totalNetEarnings ?? 0, 2) }}</div>
+        <div class="earnings-subtitle">Your earnings</div>
+    </div>
 </div>
 
 <!-- Main Content Grid -->
@@ -50,7 +63,9 @@
                 <tr>
                     <th>Order ID</th>
                     <th>Item Sold</th>
-                    <th>Amount</th>
+                    <th>Gross Amount</th>
+                    <th>Platform Fee (5%)</th>
+                    <th>Net Earnings</th>
                     <th>Date</th>
                     <th>Mode of Payment</th>
                 </tr>
@@ -61,14 +76,16 @@
                     <tr class="table-row">
                         <td class="order-id" data-label="Order ID">{{ $order['order_number'] ?? 'ID#' . $order['id'] }}</td>
                         <td class="item-name" data-label="Item">{{ $order['product_name'] }}<br><small>{{ $order['quantity'] }} pcs.</small></td>
-                        <td class="amount" data-label="Amount">₱{{ number_format($order['total_price'], 2) }}</td>
+                        <td class="amount gross-amount" data-label="Gross Amount">₱{{ number_format($order['total_price'], 2) }}</td>
+                        <td class="amount fee-amount" data-label="Platform Fee">₱{{ number_format($order['platform_fee'] ?? ($order['total_price'] * 0.05), 2) }}</td>
+                        <td class="amount net-amount" data-label="Net Earnings">₱{{ number_format($order['net_earnings'] ?? ($order['total_price'] * 0.95), 2) }}</td>
                         <td data-label="Date">{{ $order['completed_at'] ?? $order['created_at'] }}</td>
                         <td class="payment-mode" data-label="Payment">{{ $order['payment_method'] ?? 'N/A' }}</td>
                     </tr>
                     @endforeach
                 @else
                     <tr class="table-row">
-                        <td colspan="5" style="text-align: center; padding: 20px; color: #6c757d;">
+                        <td colspan="7" style="text-align: center; padding: 20px; color: #6c757d;">
                             No completed orders yet.
                         </td>
                     </tr>
@@ -93,12 +110,19 @@
     <!-- Daily Earning Trends Section -->
     <div class="trends-section">
         <div class="trends-header">
-            <button class="export-btn">
-                Export into
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5H7z"/>
-                </svg>
-            </button>
+            <div class="export-dropdown">
+                <button class="export-btn" id="exportEarningsBtn">
+                    Export into
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 10l5 5 5-5H7z"/>
+                    </svg>
+                </button>
+                <div class="export-menu" id="exportEarningsMenu">
+                    <a href="{{ route('establishment.earnings.export', 'csv') }}" class="export-option">Export as CSV</a>
+                    <a href="{{ route('establishment.earnings.export', 'excel') }}" class="export-option">Export as Excel</a>
+                    <a href="{{ route('establishment.earnings.export', 'pdf') }}" class="export-option">Export as PDF</a>
+                </div>
+            </div>
         </div>
         
         <div class="time-tabs">

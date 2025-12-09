@@ -101,7 +101,6 @@ class AdminCmsController extends Controller
             'version' => 'required|string|max:50',
             'content' => 'required|string',
             'status' => 'required|in:active,draft',
-            'published_at' => 'nullable|date',
         ]);
 
         try {
@@ -114,7 +113,7 @@ class AdminCmsController extends Controller
                 'version' => $validated['version'],
                 'content' => $validated['content'],
                 'status' => $validated['status'],
-                'published_at' => $validated['published_at'] ? Carbon::parse($validated['published_at']) : ($validated['status'] === 'active' ? Carbon::now() : null),
+                'published_at' => $validated['status'] === 'active' ? Carbon::now() : null,
             ]);
 
             return response()->json([
@@ -149,7 +148,6 @@ class AdminCmsController extends Controller
             'version' => 'required|string|max:50',
             'content' => 'required|string',
             'status' => 'required|in:active,draft',
-            'published_at' => 'nullable|date',
         ]);
 
         try {
@@ -158,12 +156,29 @@ class AdminCmsController extends Controller
                 TermsCondition::where('status', 'active')->where('id', '!=', $id)->update(['status' => 'draft']);
             }
 
-            $terms->update([
+            // Check if there are changes
+            $hasChanges = $terms->version !== $validated['version'] ||
+                         $terms->content !== $validated['content'] ||
+                         $terms->status !== $validated['status'];
+
+            // Determine published_at: set to now if status is active and not already published, otherwise keep existing
+            $publishedAt = $validated['status'] === 'active' && !$terms->published_at 
+                ? Carbon::now() 
+                : $terms->published_at;
+
+            $updateData = [
                 'version' => $validated['version'],
                 'content' => $validated['content'],
                 'status' => $validated['status'],
-                'published_at' => $validated['published_at'] ? Carbon::parse($validated['published_at']) : ($validated['status'] === 'active' && !$terms->published_at ? Carbon::now() : $terms->published_at),
-            ]);
+                'published_at' => $publishedAt,
+            ];
+
+            // Automatically update updated_at if there are changes
+            if ($hasChanges) {
+                $updateData['updated_at'] = Carbon::now();
+            }
+
+            $terms->update($updateData);
 
             return response()->json([
                 'success' => true,
@@ -266,7 +281,6 @@ class AdminCmsController extends Controller
             'version' => 'required|string|max:50',
             'content' => 'required|string',
             'status' => 'required|in:active,draft',
-            'published_at' => 'nullable|date',
         ]);
 
         try {
@@ -279,7 +293,7 @@ class AdminCmsController extends Controller
                 'version' => $validated['version'],
                 'content' => $validated['content'],
                 'status' => $validated['status'],
-                'published_at' => $validated['published_at'] ? Carbon::parse($validated['published_at']) : ($validated['status'] === 'active' ? Carbon::now() : null),
+                'published_at' => $validated['status'] === 'active' ? Carbon::now() : null,
             ]);
 
             return response()->json([
@@ -314,7 +328,6 @@ class AdminCmsController extends Controller
             'version' => 'required|string|max:50',
             'content' => 'required|string',
             'status' => 'required|in:active,draft',
-            'published_at' => 'nullable|date',
         ]);
 
         try {
@@ -323,12 +336,29 @@ class AdminCmsController extends Controller
                 PrivacyPolicy::where('status', 'active')->where('id', '!=', $id)->update(['status' => 'draft']);
             }
 
-            $policy->update([
+            // Check if there are changes
+            $hasChanges = $policy->version !== $validated['version'] ||
+                         $policy->content !== $validated['content'] ||
+                         $policy->status !== $validated['status'];
+
+            // Determine published_at: set to now if status is active and not already published, otherwise keep existing
+            $publishedAt = $validated['status'] === 'active' && !$policy->published_at 
+                ? Carbon::now() 
+                : $policy->published_at;
+
+            $updateData = [
                 'version' => $validated['version'],
                 'content' => $validated['content'],
                 'status' => $validated['status'],
-                'published_at' => $validated['published_at'] ? Carbon::parse($validated['published_at']) : ($validated['status'] === 'active' && !$policy->published_at ? Carbon::now() : $policy->published_at),
-            ]);
+                'published_at' => $publishedAt,
+            ];
+
+            // Automatically update updated_at if there are changes
+            if ($hasChanges) {
+                $updateData['updated_at'] = Carbon::now();
+            }
+
+            $policy->update($updateData);
 
             return response()->json([
                 'success' => true,
@@ -436,18 +466,29 @@ class AdminCmsController extends Controller
             'message' => 'required|string',
             'target_audience' => 'required|in:all,consumer,establishment,foodbank',
             'status' => 'required|in:active,inactive,archived',
-            'published_at' => 'nullable|date',
-            'expires_at' => 'nullable|date|after:published_at',
+            'expires_at' => 'nullable|date',
         ]);
 
         try {
+            // Automatically set published_at when status is active
+            $publishedAt = ($validated['status'] === 'active') ? Carbon::now() : null;
+
+            // Validate expires_at is after published_at if both exist
+            $expiresAt = $validated['expires_at'] ? Carbon::parse($validated['expires_at']) : null;
+            if ($expiresAt && $publishedAt && $expiresAt->lte($publishedAt)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expires date must be after published date.',
+                ], 422);
+            }
+
             $announcement = Announcement::create([
                 'title' => $validated['title'],
                 'message' => $validated['message'],
                 'target_audience' => $validated['target_audience'],
                 'status' => $validated['status'],
-                'published_at' => $validated['published_at'] ? Carbon::parse($validated['published_at']) : now(),
-                'expires_at' => $validated['expires_at'] ? Carbon::parse($validated['expires_at']) : null,
+                'published_at' => $publishedAt,
+                'expires_at' => $expiresAt,
             ]);
 
             return response()->json([
@@ -483,19 +524,46 @@ class AdminCmsController extends Controller
             'message' => 'required|string',
             'target_audience' => 'required|in:all,consumer,establishment,foodbank',
             'status' => 'required|in:active,inactive,archived',
-            'published_at' => 'nullable|date',
-            'expires_at' => 'nullable|date|after:published_at',
+            'expires_at' => 'nullable|date',
         ]);
 
         try {
-            $announcement->update([
+            // Check if there are changes
+            $hasChanges = $announcement->title !== $validated['title'] ||
+                         $announcement->message !== $validated['message'] ||
+                         $announcement->target_audience !== $validated['target_audience'] ||
+                         $announcement->status !== $validated['status'] ||
+                         ($announcement->expires_at ? $announcement->expires_at->format('Y-m-d H:i:s') : null) !== ($validated['expires_at'] ?? null);
+
+            // Automatically set published_at when status changes to active and not already published
+            $publishedAt = ($validated['status'] === 'active' && !$announcement->published_at) 
+                ? Carbon::now() 
+                : $announcement->published_at;
+
+            // Validate expires_at is after published_at if both exist
+            $expiresAt = $validated['expires_at'] ? Carbon::parse($validated['expires_at']) : null;
+            if ($expiresAt && $publishedAt && $expiresAt->lte($publishedAt)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expires date must be after published date.',
+                ], 422);
+            }
+
+            $updateData = [
                 'title' => $validated['title'],
                 'message' => $validated['message'],
                 'target_audience' => $validated['target_audience'],
                 'status' => $validated['status'],
-                'published_at' => $validated['published_at'] ? Carbon::parse($validated['published_at']) : null,
-                'expires_at' => $validated['expires_at'] ? Carbon::parse($validated['expires_at']) : null,
-            ]);
+                'published_at' => $publishedAt,
+                'expires_at' => $expiresAt,
+            ];
+
+            // Automatically update updated_at if there are changes
+            if ($hasChanges) {
+                $updateData['updated_at'] = Carbon::now();
+            }
+
+            $announcement->update($updateData);
 
             return response()->json([
                 'success' => true,

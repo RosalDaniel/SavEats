@@ -357,6 +357,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         updateStepIndicators(step);
         currentStep = step;
+        
+        // Handle address field visibility based on account type (Step 3)
+        if (step === 3) {
+            const establishmentAddressContainer = document.getElementById('establishmentAddressContainer');
+            const simpleAddressContainer = document.getElementById('simpleAddressContainer');
+            
+            if (selectedAccountType === 'business') {
+                // Show map-based address for establishments
+                if (establishmentAddressContainer) establishmentAddressContainer.style.display = 'block';
+                if (simpleAddressContainer) simpleAddressContainer.style.display = 'none';
+                
+                // Initialize map for establishments only
+                setTimeout(() => {
+                    initializeAddressMap();
+                }, 100);
+            } else {
+                // Show simple text input for consumers and foodbanks
+                if (establishmentAddressContainer) establishmentAddressContainer.style.display = 'none';
+                if (simpleAddressContainer) simpleAddressContainer.style.display = 'block';
+                
+                // Destroy map if it exists (for non-establishments)
+                if (addressMap) {
+                    addressMap.remove();
+                    addressMap = null;
+                    addressMarker = null;
+                }
+            }
+        }
     }
 
     // Validation functions
@@ -604,13 +632,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 formData.append('password_confirmation', finalFormData.password);
                 formData.append('email', finalFormData.email);
                 formData.append('phone_no', finalFormData.phone);
-                formData.append('address', finalFormData.location);
-                // Add coordinates if available
-                const latitude = document.getElementById('latitude')?.value;
-                const longitude = document.getElementById('longitude')?.value;
-                if (latitude && longitude) {
-                    formData.append('latitude', latitude);
-                    formData.append('longitude', longitude);
+                
+                // Handle address based on account type
+                if (selectedAccountType === 'business') {
+                    // For establishments: use map-based location (required)
+                    const location = document.getElementById('location')?.value || '';
+                    const latitude = document.getElementById('latitude')?.value;
+                    const longitude = document.getElementById('longitude')?.value;
+                    
+                    formData.append('address', location);
+                    if (latitude && longitude) {
+                        formData.append('latitude', latitude);
+                        formData.append('longitude', longitude);
+                        formData.append('formatted_address', location); // Store formatted address
+                    }
+                } else {
+                    // For consumers and foodbanks: use simple text input (optional)
+                    const simpleAddress = document.getElementById('simpleAddress')?.value || '';
+                    formData.append('address', simpleAddress);
                 }
                 formData.append('fname', finalFormData.firstName);
                 formData.append('lname', finalFormData.lastName);
@@ -645,21 +684,38 @@ document.addEventListener('DOMContentLoaded', function() {
                     password_confirmation: finalFormData.password,
                     email: finalFormData.email,
                     phone_no: finalFormData.phone,
-                    address: finalFormData.location,
-                    // Add coordinates if available
-                    latitude: document.getElementById('latitude')?.value || null,
-                    longitude: document.getElementById('longitude')?.value || null,
-                    fname: finalFormData.firstName,
-                    lname: finalFormData.lastName,
-                    mname: finalFormData.middleName,
-                    business_name: finalFormData.businessName,
-                    business_type: finalFormData.businessType,
-                    owner_fname: finalFormData.firstName,
-                    owner_lname: finalFormData.lastName,
-                    organization_name: finalFormData.organizationName,
-                    contact_person: finalFormData.contactPerson,
-                    registration_number: finalFormData.registrationNumber
                 };
+                
+                // Handle address based on account type
+                if (selectedAccountType === 'business') {
+                    // For establishments: use map-based location (required)
+                    const location = document.getElementById('location')?.value || '';
+                    const latitude = document.getElementById('latitude')?.value;
+                    const longitude = document.getElementById('longitude')?.value;
+                    
+                    requestData.address = location;
+                    if (latitude && longitude) {
+                        requestData.latitude = latitude;
+                        requestData.longitude = longitude;
+                        requestData.formatted_address = location; // Store formatted address
+                    }
+                } else {
+                    // For consumers and foodbanks: use simple text input (optional)
+                    const simpleAddress = document.getElementById('simpleAddress')?.value || '';
+                    requestData.address = simpleAddress;
+                }
+                
+                // Add other fields
+                requestData.fname = finalFormData.firstName;
+                requestData.lname = finalFormData.lastName;
+                requestData.mname = finalFormData.middleName;
+                requestData.business_name = finalFormData.businessName;
+                requestData.business_type = finalFormData.businessType;
+                requestData.owner_fname = finalFormData.firstName;
+                requestData.owner_lname = finalFormData.lastName;
+                requestData.organization_name = finalFormData.organizationName;
+                requestData.contact_person = finalFormData.contactPerson;
+                requestData.registration_number = finalFormData.registrationNumber;
                 console.log('Sending registration data:', requestData);
                 
                 requestBody = JSON.stringify(requestData);
@@ -776,8 +832,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 addressMap.removeLayer(addressMarker);
             }
 
-            // Add new marker
-            addressMarker = L.marker([lat, lng])
+            // Add new marker (using custom icon without shadow to avoid tracking prevention warnings)
+            const customIcon = L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34]
+            });
+            
+            addressMarker = L.marker([lat, lng], { icon: customIcon })
                 .addTo(addressMap)
                 .bindPopup('Selected Location')
                 .openPopup();
@@ -786,7 +849,7 @@ document.addEventListener('DOMContentLoaded', function() {
             reverseGeocode(lat, lng);
         });
 
-        // Try to get user's current location
+        // Try to get user's current location (optional - not required)
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 function(position) {
@@ -795,8 +858,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     addressMap.setView([lat, lng], 13);
                 },
                 function(error) {
-                    console.log('Geolocation error:', error);
-                    // Keep default view
+                    // Silently handle geolocation errors - user can still select location manually
+                    // Error codes: 1 = permission denied, 2 = position unavailable, 3 = timeout
+                    // This is expected behavior and doesn't affect functionality
+                },
+                {
+                    timeout: 5000,
+                    enableHighAccuracy: false
                 }
             );
         }

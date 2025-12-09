@@ -173,7 +173,7 @@
                     </div>
                     <div class="order-detail-row">
                         <span class="order-detail-label">Customer Name:</span>
-                        <span class="order-detail-value">{{ $pendingOrderData['customer_name'] }}</span>
+                        <span class="order-detail-value">{{ urldecode($pendingOrderData['customer_name'] ?? '') }}</span>
                     </div>
                     <div class="order-detail-row">
                         <span class="order-detail-label">Delivery Method:</span>

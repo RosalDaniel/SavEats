@@ -12,6 +12,8 @@ use App\Models\Review;
 use App\Models\Announcement;
 use App\Services\NotificationService;
 use App\Services\DonationRequestService;
+use App\Services\DashboardCacheService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
 
 class EstablishmentController extends Controller
 {
@@ -47,51 +50,26 @@ class EstablishmentController extends Controller
             return redirect()->route('login')->with('error', 'Establishment not found. Please login again.');
         }
         
-        // Get all food listings for this establishment (single query, reused for multiple calculations)
-        $allListings = FoodListing::where('establishment_id', $establishmentId)->get();
+        // Check verification status
+        $isVerified = $establishment->isVerified();
         
-        // Calculate inventory health statistics
-        $totalItems = $allListings->count();
+        // Get cached dashboard stats
+        $stats = DashboardCacheService::getEstablishmentStats($establishmentId);
+        $dashboardStats = [
+            'active_listings' => $stats['active_listings'],
+            'today_earnings' => $stats['today_earnings'],
+            'food_donated' => $stats['food_donated'],
+            'food_saved' => $stats['food_saved'],
+        ];
+        $inventoryHealth = $stats['inventory_health'];
         
-        if ($totalItems > 0) {
-            // Fresh Stock: Items that are not expired and not expiring soon (expiry > 3 days away)
-            $freshStock = $allListings->filter(function ($item) {
-                $isExpired = $item->expiry_date < now()->toDateString();
-                $isExpiringSoon = $item->expiry_date <= now()->addDays(3)->toDateString();
-                return !$isExpired && !$isExpiringSoon;
-            })->count();
-            
-            // Expiring Stock: Items expiring within next 3 days (but not expired)
-            $expiringStock = $allListings->filter(function ($item) {
-                $isExpired = $item->expiry_date < now()->toDateString();
-                $isExpiringSoon = $item->expiry_date >= now()->toDateString() &&
-                                  $item->expiry_date <= now()->addDays(3)->toDateString();
-                return !$isExpired && $isExpiringSoon;
-            })->count();
-            
-            // Expired Stock: Items that have passed expiry date
-            $expiredStock = $allListings->filter(function ($item) {
-                return $item->expiry_date < now()->toDateString();
-            })->count();
-            
-            // Calculate percentages
-            $freshStockPercent = round(($freshStock / $totalItems) * 100);
-            $expiringStockPercent = round(($expiringStock / $totalItems) * 100);
-            $expiredStockPercent = round(($expiredStock / $totalItems) * 100);
-        } else {
-            $freshStockPercent = 0;
-            $expiringStockPercent = 0;
-            $expiredStockPercent = 0;
-        }
-        
-        // Get expiring food listings (expiring within next 3 days, not expired)
-        $expiringItems = $allListings
-            ->filter(function ($item) {
-                return $item->expiry_date >= now()->toDateString() &&
-                       $item->expiry_date <= now()->addDays(3)->toDateString();
-            })
-            ->sortBy('expiry_date')
-            ->take(5)
+        // Get expiring food listings (expiring within next 3 days, not expired) - not cached
+        $expiringItems = FoodListing::where('establishment_id', $establishmentId)
+            ->where('expiry_date', '>=', now()->toDateString())
+            ->where('expiry_date', '<=', now()->addDays(3)->toDateString())
+            ->orderBy('expiry_date', 'asc')
+            ->limit(5)
+            ->get()
             ->map(function ($item) {
                 $expiryDate = \Carbon\Carbon::parse($item->expiry_date);
                 
@@ -116,59 +94,7 @@ class EstablishmentController extends Controller
             ->values()
             ->toArray();
         
-        $inventoryHealth = [
-            'fresh_stock_percent' => $freshStockPercent,
-            'expiring_stock_percent' => $expiringStockPercent,
-            'expired_stock_percent' => $expiredStockPercent,
-        ];
-        
-        // Active Listings: Count items that are not expired and not expiring soon
-        // Also ensure quantity > 0 and expiry_date exists
-        $activeListings = $allListings->filter(function ($item) {
-            if (!$item->expiry_date) {
-                return false; // Skip items without expiry date
-            }
-            $isExpired = $item->expiry_date < now()->toDateString();
-            $isExpiringSoon = $item->expiry_date <= now()->addDays(3)->toDateString();
-            $hasStock = ($item->quantity ?? 0) > 0;
-            return !$isExpired && !$isExpiringSoon && $hasStock;
-        })->count();
-        
-        // Today's Earnings: Sum of completed orders for today
-        $todayEarnings = Order::where('establishment_id', $establishmentId)
-            ->where('status', 'completed')
-            ->where(function($query) {
-                $query->whereDate('completed_at', now()->toDateString())
-                      ->orWhere(function($q) {
-                          // Fallback: if completed_at is null, check updated_at for today
-                          $q->whereNull('completed_at')
-                            ->whereDate('updated_at', now()->toDateString());
-                      });
-            })
-            ->sum('total_price');
-        
-        // Ensure todayEarnings is a float, default to 0.0 if null
-        $todayEarnings = $todayEarnings ? (float) $todayEarnings : 0.0;
-        
-        // Food Donated: Count of completed donations
-        $foodDonated = Donation::where('establishment_id', $establishmentId)
-            ->where('status', 'completed')
-            ->count();
-        
-        // Food Saved: Sum of sold_stock from food listings (handle null values)
-        $foodSaved = $allListings->sum(function($listing) {
-            return $listing->sold_stock ?? 0;
-        });
-        
-        // Ensure all values are properly initialized (handle null values from database)
-        $dashboardStats = [
-            'active_listings' => (int) $activeListings,
-            'today_earnings' => $todayEarnings,
-            'food_donated' => (int) $foodDonated,
-            'food_saved' => $foodSaved,
-        ];
-        
-        // Get the most recent pending order
+        // Get the most recent pending order - not cached as it changes frequently
         $pendingOrder = Order::with(['foodListing'])
             ->where('establishment_id', $establishmentId)
             ->where('status', 'pending')
@@ -188,58 +114,8 @@ class EstablishmentController extends Controller
             ];
         }
         
-        // Fetch reviews and ratings data
-        $reviews = Review::where('establishment_id', $establishmentId)
-            ->with(['consumer'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-        
-        // Calculate rating statistics
-        $totalReviews = $reviews->count();
-        $averageRating = $totalReviews > 0 ? round($reviews->avg('rating'), 1) : 0;
-        
-        // Positive reviews (4-5 stars)
-        $positiveReviews = $reviews->filter(function ($review) {
-            return $review->rating >= 4;
-        })->count();
-        
-        // Negative reviews (1-3 stars)
-        $negativeReviews = $reviews->filter(function ($review) {
-            return $review->rating <= 3;
-        })->count();
-        
-        // Reviews this month
-        $reviewsThisMonth = $reviews->filter(function ($review) {
-            return $review->created_at->isCurrentMonth();
-        })->count();
-        
-        // Calculate positive percentage
-        $positivePercentage = $totalReviews > 0 
-            ? round(($positiveReviews / $totalReviews) * 100) 
-            : 0;
-        
-        // Format rating text
-        $ratingText = '';
-        if ($reviewsThisMonth > 0) {
-            $ratingText = "You've received +{$reviewsThisMonth} review" . ($reviewsThisMonth !== 1 ? 's' : '') . " this month";
-            if ($positivePercentage > 0) {
-                $ratingText .= " - {$positivePercentage}% positive!";
-            }
-        } else {
-            $ratingText = $totalReviews > 0 
-                ? "You have {$totalReviews} total review" . ($totalReviews !== 1 ? 's' : '') . " - {$positivePercentage}% positive!"
-                : "No reviews yet. Start selling to get reviews!";
-        }
-        
-        $reviewsData = [
-            'average_rating' => $averageRating,
-            'total_reviews' => $totalReviews,
-            'positive_reviews' => $positiveReviews,
-            'negative_reviews' => $negativeReviews,
-            'reviews_this_month' => $reviewsThisMonth,
-            'positive_percentage' => $positivePercentage,
-            'rating_text' => $ratingText,
-        ];
+        // Get cached reviews data
+        $reviewsData = DashboardCacheService::getEstablishmentReviews($establishmentId);
         
         // Get donation requests submitted by this establishment
         $myDonationRequests = DonationRequest::where('establishment_id', $establishmentId)
@@ -377,6 +253,20 @@ class EstablishmentController extends Controller
         ];
     }
 
+    /**
+     * Check if the current establishment is verified
+     */
+    private function checkVerification()
+    {
+        $establishmentId = Session::get('user_id');
+        if (!$establishmentId) {
+            return false;
+        }
+        
+        $establishment = Establishment::find($establishmentId);
+        return $establishment && $establishment->isVerified();
+    }
+
     public function listingManagement()
     {
         if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
@@ -389,12 +279,24 @@ class EstablishmentController extends Controller
         // Get establishment data to access address
         $establishment = Establishment::find($establishmentId);
         $establishmentAddress = $establishment->address ?? '';
+        $isVerified = $establishment && $establishment->isVerified();
         
         // Get real food listings from database
         $foodItems = FoodListing::where('establishment_id', $establishmentId)
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($item) {
+                // Determine display status (expired, expiring, active, or inactive)
+                $displayStatus = $item->status; // Use database status first
+                if ($displayStatus === 'active') {
+                    // Only check expiry if status is active
+                    if ($item->is_expired) {
+                        $displayStatus = 'expired';
+                    } elseif ($item->expiry_date <= now()->addDays(3)) {
+                        $displayStatus = 'expiring';
+                    }
+                }
+                
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
@@ -405,10 +307,10 @@ class EstablishmentController extends Controller
                     'discounted_price' => $item->discounted_price,
                     'discount' => $item->discount_percentage,
                     'expiry' => $item->expiry_date->format('Y-m-d'),
-                    'status' => $item->is_expired ? 'expired' : ($item->expiry_date <= now()->addDays(3) ? 'expiring' : 'active'),
+                    'status' => $displayStatus,
+                    'db_status' => $item->status, // Store actual database status
+                    'is_disabled_by_admin' => $item->status === 'inactive',
                     'image' => $item->image_path ? Storage::url($item->image_path) : 'https://via.placeholder.com/40x40/4a7c59/ffffff?text=' . strtoupper(substr($item->name, 0, 1)),
-                    'pickup_available' => $item->pickup_available,
-                    'delivery_available' => $item->delivery_available,
                     'address' => $item->address,
                 ];
             })
@@ -422,7 +324,7 @@ class EstablishmentController extends Controller
             'unsold_items' => count(array_filter($foodItems, fn($item) => $item['status'] === 'active' || $item['status'] === 'expiring'))
         ];
 
-        return view('establishment.listing-management', compact('user', 'foodItems', 'stats', 'establishmentAddress'));
+        return view('establishment.listing-management', compact('user', 'foodItems', 'stats', 'establishmentAddress', 'isVerified'));
     }
 
     public function orderManagement()
@@ -434,6 +336,7 @@ class EstablishmentController extends Controller
         // Get establishment data
         $establishmentId = Session::get('user_id');
         $establishment = Establishment::find($establishmentId);
+        $isVerified = $establishment && $establishment->isVerified();
         
         if (!$establishment) {
             return redirect()->route('login')->with('error', 'Establishment not found.');
@@ -463,8 +366,8 @@ class EstablishmentController extends Controller
                         : $order->pickup_end_time->format('H:i');
                 }
                 
-                // Format pickup date (use created_at date for pickup date)
-                $pickupDate = $order->created_at ? $order->created_at->format('F d, Y') : null;
+                // Format pickup date (use created_at date for pickup date, convert to Asia/Manila timezone)
+                $pickupDate = $order->created_at ? \Carbon\Carbon::parse($order->created_at)->setTimezone('Asia/Manila')->format('F d, Y') : null;
                 
                 return [
                     'id' => $order->id,
@@ -491,13 +394,15 @@ class EstablishmentController extends Controller
         // Calculate order counts by status
         $orderCounts = [
             'pending' => count(array_filter($orders, fn($order) => $order['status'] === 'pending' && !$order['is_missed_pickup'])),
+            'pending_delivery_confirmation' => count(array_filter($orders, fn($order) => $order['status'] === 'pending_delivery_confirmation' && !$order['is_missed_pickup'])),
             'accepted' => count(array_filter($orders, fn($order) => $order['status'] === 'accepted' && !$order['is_missed_pickup'])),
+            'on_the_way' => count(array_filter($orders, fn($order) => $order['status'] === 'on_the_way' && !$order['is_missed_pickup'])),
             'missed_pickup' => count(array_filter($orders, fn($order) => $order['is_missed_pickup'])),
             'completed' => count(array_filter($orders, fn($order) => $order['status'] === 'completed')),
             'cancelled' => count(array_filter($orders, fn($order) => $order['status'] === 'cancelled'))
         ];
 
-        return view('establishment.order-management', compact('establishment', 'orders', 'orderCounts'));
+        return view('establishment.order-management', compact('establishment', 'orders', 'orderCounts', 'isVerified'));
     }
 
     public function announcements()
@@ -507,6 +412,9 @@ class EstablishmentController extends Controller
         }
 
         $user = $this->getUserData();
+        $establishmentId = Session::get('user_id');
+        $establishment = Establishment::find($establishmentId);
+        $isVerified = $establishment && $establishment->isVerified();
         
         // Fetch announcements for establishments (all + establishment-specific)
         // Simplified query - show all active announcements for establishments/all, regardless of published_at/expires_at for now
@@ -574,10 +482,19 @@ class EstablishmentController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
+        // Check verification status
+        if (!$this->checkVerification()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Your account is not verified. Please wait for admin approval.',
+                'message' => 'Your account is not verified. Please wait for admin approval.'
+            ], 403);
+        }
+
         $establishmentId = Session::get('user_id');
         $order = Order::where('id', $id)
             ->where('establishment_id', $establishmentId)
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'pending_delivery_confirmation'])
             ->first();
 
         if (!$order) {
@@ -586,16 +503,35 @@ class EstablishmentController extends Controller
 
         DB::beginTransaction();
         try {
-            // Move stock from reserved to sold
-            // reserved_stock -= qty, sold_stock += qty
-            if ($order->foodListing) {
-                $foodListing = $order->foodListing;
-                $foodListing->reserved_stock = max(0, ($foodListing->reserved_stock ?? 0) - $order->quantity);
-                $foodListing->sold_stock = ($foodListing->sold_stock ?? 0) + $order->quantity;
-                $foodListing->save();
+            // Load food listing with relationship
+            $order->load('foodListing');
+            
+            if (!$order->foodListing) {
+                throw new \Exception('Food listing not found for this order');
+            }
+            
+            // Deduct stock when accepting order (with availability check)
+            $stockService = new \App\Services\StockService();
+            $stockResult = $stockService->deductStock($order, $order->quantity);
+            
+            if (!$stockResult['success']) {
+                // If stock is insufficient, return error
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => $stockResult['message'] ?? 'Insufficient stock available to accept this order',
+                    'message' => $stockResult['message'] ?? 'Insufficient stock available to accept this order'
+                ], 400);
             }
 
-            $order->status = 'accepted';
+            // Update order status to accepted
+            // For delivery orders, set to pending_delivery_confirmation (will be changed to on_the_way when marked out for delivery)
+            // For pickup orders, set to accepted
+            if ($order->delivery_method === 'delivery') {
+                $order->status = 'pending_delivery_confirmation';
+            } else {
+                $order->status = 'accepted';
+            }
             $order->accepted_at = now();
             $order->save();
             
@@ -609,7 +545,9 @@ class EstablishmentController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'error' => 'Failed to accept order: ' . $e->getMessage()
+                'success' => false,
+                'error' => 'Failed to accept order: ' . $e->getMessage(),
+                'message' => 'Failed to accept order: ' . $e->getMessage()
             ], 500);
         }
 
@@ -628,6 +566,15 @@ class EstablishmentController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
+        // Check verification status
+        if (!$this->checkVerification()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Your account is not verified. Please wait for admin approval.',
+                'message' => 'Your account is not verified. Please wait for admin approval.'
+            ], 403);
+        }
+
         $establishmentId = Session::get('user_id');
         $order = Order::with('foodListing')
             ->where('id', $id)
@@ -641,12 +588,19 @@ class EstablishmentController extends Controller
 
         DB::beginTransaction();
         try {
-            // Restore stock using StockService (idempotent)
-            $stockService = new \App\Services\StockService();
-            $stockResult = $stockService->restoreStock($order, $request->input('reason', 'Cancelled by establishment'));
-            
-            if (!$stockResult['success']) {
-                throw new \Exception($stockResult['message']);
+            // Only restore stock if it was actually deducted (i.e., order was accepted)
+            // If order is still pending, no stock was deducted, so nothing to restore
+            if ($order->stock_deducted) {
+                $stockService = new \App\Services\StockService();
+                $stockResult = $stockService->restoreStock($order, $request->input('reason', 'Cancelled by establishment'));
+                
+                // Log the result but don't fail if stock wasn't deducted
+                if (!$stockResult['success'] && strpos($stockResult['message'], 'already restored') === false) {
+                    // Only throw if it's a real error, not if stock was never deducted
+                    if (strpos($stockResult['message'], 'never deducted') === false) {
+                        throw new \Exception($stockResult['message']);
+                    }
+                }
             }
 
             // Update order status
@@ -665,13 +619,15 @@ class EstablishmentController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'error' => 'Failed to cancel order: ' . $e->getMessage()
+                'success' => false,
+                'error' => 'Failed to cancel order: ' . $e->getMessage(),
+                'message' => 'Failed to cancel order: ' . $e->getMessage()
             ], 500);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Order cancelled and quantity restored successfully'
+            'message' => 'Order cancelled successfully' . ($order->stock_deducted ? ' and quantity restored' : '')
         ]);
     }
 
@@ -682,6 +638,15 @@ class EstablishmentController extends Controller
     {
         if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
             return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        // Check verification status
+        if (!$this->checkVerification()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Your account is not verified. Please wait for admin approval.',
+                'message' => 'Your account is not verified. Please wait for admin approval.'
+            ], 403);
         }
 
         $establishmentId = Session::get('user_id');
@@ -695,12 +660,29 @@ class EstablishmentController extends Controller
             return response()->json(['error' => 'Order not found or cannot be completed'], 404);
         }
 
+        // Prevent establishments from auto-completing delivery orders
+        // Only consumers can confirm delivery
+        if ($order->delivery_method === 'delivery') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Delivery orders can only be completed by the consumer when they confirm receipt. You cannot auto-complete delivery orders.',
+                'message' => 'Delivery orders must be confirmed by the consumer.'
+            ], 400);
+        }
+
         DB::beginTransaction();
         try {
-            // Stock is already deducted when payment is confirmed
+            // Calculate 5% platform fee and net earnings
+            $platformFeeRate = 0.05; // 5%
+            $platformFee = round($order->total_price * $platformFeeRate, 2);
+            $netEarnings = round($order->total_price - $platformFee, 2);
+            
+            // Stock is already deducted when order was accepted
             // Completing order just changes status - no stock movement needed
             $order->status = 'completed';
             $order->completed_at = now();
+            $order->platform_fee = $platformFee;
+            $order->net_earnings = $netEarnings;
             $order->save();
             
             // Reload order with relationships for notification
@@ -724,6 +706,133 @@ class EstablishmentController extends Controller
     }
 
     /**
+     * Mark order as out for delivery
+     */
+    public function markOutForDelivery(Request $request, $id)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        // Check verification status
+        if (!$this->checkVerification()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Your account is not verified. Please wait for admin approval.',
+                'message' => 'Your account is not verified. Please wait for admin approval.'
+            ], 403);
+        }
+
+        $establishmentId = Session::get('user_id');
+        $order = Order::with(['foodListing', 'consumer', 'establishment'])
+            ->where('id', $id)
+            ->where('establishment_id', $establishmentId)
+            ->where('delivery_method', 'delivery')
+            ->whereIn('status', ['pending_delivery_confirmation', 'accepted'])
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Order not found or cannot be marked as out for delivery'
+            ], 404);
+        }
+
+        DB::beginTransaction();
+        try {
+            $order->status = 'on_the_way';
+            $order->out_for_delivery_at = now();
+            $order->save();
+
+            // Reload order with relationships for notification
+            $order->load(['consumer', 'establishment', 'foodListing']);
+
+            DB::commit();
+
+            // Send notification to consumer
+            \App\Services\NotificationService::notifyOrderOutForDelivery($order);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to mark order as out for delivery: ' . $e->getMessage(),
+                'message' => 'Failed to mark order as out for delivery: ' . $e->getMessage()
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order marked as out for delivery successfully'
+        ]);
+    }
+
+    /**
+     * Request admin intervention for delivery order
+     */
+    public function requestAdminIntervention(Request $request, $id)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:1000'
+        ]);
+
+        $establishmentId = Session::get('user_id');
+        $order = Order::with(['foodListing', 'consumer', 'establishment'])
+            ->where('id', $id)
+            ->where('establishment_id', $establishmentId)
+            ->where('delivery_method', 'delivery')
+            ->whereIn('status', ['on_the_way', 'pending_delivery_confirmation'])
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Order not found or cannot request admin intervention'
+            ], 404);
+        }
+
+        // Check if 24 hours have passed since out_for_delivery_at or accepted_at
+        $checkTime = $order->out_for_delivery_at ?? $order->accepted_at;
+        if (!$checkTime || now()->diffInHours($checkTime) < 24) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Admin intervention can only be requested after 24 hours from when the order was marked out for delivery or accepted.',
+                'message' => 'Admin intervention can only be requested after 24 hours.'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            $order->admin_intervention_requested_at = now();
+            $order->admin_intervention_reason = $request->reason;
+            $order->save();
+
+            // Reload order with relationships
+            $order->load(['consumer', 'establishment', 'foodListing']);
+
+            DB::commit();
+
+            // Notify admin
+            \App\Services\AdminNotificationService::notifyAdminInterventionRequested($order);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to request admin intervention: ' . $e->getMessage(),
+                'message' => 'Failed to request admin intervention: ' . $e->getMessage()
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Admin intervention requested successfully'
+        ]);
+    }
+
+    /**
      * Get order details for modal
      */
     public function getOrderDetails($id)
@@ -742,6 +851,23 @@ class EstablishmentController extends Controller
             return response()->json(['error' => 'Order not found'], 404);
         }
 
+        // Format pickup times
+        $pickupStartTime = null;
+        $pickupEndTime = null;
+        if ($order->pickup_start_time) {
+            $pickupStartTime = is_string($order->pickup_start_time) 
+                ? substr($order->pickup_start_time, 0, 5) 
+                : $order->pickup_start_time->format('H:i');
+        }
+        if ($order->pickup_end_time) {
+            $pickupEndTime = is_string($order->pickup_end_time) 
+                ? substr($order->pickup_end_time, 0, 5) 
+                : $order->pickup_end_time->format('H:i');
+        }
+        
+        // Format pickup date (convert to Asia/Manila timezone)
+        $pickupDate = $order->created_at ? \Carbon\Carbon::parse($order->created_at)->setTimezone('Asia/Manila')->format('F d, Y') : null;
+        
         return response()->json([
             'success' => true,
             'order' => [
@@ -749,15 +875,33 @@ class EstablishmentController extends Controller
                 'order_number' => $order->order_number,
                 'status' => $order->status,
                 'effective_status' => $order->effective_status,
-                'created_at' => $order->created_at->format('F d, Y | g:i A'),
-                'payment_method' => ucfirst($order->payment_method),
+                'is_missed_pickup' => $order->isMissedPickup(),
+                'created_at' => \Carbon\Carbon::parse($order->created_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A'),
+                'accepted_at' => $order->accepted_at ? \Carbon\Carbon::parse($order->accepted_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A') : null,
+                'out_for_delivery_at' => $order->out_for_delivery_at ? \Carbon\Carbon::parse($order->out_for_delivery_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A') : null,
+                'completed_at' => $order->completed_at ? \Carbon\Carbon::parse($order->completed_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A') : null,
+                'cancelled_at' => $order->cancelled_at ? \Carbon\Carbon::parse($order->cancelled_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A') : null,
+                'admin_intervention_requested_at' => $order->admin_intervention_requested_at ? \Carbon\Carbon::parse($order->admin_intervention_requested_at)->setTimezone('Asia/Manila')->format('F d, Y | h:i A') : null,
+                'admin_intervention_reason' => $order->admin_intervention_reason,
+                'payment_method' => ucfirst($order->payment_method ?? 'N/A'),
+                'payment_status' => ucfirst($order->payment_status ?? 'N/A'),
                 'delivery_method' => ucfirst($order->delivery_method),
-                'customer_name' => $order->customer_name,
-                'customer_phone' => $order->customer_phone,
+                'customer_name' => urldecode($order->customer_name ?? ''),
+                'customer_phone' => $order->customer_phone ?? 'N/A',
                 'customer_email' => $order->consumer->email ?? 'N/A',
-                'delivery_address' => $order->delivery_address,
-                'pickup_start_time' => $order->pickup_start_time ? (is_string($order->pickup_start_time) ? substr($order->pickup_start_time, 0, 5) : $order->pickup_start_time->format('H:i')) : null,
-                'pickup_end_time' => $order->pickup_end_time ? (is_string($order->pickup_end_time) ? substr($order->pickup_end_time, 0, 5) : $order->pickup_end_time->format('H:i')) : null,
+                'delivery_address' => $order->delivery_address ?? 'N/A',
+                'delivery_lat' => $order->delivery_lat,
+                'delivery_lng' => $order->delivery_lng,
+                'delivery_distance' => $order->delivery_distance ? number_format($order->delivery_distance, 2) . ' km' : 'N/A',
+                'delivery_fee' => $order->delivery_fee ? number_format($order->delivery_fee, 2) : ($order->delivery_method === 'delivery' ? '0.00' : '0.00'),
+                'delivery_eta' => $order->delivery_eta ?? 'N/A',
+                'delivery_instructions' => $order->delivery_instructions ?? 'None',
+                'pickup_date' => $pickupDate,
+                'pickup_start_time' => $pickupStartTime,
+                'pickup_end_time' => $pickupEndTime,
+                'pickup_time_range' => $pickupStartTime && $pickupEndTime 
+                    ? $pickupStartTime . ' - ' . $pickupEndTime 
+                    : ($pickupEndTime ? $pickupEndTime : null),
                 'items' => [
                     [
                         'name' => $order->foodListing->name,
@@ -767,8 +911,8 @@ class EstablishmentController extends Controller
                     ]
                 ],
                 'subtotal' => (float) $order->total_price,
-                'delivery_fee' => $order->delivery_method === 'delivery' ? 57.00 : 0.00,
-                'total' => (float) $order->total_price + ($order->delivery_method === 'delivery' ? 57.00 : 0.00),
+                'delivery_fee_amount' => 0.00,
+                'total' => (float) $order->total_price,
                 'store_name' => $order->establishment->business_name ?? ($order->establishment->owner_fname . ' ' . $order->establishment->owner_lname),
                 'store_address' => $order->establishment->address ?? $order->foodListing->address ?? 'N/A',
             ]
@@ -785,9 +929,45 @@ class EstablishmentController extends Controller
         $establishmentId = Session::get('user_id');
         
         // Calculate total earnings from completed orders
-        $totalEarnings = Order::where('establishment_id', $establishmentId)
+        // Total gross earnings
+        $totalGrossEarnings = Order::where('establishment_id', $establishmentId)
             ->where('status', 'completed')
             ->sum('total_price');
+        
+        // Total platform fees
+        $totalPlatformFees = Order::where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->sum('platform_fee');
+        
+        // Total net earnings
+        $totalNetEarnings = Order::where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->sum('net_earnings');
+        
+        // If net_earnings is null for some orders, calculate it
+        if ($totalNetEarnings == 0 && $totalGrossEarnings > 0) {
+            // Backfill: calculate net earnings for orders without it
+            $ordersWithoutNet = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->whereNull('net_earnings')
+                ->get();
+            
+            foreach ($ordersWithoutNet as $order) {
+                $platformFee = round($order->total_price * 0.05, 2);
+                $netEarnings = round($order->total_price - $platformFee, 2);
+                $order->platform_fee = $platformFee;
+                $order->net_earnings = $netEarnings;
+                $order->save();
+            }
+            
+            // Recalculate totals
+            $totalPlatformFees = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->sum('platform_fee');
+            $totalNetEarnings = Order::where('establishment_id', $establishmentId)
+                ->where('status', 'completed')
+                ->sum('net_earnings');
+        }
         
         // Get completed orders for display
         $completedOrders = Order::with(['foodListing', 'consumer'])
@@ -796,6 +976,10 @@ class EstablishmentController extends Controller
             ->orderBy('completed_at', 'desc')
             ->get()
             ->map(function ($order) {
+                // Calculate fee if not set
+                $platformFee = $order->platform_fee ?? round($order->total_price * 0.05, 2);
+                $netEarnings = $order->net_earnings ?? round($order->total_price - $platformFee, 2);
+                
                 return [
                     'id' => $order->id,
                     'order_number' => $order->order_number,
@@ -803,6 +987,8 @@ class EstablishmentController extends Controller
                     'quantity' => $order->quantity,
                     'unit_price' => (float) $order->unit_price,
                     'total_price' => (float) $order->total_price,
+                    'platform_fee' => (float) $platformFee,
+                    'net_earnings' => (float) $netEarnings,
                     'customer_name' => $order->customer_name,
                     'payment_method' => $this->formatPaymentMethod($order->payment_method),
                     'completed_at' => $order->completed_at ? $order->completed_at->format('M d, Y') : null,
@@ -811,7 +997,7 @@ class EstablishmentController extends Controller
             })
             ->toArray();
 
-        // Calculate daily earnings (last 7 days)
+        // Calculate daily earnings (last 7 days) - using net earnings
         $dailyEarnings = [];
         // Map day of week (0=Sunday, 1=Monday, etc.) to labels
         $dayLabels = ['SUN', 'M', 'T', 'W', 'TH', 'FRI', 'SAT'];
@@ -822,7 +1008,16 @@ class EstablishmentController extends Controller
             $dayEarnings = Order::where('establishment_id', $establishmentId)
                 ->where('status', 'completed')
                 ->whereDate('completed_at', $date->toDateString())
-                ->sum('total_price');
+                ->sum('net_earnings');
+            
+            // If net_earnings is null, calculate from total_price
+            if ($dayEarnings == 0) {
+                $gross = Order::where('establishment_id', $establishmentId)
+                    ->where('status', 'completed')
+                    ->whereDate('completed_at', $date->toDateString())
+                    ->sum('total_price');
+                $dayEarnings = $gross * 0.95; // 95% after 5% fee
+            }
             
             $dailyEarnings[] = [
                 'label' => $dayLabels[$dayOfWeek],
@@ -830,7 +1025,7 @@ class EstablishmentController extends Controller
             ];
         }
 
-        // Calculate monthly earnings (last 12 months)
+        // Calculate monthly earnings (last 12 months) - using net earnings
         $monthlyEarnings = [];
         $monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
         
@@ -840,7 +1035,17 @@ class EstablishmentController extends Controller
                 ->where('status', 'completed')
                 ->whereYear('completed_at', $date->year)
                 ->whereMonth('completed_at', $date->month)
-                ->sum('total_price');
+                ->sum('net_earnings');
+            
+            // If net_earnings is null, calculate from total_price
+            if ($monthEarnings == 0) {
+                $gross = Order::where('establishment_id', $establishmentId)
+                    ->where('status', 'completed')
+                    ->whereYear('completed_at', $date->year)
+                    ->whereMonth('completed_at', $date->month)
+                    ->sum('total_price');
+                $monthEarnings = $gross * 0.95;
+            }
             
             $monthlyEarnings[] = [
                 'label' => $monthLabels[$date->month - 1],
@@ -848,14 +1053,23 @@ class EstablishmentController extends Controller
             ];
         }
 
-        // Calculate yearly earnings (last 5 years)
+        // Calculate yearly earnings (last 5 years) - using net earnings
         $yearlyEarnings = [];
         for ($i = 4; $i >= 0; $i--) {
             $year = now()->subYears($i)->year;
             $yearEarnings = Order::where('establishment_id', $establishmentId)
                 ->where('status', 'completed')
                 ->whereYear('completed_at', $year)
-                ->sum('total_price');
+                ->sum('net_earnings');
+            
+            // If net_earnings is null, calculate from total_price
+            if ($yearEarnings == 0) {
+                $gross = Order::where('establishment_id', $establishmentId)
+                    ->where('status', 'completed')
+                    ->whereYear('completed_at', $year)
+                    ->sum('total_price');
+                $yearEarnings = $gross * 0.95;
+            }
             
             $yearlyEarnings[] = [
                 'label' => (string) $year,
@@ -865,12 +1079,214 @@ class EstablishmentController extends Controller
 
         return view('establishment.earnings', compact(
             'user', 
-            'totalEarnings', 
-            'completedOrders',
-            'dailyEarnings',
-            'monthlyEarnings',
+            'totalGrossEarnings',
+            'totalPlatformFees',
+            'totalNetEarnings',
+            'completedOrders', 
+            'dailyEarnings', 
+            'monthlyEarnings', 
             'yearlyEarnings'
         ));
+    }
+
+    /**
+     * Export Establishment Earnings
+     */
+    public function exportEarnings(Request $request, $type)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+
+        $establishmentId = Session::get('user_id');
+        $user = $this->getUserData();
+
+        // Get completed orders
+        $orders = Order::with(['foodListing', 'consumer'])
+            ->where('establishment_id', $establishmentId)
+            ->where('status', 'completed')
+            ->orderBy('completed_at', 'desc')
+            ->get()
+            ->map(function ($order) {
+                $platformFee = $order->platform_fee ?? round($order->total_price * 0.05, 2);
+                $netEarnings = $order->net_earnings ?? round($order->total_price - $platformFee, 2);
+                
+                return [
+                    'order_number' => $order->order_number,
+                    'product_name' => $order->foodListing->name ?? 'Unknown Product',
+                    'quantity' => $order->quantity,
+                    'unit_price' => (float) $order->unit_price,
+                    'total_price' => (float) $order->total_price,
+                    'platform_fee' => (float) $platformFee,
+                    'net_earnings' => (float) $netEarnings,
+                    'customer_name' => $order->customer_name,
+                    'payment_method' => $this->formatPaymentMethod($order->payment_method),
+                    'completed_at' => $order->completed_at ? $order->completed_at->format('Y-m-d H:i:s') : null,
+                ];
+            });
+
+        switch ($type) {
+            case 'csv':
+                return $this->exportEarningsToCsv($orders, $user);
+            case 'excel':
+                return $this->exportEarningsToExcel($orders, $user);
+            case 'pdf':
+                return $this->exportEarningsToPdf($orders, $user);
+            default:
+                return redirect()->back()->with('error', 'Invalid export type.');
+        }
+    }
+
+    /**
+     * Export Earnings to CSV
+     */
+    private function exportEarningsToCsv($orders, $user)
+    {
+        $filename = 'earnings_' . date('Y-m-d_His') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function() use ($orders, $user) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Headers
+            fputcsv($file, [
+                'Order Number',
+                'Item Sold',
+                'Quantity',
+                'Unit Price',
+                'Gross Amount',
+                'Platform Fee (5%)',
+                'Net Earnings',
+                'Customer Name',
+                'Payment Method',
+                'Date Completed'
+            ]);
+
+            // Data rows
+            foreach ($orders as $order) {
+                fputcsv($file, [
+                    $order['order_number'],
+                    $order['product_name'],
+                    $order['quantity'],
+                    $order['unit_price'],
+                    $order['total_price'],
+                    $order['platform_fee'],
+                    $order['net_earnings'],
+                    $order['customer_name'],
+                    $order['payment_method'],
+                    $order['completed_at'] ?? 'N/A'
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export Earnings to Excel
+     */
+    private function exportEarningsToExcel($orders, $user)
+    {
+        $filename = 'earnings_' . date('Y-m-d_His') . '.xlsx';
+        
+        $data = [];
+        
+        // Headers
+        $data[] = [
+            'Order Number',
+            'Item Sold',
+            'Quantity',
+            'Unit Price',
+            'Gross Amount',
+            'Platform Fee (5%)',
+            'Net Earnings',
+            'Customer Name',
+            'Payment Method',
+            'Date Completed'
+        ];
+        
+        // Data rows
+        foreach ($orders as $order) {
+            $data[] = [
+                $order['order_number'],
+                $order['product_name'],
+                $order['quantity'],
+                $order['unit_price'],
+                $order['total_price'],
+                $order['platform_fee'],
+                $order['net_earnings'],
+                $order['customer_name'],
+                $order['payment_method'],
+                $order['completed_at'] ?? 'N/A'
+            ];
+        }
+        
+        return Excel::create($filename, function($excel) use ($data) {
+            $excel->sheet('Earnings', function($sheet) use ($data) {
+                $sheet->fromArray($data, null, 'A1', false, false);
+                
+                // Style the header row
+                $sheet->row(1, function($row) {
+                    $row->setFontWeight('bold');
+                    $row->setBackground('#2d5016');
+                    $row->setFontColor('#ffffff');
+                });
+                
+                // Auto-size columns
+                foreach(range('A', 'J') as $column) {
+                    $sheet->getColumnDimension($column)->setAutoSize(true);
+                }
+            });
+        })->export('xlsx');
+    }
+
+    /**
+     * Export Earnings to PDF
+     */
+    private function exportEarningsToPdf($orders, $user)
+    {
+        $establishmentName = $user->business_name ?? 'Establishment';
+        $totalGross = $orders->sum('total_price');
+        $totalFees = $orders->sum('platform_fee');
+        $totalNet = $orders->sum('net_earnings');
+        
+        $data = $orders->map(function ($order) {
+            return [
+                'order_number' => $order['order_number'],
+                'product_name' => $order['product_name'],
+                'quantity' => $order['quantity'],
+                'unit_price' => $order['unit_price'],
+                'total_price' => $order['total_price'],
+                'platform_fee' => $order['platform_fee'],
+                'net_earnings' => $order['net_earnings'],
+                'customer_name' => $order['customer_name'],
+                'payment_method' => $order['payment_method'],
+                'completed_at' => $order['completed_at'] ?? 'N/A',
+            ];
+        })->toArray();
+
+        $filename = 'earnings_' . date('Y-m-d_His') . '.pdf';
+        
+        $pdf = Pdf::loadView('establishment.earnings-pdf', [
+            'data' => $data,
+            'establishmentName' => $establishmentName,
+            'totalGross' => $totalGross,
+            'totalFees' => $totalFees,
+            'totalNet' => $totalNet,
+            'exportDate' => now()->format('F d, Y'),
+            'totalOrders' => count($data)
+        ]);
+        
+        return $pdf->download($filename);
     }
 
     public function donationHub()
@@ -880,24 +1296,34 @@ class EstablishmentController extends Controller
         }
 
         $user = $this->getUserData();
+        $establishmentId = Session::get('user_id');
+        $establishment = Establishment::find($establishmentId);
+        $isVerified = $establishment && $establishment->isVerified();
         
         // Fetch all active donation requests from food banks
-        // Exclude requests that have been accepted by this establishment (to avoid showing their own accepted requests)
+        // Exclude requests that have been accepted (establishment-submitted requests that are accepted should not appear)
         $establishmentId = Session::get('user_id');
-        $donationRequests = DonationRequest::whereIn('status', [
-                DonationRequestService::STATUS_PENDING,
-                DonationRequestService::STATUS_ACCEPTED
-            ])
-            ->where(function($query) use ($establishmentId) {
-                // Only show requests that are either:
-                // 1. Not submitted by this establishment (foodbank-initiated requests), OR
-                // 2. Submitted by this establishment but still pending (not yet accepted)
-                $query->whereNull('establishment_id')
-                      ->orWhere(function($q) use ($establishmentId) {
-                          $q->where('establishment_id', $establishmentId)
-                            ->where('status', DonationRequestService::STATUS_PENDING);
-                      });
+        $donationRequests = DonationRequest::where(function($query) use ($establishmentId) {
+                // Only show requests that are:
+                // 1. Foodbank-initiated requests (whereNull('establishment_id')) that are pending, OR
+                // 2. Establishment-submitted requests that are still pending (not yet accepted)
+                $query->where(function($q) {
+                    // Foodbank-initiated requests - only show pending ones
+                    $q->whereNull('establishment_id')
+                      ->whereIn('status', [
+                          DonationRequestService::STATUS_PENDING,
+                          DonationRequestService::STATUS_PENDING_CONFIRMATION
+                      ]);
+                })->orWhere(function($q) use ($establishmentId) {
+                    // Establishment-submitted requests - only show pending ones (exclude accepted)
+                    $q->where('establishment_id', $establishmentId)
+                      ->whereIn('status', [
+                          DonationRequestService::STATUS_PENDING,
+                          DonationRequestService::STATUS_PENDING_CONFIRMATION
+                      ]);
+                });
             })
+            ->whereDoesntHave('donation') // Exclude requests that have been fulfilled (have a Donation record)
             ->with('foodbank')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -919,7 +1345,9 @@ class EstablishmentController extends Controller
                 return [
                     'id' => $request->donation_request_id,
                     'foodbank_id' => $request->foodbank_id,
+                    'establishment_id' => $request->establishment_id, // Track if this is establishment-submitted
                     'foodbank_name' => $foodbank->organization_name ?? 'Food Bank',
+                    'foodbank_profile_image' => $foodbank->profile_image ?? null,
                     'item_name' => $request->item_name,
                     'quantity' => $request->quantity,
                     'category' => $request->category,
@@ -932,8 +1360,6 @@ class EstablishmentController extends Controller
                     'start_time' => $request->start_time ? (is_string($request->start_time) ? substr($request->start_time, 0, 5) : $request->start_time->format('H:i')) : null,
                     'end_time' => $request->end_time ? (is_string($request->end_time) ? substr($request->end_time, 0, 5) : $request->end_time->format('H:i')) : null,
                     'address' => $request->address,
-                    'delivery_option' => $request->delivery_option,
-                    'delivery_option_display' => ucfirst($request->delivery_option),
                     'contact_name' => $request->contact_name,
                     'phone_number' => $request->phone_number,
                     'email' => $request->email,
@@ -957,6 +1383,7 @@ class EstablishmentController extends Controller
                     'email' => $foodbank->email,
                     'contact_person' => $foodbank->contact_person ?? 'Not provided',
                     'registration_number' => $foodbank->registration_number ?? 'Not provided',
+                    'profile_image' => $foodbank->profile_image ?? null,
                 ];
             })
             ->toArray();
@@ -964,8 +1391,52 @@ class EstablishmentController extends Controller
         return view('establishment.donation-hub', compact(
             'user',
             'donationRequests',
-            'foodbanks'
+            'isVerified',
+            'foodbanks',
+            'establishment'
         ));
+    }
+
+    /**
+     * Check status of donation requests (for real-time updates)
+     */
+    public function checkRequestStatus(Request $request)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied.'
+            ], 403);
+        }
+
+        $establishmentId = Session::get('user_id');
+        $requestIds = $request->input('request_ids', []);
+
+        if (empty($requestIds) || !is_array($requestIds)) {
+            return response()->json([
+                'success' => true,
+                'accepted_requests' => []
+            ]);
+        }
+
+        // Check which requests have been accepted or have a linked donation
+        $acceptedRequests = DonationRequest::whereIn('donation_request_id', $requestIds)
+            ->where(function($query) use ($establishmentId, $requestIds) {
+                // Requests submitted by this establishment that are accepted
+                $query->where(function($q) use ($establishmentId) {
+                    $q->where('establishment_id', $establishmentId)
+                      ->where('status', DonationRequestService::STATUS_ACCEPTED);
+                })
+                // Or requests that have been fulfilled (have a Donation record)
+                ->orWhereHas('donation');
+            })
+            ->pluck('donation_request_id')
+            ->toArray();
+
+        return response()->json([
+            'success' => true,
+            'accepted_requests' => $acceptedRequests
+        ]);
     }
 
     /**
@@ -977,6 +1448,15 @@ class EstablishmentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Access denied. Please login as an establishment.'
+            ], 403);
+        }
+
+        // Check verification status
+        if (!$this->checkVerification()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is not verified. Please wait for admin approval.',
+                'error' => 'unverified_account'
             ], 403);
         }
 
@@ -997,20 +1477,20 @@ class EstablishmentController extends Controller
                 ], 404);
             }
 
-            // Validate the donation details
+            // Validate the donation details (pickup-only)
         $validated = $request->validate([
             'item_name' => 'required|string|max:255',
             'quantity' => 'required|integer|min:1',
             'unit' => 'nullable|string|max:20',
             'category' => 'required|string',
             'description' => 'nullable|string',
-            'expiry_date' => 'nullable|date|after_or_equal:today',
-            'scheduled_date' => 'required|date|after_or_equal:today',
-            'scheduled_time' => 'nullable|date_format:H:i',
-            'pickup_method' => 'required|in:pickup,delivery',
+            'pickup_method' => 'nullable|in:pickup', // Always pickup, but accept if sent
             'establishment_notes' => 'nullable|string',
         ]);
 
+            // Set default scheduled_date to today if not provided
+            $scheduledDate = $request->input('scheduled_date') ? \Carbon\Carbon::parse($request->input('scheduled_date')) : now();
+            
             // Create the donation linked to this request
             $donation = Donation::create([
                 'foodbank_id' => $donationRequest->foodbank_id,
@@ -1021,11 +1501,11 @@ class EstablishmentController extends Controller
                 'quantity' => $validated['quantity'],
                 'unit' => $validated['unit'] ?? 'pcs',
                 'description' => $validated['description'] ?? null,
-                'expiry_date' => $validated['expiry_date'] ?? null,
+                'expiry_date' => null, // Not collected in pickup-only form
                 'status' => 'pending_pickup',
-                'pickup_method' => $validated['pickup_method'],
-                'scheduled_date' => $validated['scheduled_date'],
-                'scheduled_time' => $validated['scheduled_time'] ?? null,
+                'pickup_method' => 'pickup', // Always pickup
+                'scheduled_date' => $scheduledDate,
+                'scheduled_time' => null, // Not collected in pickup-only form
                 'establishment_notes' => $validated['establishment_notes'] ?? null,
                 'is_urgent' => false,
                 'is_nearing_expiry' => false,
@@ -1116,9 +1596,22 @@ class EstablishmentController extends Controller
     public function storeDonationRequest(Request $request)
     {
         if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            \Log::warning('storeDonationRequest: Access denied', [
+                'has_user' => Session::has('user_id'),
+                'user_type' => Session::get('user_type'),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Access denied. Please login as an establishment.'
+            ], 403);
+        }
+
+        // Check verification status
+        if (!$this->checkVerification()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is not verified. Please wait for admin approval.',
+                'error' => 'unverified_account'
             ], 403);
         }
 
@@ -1132,54 +1625,144 @@ class EstablishmentController extends Controller
             'unit' => 'nullable|string|max:20',
             'category' => 'required|string',
             'description' => 'nullable|string',
-            'expiry_date' => 'nullable|date|after_or_equal:today',
-            'scheduled_date' => 'required|date|after_or_equal:today',
-            'scheduled_time' => 'nullable|date_format:H:i',
-            'pickup_method' => 'required|in:pickup,delivery',
+            'pickup_method' => 'nullable|in:pickup', // Always pickup, but accept it if sent
             'establishment_notes' => 'nullable|string',
         ]);
 
         try {
+            // Get establishment data for required fields
+            $establishment = Establishment::find($establishmentId);
+            if (!$establishment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Establishment not found.'
+                ], 404);
+            }
+            
+            // Ensure foodbank_id is a string (UUID)
+            $foodbankId = $validated['foodbank_id'];
+            if (!is_string($foodbankId)) {
+                $foodbankId = (string) $foodbankId;
+            }
+            
+            // Check for duplicate active donation request
+            // Same establishment, same foodbank, same item (case-insensitive), with active status (pending_confirmation or accepted)
+            $existingRequest = DonationRequest::where('establishment_id', $establishmentId)
+                ->where('foodbank_id', $foodbankId)
+                ->whereRaw('LOWER(item_name) = LOWER(?)', [$validated['item_name']])
+                ->whereIn('status', [
+                    DonationRequestService::STATUS_PENDING_CONFIRMATION,
+                    DonationRequestService::STATUS_ACCEPTED
+                ])
+                ->first();
+            
+            if ($existingRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You already have an active donation request for this item with this food bank.'
+                ], 409); // 409 Conflict status code
+            }
+            
+            // Prepare contact information from establishment
+            $contactName = trim(($establishment->owner_fname ?? '') . ' ' . ($establishment->owner_lname ?? ''));
+            if (empty($contactName)) {
+                $contactName = $establishment->business_name ?? 'Establishment Contact';
+            }
+            
+            // Set default scheduled_date to today if not provided
+            $scheduledDate = $request->input('scheduled_date') ? \Carbon\Carbon::parse($request->input('scheduled_date')) : now();
+            $dropoffDate = $scheduledDate;
+            
             // Create the donation request (from establishment to foodbank)
-            $donationRequest = DonationRequest::create([
-                'foodbank_id' => $validated['foodbank_id'],
-                'establishment_id' => $establishmentId,
-                'item_name' => $validated['item_name'],
-                'quantity' => $validated['quantity'],
-                'unit' => $validated['unit'] ?? 'pcs',
-                'category' => $validated['category'],
-                'description' => $validated['description'] ?? null,
-                'expiry_date' => $validated['expiry_date'] ?? null,
-                'scheduled_date' => $validated['scheduled_date'],
-                'scheduled_time' => !empty($validated['scheduled_time']) ? $validated['scheduled_time'] : null,
-                'pickup_method' => $validated['pickup_method'],
-                'establishment_notes' => $validated['establishment_notes'] ?? null,
-                'status' => DonationRequestService::STATUS_PENDING,
-            ]);
+            // Include required fields that aren't in the form but are needed by the database
+            try {
+                $donationRequest = DonationRequest::create([
+                    'foodbank_id' => $foodbankId,
+                    'establishment_id' => $establishmentId,
+                    'item_name' => $validated['item_name'],
+                    'quantity' => $validated['quantity'],
+                    'unit' => $validated['unit'] ?? 'pcs',
+                    'category' => $validated['category'],
+                    'description' => $validated['description'] ?? null,
+                    'expiry_date' => null, // Not collected in pickup-only form
+                    'scheduled_date' => $scheduledDate,
+                    'scheduled_time' => null, // Not collected in pickup-only form
+                    'pickup_method' => 'pickup', // Always pickup
+                    'establishment_notes' => $validated['establishment_notes'] ?? null,
+                    'status' => DonationRequestService::STATUS_PENDING_CONFIRMATION,
+                    // Required fields from original schema (not collected in establishment form)
+                    'distribution_zone' => 'N/A', // Not used for pickup-only requests
+                    'dropoff_date' => $dropoffDate, // Use scheduled_date as dropoff_date
+                    'address' => $establishment->formatted_address ?? $establishment->address ?? 'Address not provided', // Use establishment's registered address
+                    'contact_name' => $contactName,
+                    'phone_number' => $establishment->phone_no ?? 'Not provided',
+                    'email' => $establishment->email ?? 'notprovided@example.com',
+                    'time_option' => 'anytime', // Default for establishment requests
+                ]);
+                
+                
+            } catch (\Illuminate\Database\QueryException $e) {
+                \Log::error('Database error creating donation request', [
+                    'error' => $e->getMessage(),
+                    'sql' => $e->getSql(),
+                    'bindings' => $e->getBindings(),
+                ]);
+                throw $e;
+            } catch (\Exception $e) {
+                \Log::error('Unexpected error creating donation request', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                throw $e;
+            }
             
             // Reload donation request with relationships for notification
             $donationRequest->load(['foodbank', 'establishment']);
             
-            // Send notification to foodbank
-            NotificationService::notifyDonationRequested($donationRequest);
+            // Send notification to foodbank (wrap in try-catch to prevent blocking)
+            try {
+                NotificationService::notifyDonationRequested($donationRequest);
+            } catch (\Exception $e) {
+                \Log::error('Error sending notification for donation request', [
+                    'donation_request_id' => $donationRequest->donation_request_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
-            // Dispatch event for automatic logging
-            \App\Events\DonationRequestCreated::dispatch($donationRequest, $establishmentId, 'establishment');
+            // Dispatch event for automatic logging (wrap in try-catch to prevent blocking)
+            try {
+                \App\Events\DonationRequestCreated::dispatch($donationRequest, $establishmentId, 'establishment');
+            } catch (\Exception $e) {
+                \Log::error('Error dispatching DonationRequestCreated event', [
+                    'donation_request_id' => $donationRequest->donation_request_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Donation request submitted successfully! The foodbank will review your request.',
                 'data' => [
                     'id' => $donationRequest->donation_request_id,
+                    'foodbank_id' => $donationRequest->foodbank_id,
+                    'status' => $donationRequest->status,
                 ]
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation failed for donation request', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all(),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed. Please check your input.',
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Exception in storeDonationRequest', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             \Log::error('Donation request submission error: ' . $e->getMessage(), [
                 'establishment_id' => $establishmentId,
                 'request_data' => $request->all(),
@@ -1205,10 +1788,15 @@ class EstablishmentController extends Controller
 
         $user = $this->getUserData();
         $establishmentId = Session::get('user_id');
+        $establishment = Establishment::find($establishmentId);
+        $isVerified = $establishment && $establishment->isVerified();
         
-        // Fetch PENDING requests
+        // Fetch PENDING requests (including pending_confirmation)
         $pendingRequests = DonationRequest::where('establishment_id', $establishmentId)
-            ->where('status', \App\Services\DonationRequestService::STATUS_PENDING)
+            ->whereIn('status', [
+                \App\Services\DonationRequestService::STATUS_PENDING,
+                \App\Services\DonationRequestService::STATUS_PENDING_CONFIRMATION
+            ])
             ->with(['foodbank'])
             ->orderBy('created_at', 'desc')
             ->get()
@@ -1259,6 +1847,47 @@ class EstablishmentController extends Controller
         ));
     }
 
+    /**
+     * Get donation request details for establishment
+     */
+    public function getDonationRequestDetails($id)
+    {
+        if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please login as an establishment.'
+            ], 403);
+        }
+
+        $establishmentId = Session::get('user_id');
+
+        try {
+            $donationRequest = DonationRequest::where('donation_request_id', $id)
+                ->where('establishment_id', $establishmentId)
+                ->with(['foodbank', 'donation'])
+                ->first();
+
+            if (!$donationRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Donation request not found.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => \App\Services\DonationRequestService::formatRequestData($donationRequest)
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching donation request details: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch donation request details.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred.'
+            ], 500);
+        }
+    }
+
     public function impactReports()
     {
         if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
@@ -1267,6 +1896,8 @@ class EstablishmentController extends Controller
 
         $user = $this->getUserData();
         $establishmentId = Session::get('user_id');
+        $establishment = Establishment::find($establishmentId);
+        $isVerified = $establishment && $establishment->isVerified();
         
         // Get all completed orders for this establishment
         $completedOrders = Order::with('foodListing')
@@ -1342,9 +1973,9 @@ class EstablishmentController extends Controller
             ];
         }
         
-        // Calculate foodbanks ranking by donated items
+        // Calculate foodbanks ranking by donated items (only completed/collected donations)
         $topDonatedItems = Donation::where('establishment_id', $establishmentId)
-            ->whereIn('status', ['collected', 'ready_for_collection'])
+            ->where('status', 'collected')
             ->with('foodbank')
             ->get()
             ->groupBy('foodbank_id')
@@ -1455,7 +2086,7 @@ class EstablishmentController extends Controller
         }
         
         $topDonatedItems = Donation::where('establishment_id', $establishmentId)
-            ->whereIn('status', ['collected', 'ready_for_collection'])
+            ->where('status', 'collected')
             ->with('foodbank')
             ->get()
             ->groupBy('foodbank_id')
@@ -1616,6 +2247,7 @@ class EstablishmentController extends Controller
 
         $establishmentId = Session::get('user_id');
         $userData = Establishment::find($establishmentId);
+        $isVerified = $userData && $userData->isVerified();
         
         if (!$userData) {
             return redirect()->route('login')->with('error', 'Establishment not found.');
@@ -1630,6 +2262,10 @@ class EstablishmentController extends Controller
             return redirect()->route('login')->with('error', 'Please login as an establishment to access this page.');
         }
 
+        $establishmentId = Session::get('user_id');
+        $establishment = Establishment::find($establishmentId);
+        $isVerified = $establishment && $establishment->isVerified();
+
         return view('establishment.help');
     }
 
@@ -1642,6 +2278,15 @@ class EstablishmentController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
+        // Check verification status
+        if (!$this->checkVerification()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Your account is not verified. Please wait for admin approval.',
+                'message' => 'Your account is not verified. Please wait for admin approval.'
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -1651,8 +2296,6 @@ class EstablishmentController extends Controller
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
             'expiry_date' => 'required|date|after_or_equal:today',
             'address' => 'nullable|string|max:500',
-            'pickup' => 'nullable|in:0,1,true,false',
-            'delivery' => 'nullable|in:0,1,true,false',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
@@ -1699,8 +2342,6 @@ class EstablishmentController extends Controller
                 'discounted_price' => $discountedPrice,
                 'expiry_date' => $data['expiry_date'],
                 'address' => $data['address'],
-                'pickup_available' => in_array($data['pickup'], ['1', 1, 'true', true]),
-                'delivery_available' => in_array($data['delivery'], ['1', 1, 'true', true]),
                 'image_path' => $imagePath,
                 'status' => 'active'
             ]);
@@ -1730,6 +2371,15 @@ class EstablishmentController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
+        // Check verification status
+        if (!$this->checkVerification()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Your account is not verified. Please wait for admin approval.',
+                'message' => 'Your account is not verified. Please wait for admin approval.'
+            ], 403);
+        }
+
         $establishmentId = Session::get('user_id');
         $foodListing = FoodListing::where('id', $id)
             ->where('establishment_id', $establishmentId)
@@ -1749,8 +2399,6 @@ class EstablishmentController extends Controller
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
             'expiry_date' => 'required|date|after_or_equal:today',
             'address' => 'nullable|string|max:500',
-            'pickup' => 'nullable|in:0,1,true,false',
-            'delivery' => 'nullable|in:0,1,true,false',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
@@ -1789,7 +2437,8 @@ class EstablishmentController extends Controller
                 }
             }
 
-            $foodListing->update([
+            // Prepare update data - exclude status to prevent establishments from changing it
+            $updateData = [
                 'name' => $data['name'],
                 'description' => $data['description'],
                 'category' => $data['category'],
@@ -1799,10 +2448,13 @@ class EstablishmentController extends Controller
                 'discounted_price' => $discountedPrice,
                 'expiry_date' => $data['expiry_date'],
                 'address' => $data['address'],
-                'pickup_available' => in_array($data['pickup'], ['1', 1, 'true', true]),
-                'delivery_available' => in_array($data['delivery'], ['1', 1, 'true', true]),
                 'image_path' => $data['image_path'] ?? $foodListing->image_path,
-            ]);
+            ];
+            
+            // Note: Status is intentionally excluded - only admins can change status
+            // Establishments can edit all other fields even when disabled
+            
+            $foodListing->update($updateData);
 
             return response()->json([
                 'success' => true,
@@ -1822,6 +2474,15 @@ class EstablishmentController extends Controller
     {
         if (!Session::has('user_id') || Session::get('user_type') !== 'establishment') {
             return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        // Check verification status
+        if (!$this->checkVerification()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Your account is not verified. Please wait for admin approval.',
+                'message' => 'Your account is not verified. Please wait for admin approval.'
+            ], 403);
         }
 
         $establishmentId = Session::get('user_id');
@@ -1862,15 +2523,32 @@ class EstablishmentController extends Controller
 
         $user = $this->getUserData();
         $establishmentId = Session::get('user_id');
+        $establishment = Establishment::find($establishmentId);
+        $isVerified = $establishment && $establishment->isVerified();
+        
+        // Get Donation records (fulfilled donations)
+        $donationQuery = Donation::where('establishment_id', $establishmentId)
+            ->with(['foodbank', 'donationRequest']);
 
-        // Build query with filters
-        $query = Donation::where('establishment_id', $establishmentId)
-            ->with(['foodbank']);
+        // Get DonationRequest records (accepted, declined, completed requests)
+        $requestQuery = DonationRequest::where('establishment_id', $establishmentId)
+            ->whereIn('status', [
+                \App\Services\DonationRequestService::STATUS_ACCEPTED,
+                \App\Services\DonationRequestService::STATUS_DECLINED,
+                \App\Services\DonationRequestService::STATUS_COMPLETED
+            ])
+            ->with(['foodbank', 'donation']);
 
         // Apply search filter
         if ($request->filled('search')) {
             $search = $request->get('search');
-            $query->where(function($q) use ($search) {
+            $donationQuery->where(function($q) use ($search) {
+                $q->where('item_name', 'like', "%{$search}%")
+                  ->orWhereHas('foodbank', function($q) use ($search) {
+                      $q->where('organization_name', 'like', "%{$search}%");
+                  });
+            });
+            $requestQuery->where(function($q) use ($search) {
                 $q->where('item_name', 'like', "%{$search}%")
                   ->orWhereHas('foodbank', function($q) use ($search) {
                       $q->where('organization_name', 'like', "%{$search}%");
@@ -1880,27 +2558,46 @@ class EstablishmentController extends Controller
 
         // Apply status filter
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $status = $request->status;
+            // Check if it's a donation status or request status
+            $donationStatuses = ['pending_pickup', 'ready_for_collection', 'collected', 'cancelled', 'expired'];
+            $requestStatuses = ['accepted', 'declined', 'completed'];
+            
+            if (in_array($status, $donationStatuses)) {
+                $donationQuery->where('status', $status);
+            } elseif (in_array($status, $requestStatuses)) {
+                $requestQuery->where('status', $status);
+            }
         }
 
         // Apply date filters
         if ($request->filled('date_from')) {
-            $query->where('created_at', '>=', $request->date_from);
+            $donationQuery->where('created_at', '>=', $request->date_from);
+            $requestQuery->where('created_at', '>=', $request->date_from);
         }
 
         if ($request->filled('date_to')) {
-            $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
+            $donationQuery->where('created_at', '<=', $request->date_to . ' 23:59:59');
+            $requestQuery->where('created_at', '<=', $request->date_to . ' 23:59:59');
         }
 
-        // Get donations
-        $donations = $query->orderBy('created_at', 'desc')->get();
+        // Get all donations and requests for statistics
+        $allDonations = Donation::where('establishment_id', $establishmentId)->get();
+        $allRequests = DonationRequest::where('establishment_id', $establishmentId)
+            ->whereIn('status', [
+                \App\Services\DonationRequestService::STATUS_ACCEPTED,
+                \App\Services\DonationRequestService::STATUS_DECLINED,
+                \App\Services\DonationRequestService::STATUS_COMPLETED
+            ])
+            ->get();
 
-        // Format donations for view
-        $formattedDonations = $donations->map(function ($donation) {
+        // Format Donation records
+        $formattedDonations = $donationQuery->get()->map(function ($donation) {
             $foodbank = $donation->foodbank;
             
             return [
                 'id' => $donation->donation_id,
+                'type' => 'donation',
                 'donation_number' => $donation->donation_number,
                 'item_name' => $donation->item_name,
                 'category' => $donation->item_category,
@@ -1918,18 +2615,82 @@ class EstablishmentController extends Controller
                 'scheduled_time' => $donation->scheduled_time ? (is_string($donation->scheduled_time) ? substr($donation->scheduled_time, 0, 5) : $donation->scheduled_time->format('H:i')) : 'N/A',
                 'pickup_method' => ucfirst($donation->pickup_method),
                 'collected_at' => $donation->collected_at ? $donation->collected_at->format('F d, Y H:i') : 'N/A',
+                'sort_date' => $donation->collected_at ?? $donation->created_at,
             ];
-        })->toArray();
+        });
 
-        // Calculate statistics
-        $allDonations = Donation::where('establishment_id', $establishmentId)->get();
+        // Format DonationRequest records
+        $formattedRequests = $requestQuery->get()->map(function ($donationRequest) {
+            $foodbank = $donationRequest->foodbank;
+            $formatted = \App\Services\DonationRequestService::formatRequestData($donationRequest);
+            
+            // Format scheduled date
+            $scheduledDate = $donationRequest->scheduled_date ?? $donationRequest->dropoff_date ?? $donationRequest->created_at;
+            $scheduledDateDisplay = $scheduledDate instanceof \Carbon\Carbon 
+                ? $scheduledDate->format('F d, Y') 
+                : ($scheduledDate ? \Carbon\Carbon::parse($scheduledDate)->format('F d, Y') : 'N/A');
+            
+            return [
+                'id' => $donationRequest->donation_request_id,
+                'type' => 'request',
+                'donation_number' => $donationRequest->donation ? $donationRequest->donation->donation_number : 'REQ-' . substr($donationRequest->donation_request_id, 0, 8),
+                'item_name' => $donationRequest->item_name,
+                'category' => $donationRequest->category,
+                'quantity' => $donationRequest->quantity,
+                'unit' => $donationRequest->unit ?? 'pcs',
+                'date_donated' => $donationRequest->created_at->format('F d, Y'),
+                'date_donated_raw' => $donationRequest->created_at->format('Y-m-d'),
+                'foodbank_name' => $foodbank->organization_name ?? 'Unknown',
+                'foodbank_id' => $donationRequest->foodbank_id,
+                'status' => $donationRequest->status,
+                'status_display' => \App\Services\DonationRequestService::getStatusDisplay($donationRequest->status),
+                'description' => $donationRequest->description,
+                'expiry_date' => $donationRequest->expiry_date ? $donationRequest->expiry_date->format('F d, Y') : 'N/A',
+                'scheduled_date' => $scheduledDateDisplay,
+                'scheduled_time' => $formatted['scheduled_time_display'] ?? 'N/A',
+                'pickup_method' => 'Pickup',
+                'collected_at' => $donationRequest->fulfilled_at ? $donationRequest->fulfilled_at->format('F d, Y H:i') : 'N/A',
+                'sort_date' => $donationRequest->fulfilled_at ?? $donationRequest->updated_at ?? $donationRequest->created_at,
+            ];
+        });
+
+        // Merge and sort by date (most recent first)
+        // Convert both to regular collections to avoid Eloquent Collection merge issues
+        $allRecords = collect($formattedDonations)->merge(collect($formattedRequests))
+            ->sortByDesc(function ($record) {
+                return $record['sort_date'] instanceof \Carbon\Carbon 
+                    ? $record['sort_date']->timestamp 
+                    : \Carbon\Carbon::parse($record['sort_date'])->timestamp;
+            })
+            ->values();
+
+        // Create a custom paginator
+        $currentPage = $request->get('page', 1);
+        $perPage = 10;
+        $currentItems = $allRecords->slice(($currentPage - 1) * $perPage, $perPage)->values()->toArray();
+        $formattedDonations = new \Illuminate\Pagination\LengthAwarePaginator(
+            $currentItems,
+            $allRecords->count(),
+            $perPage,
+            $currentPage,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        // Calculate statistics (include both donations and requests)
+        $totalQuantity = $allDonations->sum('quantity') + $allRequests->sum('quantity');
+        $allFoodbankIds = $allDonations->pluck('foodbank_id')->merge($allRequests->pluck('foodbank_id'))->unique();
         $stats = [
-            'total_donations' => $allDonations->count(),
-            'total_quantity' => $allDonations->sum('quantity'),
-            'foodbanks_served' => $allDonations->pluck('foodbank_id')->unique()->count(),
+            'total_donations' => $allDonations->count() + $allRequests->count(),
+            'total_quantity' => $totalQuantity,
+            'foodbanks_served' => $allFoodbankIds->count(),
         ];
 
-        return view('establishment.donation-history', compact('user', 'formattedDonations', 'stats'));
+        // Get unique categories from both donations and requests
+        $donationCategories = $allDonations->pluck('item_category')->filter()->unique();
+        $requestCategories = $allRequests->pluck('category')->filter()->unique();
+        $categories = $donationCategories->merge($requestCategories)->unique()->sort()->values();
+
+        return view('establishment.donation-history', compact('user', 'formattedDonations', 'stats', 'categories'));
     }
 
     /**
@@ -1943,13 +2704,28 @@ class EstablishmentController extends Controller
 
         $establishmentId = Session::get('user_id');
 
-        // Build query with same filters as donationHistory
-        $query = Donation::where('establishment_id', $establishmentId)
+        // Build queries with same filters as donationHistory - include both Donation and DonationRequest
+        $donationQuery = Donation::where('establishment_id', $establishmentId)
             ->with(['foodbank']);
 
+        $requestQuery = DonationRequest::where('establishment_id', $establishmentId)
+            ->whereIn('status', [
+                \App\Services\DonationRequestService::STATUS_ACCEPTED,
+                \App\Services\DonationRequestService::STATUS_DECLINED,
+                \App\Services\DonationRequestService::STATUS_COMPLETED
+            ])
+            ->with(['foodbank', 'donation']);
+
+        // Apply search filter
         if ($request->filled('search')) {
             $search = $request->get('search');
-            $query->where(function($q) use ($search) {
+            $donationQuery->where(function($q) use ($search) {
+                $q->where('item_name', 'like', "%{$search}%")
+                  ->orWhereHas('foodbank', function($q) use ($search) {
+                      $q->where('organization_name', 'like', "%{$search}%");
+                  });
+            });
+            $requestQuery->where(function($q) use ($search) {
                 $q->where('item_name', 'like', "%{$search}%")
                   ->orWhereHas('foodbank', function($q) use ($search) {
                       $q->where('organization_name', 'like', "%{$search}%");
@@ -1957,27 +2733,140 @@ class EstablishmentController extends Controller
             });
         }
 
+        // Apply status filter
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $status = $request->status;
+            $donationStatuses = ['pending_pickup', 'ready_for_collection', 'collected', 'cancelled', 'expired'];
+            $requestStatuses = ['accepted', 'declined', 'completed'];
+            
+            if (in_array($status, $donationStatuses)) {
+                $donationQuery->where('status', $status);
+            } elseif (in_array($status, $requestStatuses)) {
+                $requestQuery->where('status', $status);
+            }
         }
 
+        // Apply category filter
+        if ($request->filled('category')) {
+            $donationQuery->where('item_category', $request->category);
+            $requestQuery->where('category', $request->category);
+        }
+
+        // Apply date filters
         if ($request->filled('date_from')) {
-            $query->where('created_at', '>=', $request->date_from);
+            $donationQuery->where('created_at', '>=', $request->date_from);
+            $requestQuery->where('created_at', '>=', $request->date_from);
         }
 
         if ($request->filled('date_to')) {
-            $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
+            $donationQuery->where('created_at', '<=', $request->date_to . ' 23:59:59');
+            $requestQuery->where('created_at', '<=', $request->date_to . ' 23:59:59');
         }
 
-        $donations = $query->orderBy('created_at', 'desc')->get();
+        // Get and format both types of records
+        $allDonations = $donationQuery->orderBy('created_at', 'desc')->get();
+        $allRequests = $requestQuery->orderBy('created_at', 'desc')->get();
+
+        // Format records consistently
+        $formattedRecords = collect();
+        
+        // Format Donation records
+        foreach ($allDonations as $donation) {
+            $foodbank = $donation->foodbank;
+            $formattedRecords->push([
+                'type' => 'donation',
+                'donation_number' => $donation->donation_number,
+                'item_name' => $donation->item_name,
+                'category' => $donation->item_category,
+                'quantity' => $donation->quantity,
+                'unit' => $donation->unit ?? 'pcs',
+                'donation_type' => ucfirst($donation->pickup_method ?? 'pickup'),
+                'date_donated' => $donation->created_at->format('Y-m-d H:i:s'),
+                'scheduled_date' => $donation->scheduled_date ? $donation->scheduled_date->format('Y-m-d') : 'N/A',
+                'scheduled_time' => $donation->scheduled_time ? (is_string($donation->scheduled_time) ? substr($donation->scheduled_time, 0, 5) : $donation->scheduled_time->format('H:i')) : 'N/A',
+                'expiry_date' => $donation->expiry_date ? $donation->expiry_date->format('Y-m-d') : 'N/A',
+                'collected_date' => $donation->collected_at ? $donation->collected_at->format('Y-m-d H:i:s') : 'N/A',
+                'status' => ucfirst(str_replace('_', ' ', $donation->status)),
+                'recipient' => $foodbank->organization_name ?? 'Unknown',
+                'description' => $donation->description ?? '',
+                'sort_date' => $donation->collected_at ?? $donation->created_at,
+            ]);
+        }
+
+        // Format DonationRequest records
+        foreach ($allRequests as $donationRequest) {
+            $foodbank = $donationRequest->foodbank;
+            $formatted = \App\Services\DonationRequestService::formatRequestData($donationRequest);
+            
+            $scheduledDate = $donationRequest->scheduled_date ?? $donationRequest->dropoff_date ?? $donationRequest->created_at;
+            $scheduledDateFormatted = $scheduledDate instanceof \Carbon\Carbon 
+                ? $scheduledDate->format('Y-m-d') 
+                : ($scheduledDate ? \Carbon\Carbon::parse($scheduledDate)->format('Y-m-d') : 'N/A');
+            
+            // Format scheduled time - use time_display which handles allDay, anytime, or time ranges
+            $scheduledTimeFormatted = $formatted['time_display'] ?? 'N/A';
+            if ($scheduledTimeFormatted === 'N/A' && $formatted['scheduled_time_display'] && $formatted['scheduled_time_display'] !== 'N/A') {
+                $scheduledTimeFormatted = $formatted['scheduled_time_display'];
+            }
+            
+            // Format expiry date - check if it exists
+            $expiryDateFormatted = 'N/A';
+            if ($donationRequest->expiry_date) {
+                $expiryDateFormatted = $donationRequest->expiry_date instanceof \Carbon\Carbon 
+                    ? $donationRequest->expiry_date->format('Y-m-d') 
+                    : \Carbon\Carbon::parse($donationRequest->expiry_date)->format('Y-m-d');
+            }
+            
+            // Format collected date - only show if request is completed/fulfilled
+            $collectedDateFormatted = 'N/A';
+            if ($donationRequest->fulfilled_at) {
+                $collectedDateFormatted = $donationRequest->fulfilled_at instanceof \Carbon\Carbon 
+                    ? $donationRequest->fulfilled_at->format('Y-m-d H:i:s') 
+                    : \Carbon\Carbon::parse($donationRequest->fulfilled_at)->format('Y-m-d H:i:s');
+            } elseif ($donationRequest->status === \App\Services\DonationRequestService::STATUS_COMPLETED && $donationRequest->donation) {
+                // If completed but no fulfilled_at, use donation's collected_at
+                $donation = $donationRequest->donation;
+                if ($donation->collected_at) {
+                    $collectedDateFormatted = $donation->collected_at instanceof \Carbon\Carbon 
+                        ? $donation->collected_at->format('Y-m-d H:i:s') 
+                        : \Carbon\Carbon::parse($donation->collected_at)->format('Y-m-d H:i:s');
+                }
+            }
+            
+            $formattedRecords->push([
+                'type' => 'request',
+                'donation_number' => $donationRequest->donation ? $donationRequest->donation->donation_number : 'REQ-' . substr($donationRequest->donation_request_id, 0, 8),
+                'item_name' => $donationRequest->item_name,
+                'category' => $donationRequest->category,
+                'quantity' => $donationRequest->quantity,
+                'unit' => $donationRequest->unit ?? 'pcs',
+                'donation_type' => 'Pickup',
+                'date_donated' => $donationRequest->created_at->format('Y-m-d H:i:s'),
+                'scheduled_date' => $scheduledDateFormatted,
+                'scheduled_time' => $scheduledTimeFormatted,
+                'expiry_date' => $expiryDateFormatted,
+                'collected_date' => $collectedDateFormatted,
+                'status' => \App\Services\DonationRequestService::getStatusDisplay($donationRequest->status),
+                'recipient' => $foodbank->organization_name ?? 'Unknown',
+                'description' => $donationRequest->description ?? '',
+                'sort_date' => $donationRequest->fulfilled_at ?? $donationRequest->updated_at ?? $donationRequest->created_at,
+            ]);
+        }
+
+        // Sort by date (most recent first)
+        $formattedRecords = $formattedRecords->sortByDesc(function ($record) {
+            return $record['sort_date'] instanceof \Carbon\Carbon 
+                ? $record['sort_date']->timestamp 
+                : \Carbon\Carbon::parse($record['sort_date'])->timestamp;
+        })->values();
 
         switch ($type) {
             case 'csv':
-                return $this->exportToCsv($donations);
+                return $this->exportToCsv($formattedRecords);
             case 'excel':
-                return $this->exportToExcel($donations);
+                return $this->exportToExcel($formattedRecords);
             case 'pdf':
-                return $this->exportToPdf($donations);
+                return $this->exportToPdf($formattedRecords);
             default:
                 return redirect()->back()->with('error', 'Invalid export type.');
         }
@@ -1986,7 +2875,7 @@ class EstablishmentController extends Controller
     /**
      * Export to CSV
      */
-    private function exportToCsv($donations)
+    private function exportToCsv($records)
     {
         $filename = 'donation_history_' . date('Y-m-d_His') . '.csv';
         
@@ -1996,7 +2885,7 @@ class EstablishmentController extends Controller
         ];
 
         // Add BOM for Excel compatibility
-        $callback = function() use ($donations) {
+        $callback = function() use ($records) {
             $file = fopen('php://output', 'w');
             
             // Add BOM for UTF-8
@@ -2009,33 +2898,34 @@ class EstablishmentController extends Controller
                 'Category',
                 'Quantity',
                 'Unit',
+                'Donation Type',
                 'Date Donated',
-                'Recipient (Foodbank)',
-                'Status',
                 'Scheduled Date',
                 'Scheduled Time',
-                'Pickup Method',
                 'Expiry Date',
+                'Collected Date',
+                'Status',
+                'Recipient (Foodbank)',
                 'Description'
             ]);
 
             // Data rows
-            foreach ($donations as $donation) {
-                $foodbank = $donation->foodbank;
+            foreach ($records as $record) {
                 fputcsv($file, [
-                    $donation->donation_number,
-                    $donation->item_name,
-                    ucfirst($donation->item_category),
-                    $donation->quantity,
-                    $donation->unit,
-                    $donation->created_at->format('Y-m-d H:i:s'),
-                    $foodbank->organization_name ?? 'Unknown',
-                    ucfirst(str_replace('_', ' ', $donation->status)),
-                    $donation->scheduled_date ? $donation->scheduled_date->format('Y-m-d') : 'N/A',
-                    $donation->scheduled_time ? (is_string($donation->scheduled_time) ? substr($donation->scheduled_time, 0, 5) : $donation->scheduled_time->format('H:i')) : 'N/A',
-                    ucfirst($donation->pickup_method),
-                    $donation->expiry_date ? $donation->expiry_date->format('Y-m-d') : 'N/A',
-                    $donation->description ?? ''
+                    $record['donation_number'],
+                    $record['item_name'],
+                    ucfirst($record['category']),
+                    $record['quantity'],
+                    $record['unit'],
+                    $record['donation_type'],
+                    $record['date_donated'],
+                    $record['scheduled_date'],
+                    $record['scheduled_time'],
+                    $record['expiry_date'],
+                    $record['collected_date'],
+                    $record['status'],
+                    $record['recipient'],
+                    $record['description']
                 ]);
             }
 
@@ -2046,41 +2936,123 @@ class EstablishmentController extends Controller
     }
 
     /**
-     * Export to Excel (CSV with .xlsx extension for compatibility)
+     * Export to Excel
      */
-    private function exportToExcel($donations)
+    private function exportToExcel($records)
     {
-        // For simplicity, we'll use CSV format but with .xlsx extension
-        // In production, you might want to use a library like PhpSpreadsheet
-        return $this->exportToCsv($donations);
+        $filename = 'donation_history_' . date('Y-m-d_His') . '.xlsx';
+        
+        $data = [];
+        
+        // Headers
+        $data[] = [
+            'Donation Number',
+            'Item Name',
+            'Category',
+            'Quantity',
+            'Unit',
+            'Donation Type',
+            'Date Donated',
+            'Scheduled Date',
+            'Scheduled Time',
+            'Expiry Date',
+            'Collected Date',
+            'Status',
+            'Recipient (Foodbank)',
+            'Description'
+        ];
+        
+        // Data rows
+        foreach ($records as $record) {
+            $data[] = [
+                $record['donation_number'],
+                $record['item_name'],
+                ucfirst($record['category']),
+                $record['quantity'],
+                $record['unit'],
+                $record['donation_type'],
+                $record['date_donated'],
+                $record['scheduled_date'],
+                $record['scheduled_time'],
+                $record['expiry_date'],
+                $record['collected_date'],
+                $record['status'],
+                $record['recipient'],
+                $record['description']
+            ];
+        }
+        
+        // Create Excel file using Maatwebsite Excel (v1.1.5 uses PHPExcel)
+        // The export() method handles the download response
+        return Excel::create($filename, function($excel) use ($data) {
+            $excel->sheet('Donation History', function($sheet) use ($data) {
+                $sheet->fromArray($data, null, 'A1', false, false);
+                
+                // Style the header row
+                $sheet->row(1, function($row) {
+                    $row->setFontWeight('bold');
+                    $row->setBackground('#2d5016');
+                    $row->setFontColor('#ffffff');
+                });
+                
+                // Auto-size columns
+                foreach(range('A', 'N') as $column) {
+                    $sheet->getColumnDimension($column)->setAutoSize(true);
+                }
+            });
+        })->export('xlsx');
     }
 
     /**
      * Export to PDF
      */
-    private function exportToPdf($donations)
+    private function exportToPdf($records)
     {
-        // For PDF export, we'll return a simple HTML view that can be printed as PDF
-        // In production, you might want to use a library like DomPDF or TCPDF
-        $data = $donations->map(function ($donation) {
-            $foodbank = $donation->foodbank;
+        $user = $this->getUserData();
+        $establishmentName = $user->business_name ?? 'Establishment';
+        
+        // Format data for PDF view
+        $data = $records->map(function ($record) {
+            // Helper function to safely parse dates
+            $parseDate = function($dateString, $format = 'F d, Y') {
+                if ($dateString === 'N/A' || empty($dateString)) {
+                    return 'N/A';
+                }
+                try {
+                    return \Carbon\Carbon::parse($dateString)->format($format);
+                } catch (\Exception $e) {
+                    return 'N/A';
+                }
+            };
+            
             return [
-                'donation_number' => $donation->donation_number,
-                'item_name' => $donation->item_name,
-                'category' => ucfirst($donation->item_category),
-                'quantity' => $donation->quantity . ' ' . $donation->unit,
-                'date_donated' => $donation->created_at->format('F d, Y'),
-                'foodbank' => $foodbank->organization_name ?? 'Unknown',
-                'status' => ucfirst(str_replace('_', ' ', $donation->status)),
+                'donation_number' => $record['donation_number'],
+                'item_name' => $record['item_name'],
+                'category' => ucfirst($record['category']),
+                'quantity' => $record['quantity'],
+                'unit' => $record['unit'],
+                'donation_type' => $record['donation_type'],
+                'date_donated' => $parseDate($record['date_donated'], 'F d, Y H:i'),
+                'scheduled_date' => $parseDate($record['scheduled_date'], 'F d, Y'),
+                'scheduled_time' => $record['scheduled_time'] !== 'N/A' ? $record['scheduled_time'] : 'N/A',
+                'expiry_date' => $parseDate($record['expiry_date'], 'F d, Y'),
+                'collected_at' => $parseDate($record['collected_date'], 'F d, Y H:i'),
+                'foodbank' => $record['recipient'],
+                'status' => $record['status'],
+                'description' => $record['description'] ?: 'N/A',
             ];
         })->toArray();
 
-        $html = view('establishment.donation-history-pdf', compact('data'))->render();
+        $filename = 'donation_history_' . date('Y-m-d_His') . '.pdf';
         
-        return response()->make($html, 200, [
-            'Content-Type' => 'text/html',
-            'Content-Disposition' => 'attachment; filename="donation_history_' . date('Y-m-d_His') . '.html"',
+        $pdf = Pdf::loadView('establishment.donation-history-pdf', [
+            'data' => $data,
+            'establishmentName' => $establishmentName,
+            'exportDate' => now()->format('F d, Y'),
+            'totalDonations' => count($data)
         ]);
+        
+        return $pdf->download($filename);
     }
 
     /**
@@ -2139,6 +3111,7 @@ class EstablishmentController extends Controller
                 'date' => $review->created_at->format('Y-m-d'),
                 'image_path' => $review->image_path ? Storage::url($review->image_path) : null,
                 'video_path' => $review->video_path ? Storage::url($review->video_path) : null,
+                'flagged' => $review->flagged ?? false,
             ];
         })->toArray();
 

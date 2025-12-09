@@ -46,6 +46,7 @@ class Foodbank extends Authenticatable
         'password',
         'status',
         'verified',
+        'verification_status',
     ];
 
     /**
@@ -71,6 +72,14 @@ class Foodbank extends Authenticatable
             'registered_at' => 'datetime',
             'verified' => 'boolean',
         ];
+    }
+
+    /**
+     * Check if the foodbank is verified
+     */
+    public function isVerified(): bool
+    {
+        return $this->verification_status === 'verified';
     }
 
     /**

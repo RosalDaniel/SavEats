@@ -178,8 +178,8 @@
                         </td>
                         <td>
                             <div class="date-info">
-                                <div class="date-created">{{ $order['created_at']->format('M d, Y') }}</div>
-                                <div class="date-time">{{ $order['created_at']->format('h:i A') }}</div>
+                                <div class="date-created">{{ \Carbon\Carbon::parse($order['created_at'])->setTimezone('Asia/Manila')->format('M d, Y') }}</div>
+                                <div class="date-time">{{ \Carbon\Carbon::parse($order['created_at'])->setTimezone('Asia/Manila')->format('h:i A') }}</div>
                             </div>
                         </td>
                         <td>
@@ -196,11 +196,6 @@
                                     </svg>
                                 </button>
                                 @endif
-                                <button class="btn-action btn-dispute" onclick="resolveDispute({{ $order['id'] }})" title="Resolve Dispute">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                                    </svg>
-                                </button>
                             </div>
                         </td>
                     </tr>
@@ -243,9 +238,9 @@
                 <input type="hidden" id="cancelOrderId" name="order_id">
                 
                 <div class="form-group">
-                    <label for="cancelReason">Cancellation Reason <span class="required">*</span></label>
+                    <label for="cancelReason">Cancellation Reason (Optional)</label>
                     <textarea id="cancelReason" name="reason" class="form-input" 
-                              rows="4" placeholder="Enter the reason for force cancelling this order..." required></textarea>
+                              rows="4" placeholder="Enter the reason for force cancelling this order (optional)..."></textarea>
                 </div>
             </form>
         </div>
@@ -256,40 +251,6 @@
     </div>
 </div>
 
-<!-- Resolve Dispute Modal -->
-<div class="modal-overlay" id="resolveDisputeModal">
-    <div class="modal modal-resolve-dispute">
-        <div class="modal-header">
-            <h2>Resolve Dispute</h2>
-            <button class="modal-close" id="closeResolveDisputeModal" aria-label="Close modal">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="resolveDisputeForm">
-                <input type="hidden" id="disputeOrderId" name="order_id">
-                
-                <div class="form-group">
-                    <label for="disputeResolution">Resolution <span class="required">*</span></label>
-                    <select id="disputeResolution" name="resolution" class="form-input" required>
-                        <option value="">Select resolution...</option>
-                        <option value="refund">Issue Refund</option>
-                        <option value="complete">Force Complete Order</option>
-                        <option value="cancel">Cancel Order</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="disputeNotes">Admin Notes</label>
-                    <textarea id="disputeNotes" name="notes" class="form-input" 
-                              rows="4" placeholder="Add any additional notes about the resolution..."></textarea>
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" id="cancelResolveDisputeBtn">Cancel</button>
-            <button class="btn btn-primary" id="confirmResolveDisputeBtn">Resolve Dispute</button>
-        </div>
-    </div>
-</div>
 
 @push('scripts')
 <script src="{{ asset('js/admin-orders.js') }}"></script>

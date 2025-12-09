@@ -77,6 +77,16 @@ function placeOrder() {
     const deliveryMethod = urlParams.get('method');
     const startTime = urlParams.get('startTime');
     const endTime = urlParams.get('endTime');
+    
+    // Delivery data from URL
+    const deliveryAddress = urlParams.get('deliveryAddress');
+    const deliveryLat = urlParams.get('deliveryLat');
+    const deliveryLng = urlParams.get('deliveryLng');
+    const deliveryDistance = urlParams.get('deliveryDistance');
+    const deliveryFee = urlParams.get('deliveryFee');
+    const deliveryETA = urlParams.get('deliveryETA');
+    const deliveryInstructions = urlParams.get('deliveryInstructions');
+    const fullName = urlParams.get('fullName');
 
     // Get selected payment method
     const activePaymentMethod = document.querySelector('.payment-method.active');
@@ -86,16 +96,16 @@ function placeOrder() {
         selectedPaymentMethod = activePaymentMethod.getAttribute('data-method') || 'cash';
     }
     
-    // Validate payment method
-    if (!selectedPaymentMethod || !['cash', 'card', 'ewallet'].includes(selectedPaymentMethod)) {
+    // Validate payment method - only cash is supported
+    if (!selectedPaymentMethod || selectedPaymentMethod !== 'cash') {
         console.error('Invalid payment method:', selectedPaymentMethod);
-        selectedPaymentMethod = 'cash'; // Fallback to cash
+        selectedPaymentMethod = 'cash'; // Only cash is supported
     }
     
     console.log('Selected payment method:', selectedPaymentMethod);
 
-    // Get customer data from backend
-    const customerName = window.customerName || 'Customer';
+    // Get customer data from backend or URL
+    const customerName = fullName || window.customerName || 'Customer';
     const customerPhone = window.customerPhone || urlParams.get('phone');
 
     // Validate required fields before sending
@@ -128,15 +138,26 @@ function placeOrder() {
         food_listing_id: foodListingId,
         quantity: parseInt(quantity),
         delivery_method: deliveryMethod,
+        delivery_type: deliveryMethod,
         payment_method: selectedPaymentMethod,
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim(),
-        delivery_address: deliveryMethod === 'delivery' ? prompt('Please enter delivery address:') : null,
-        pickup_start_time: startTime ? decodeURIComponent(startTime) : null,
-        pickup_end_time: endTime ? decodeURIComponent(endTime) : null,
+        pickup_start_time: deliveryMethod === 'pickup' && startTime ? decodeURIComponent(startTime) : null,
+        pickup_end_time: deliveryMethod === 'pickup' && endTime ? decodeURIComponent(endTime) : null,
         _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
                 document.querySelector('input[name="_token"]')?.value
     };
+    
+    // Add delivery fields if delivery method
+    if (deliveryMethod === 'delivery') {
+        orderData.delivery_address = deliveryAddress ? decodeURIComponent(deliveryAddress) : null;
+        orderData.delivery_lat = deliveryLat ? parseFloat(deliveryLat) : null;
+        orderData.delivery_lng = deliveryLng ? parseFloat(deliveryLng) : null;
+        orderData.delivery_distance = deliveryDistance ? parseFloat(deliveryDistance) : null;
+        orderData.delivery_fee = deliveryFee ? parseFloat(deliveryFee) : null;
+        orderData.delivery_eta = deliveryETA ? decodeURIComponent(deliveryETA) : null;
+        orderData.delivery_instructions = deliveryInstructions ? decodeURIComponent(deliveryInstructions) : null;
+    }
 
     // Log the data being sent for debugging
     console.log('Order data being sent:', orderData);
@@ -211,6 +232,26 @@ function placeOrder() {
         placeOrderBtn.textContent = originalText;
         placeOrderBtn.disabled = false;
     });
+}
+
+function toggleMethod(methodId) {
+    const methodElement = document.getElementById(methodId);
+    if (!methodElement) return;
+    
+    const methodContent = methodElement.querySelector('.method-content');
+    const methodArrow = methodElement.querySelector('.method-arrow');
+    
+    if (methodContent && methodArrow) {
+        // Toggle collapsed class
+        methodContent.classList.toggle('collapsed');
+        
+        // Update arrow direction
+        if (methodContent.classList.contains('collapsed')) {
+            methodArrow.textContent = '▼';
+        } else {
+            methodArrow.textContent = '▲';
+        }
+    }
 }
 
 function goBack() {

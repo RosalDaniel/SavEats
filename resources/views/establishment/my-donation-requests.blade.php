@@ -232,6 +232,27 @@
         </div>
     </div>
 </div>
+
+<!-- Donation Request Details Modal -->
+<div class="modal-overlay" id="donationRequestDetailsModal" style="display: none;">
+    <div class="modal modal-large">
+        <div class="modal-header">
+            <h2>Donation Request Details</h2>
+            <button class="modal-close" id="closeDonationRequestDetailsModal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="donationRequestDetailsLoading" style="text-align: center; padding: 20px;">
+                <p>Loading details...</p>
+            </div>
+            <div id="donationRequestDetailsContent" style="display: none;">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="closeDonationRequestDetailsBtn">Close</button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -263,11 +284,226 @@
         });
     });
 
-    // View donation request details (placeholder - implement as needed)
+    // View donation request details
     window.viewDonationRequestDetails = function(requestId) {
-        // TODO: Implement modal or page to view full donation request details
-        alert('View details for request: ' + requestId);
+        const modal = document.getElementById('donationRequestDetailsModal');
+        const loading = document.getElementById('donationRequestDetailsLoading');
+        const content = document.getElementById('donationRequestDetailsContent');
+        
+        if (!modal || !loading || !content) {
+            console.error('Modal elements not found');
+            return;
+        }
+        
+        // Show modal and loading state
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        loading.style.display = 'block';
+        content.style.display = 'none';
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        
+        // Fetch donation request details
+        fetch(`/establishment/donation-request/${requestId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(async response => {
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `Server error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.data) {
+                populateDonationRequestDetails(data.data);
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            } else {
+                throw new Error(data.message || 'Failed to load donation request details');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching donation request details:', error);
+            loading.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        });
     };
+    
+    // Populate donation request details in modal
+    function populateDonationRequestDetails(request) {
+        const content = document.getElementById('donationRequestDetailsContent');
+        if (!content) return;
+        
+        // Helper function to escape HTML
+        const escapeHtml = (text) => {
+            if (!text || text === 'N/A') return 'N/A';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
+        
+        // Helper function to format status
+        const formatStatus = (status) => {
+            const statusMap = {
+                'pending': 'Pending Review',
+                'pending_confirmation': 'Pending Confirmation',
+                'accepted': 'Accepted',
+                'declined': 'Declined',
+                'completed': 'Completed'
+            };
+            return statusMap[status?.toLowerCase()] || status?.toUpperCase() || 'Unknown';
+        };
+        
+        // Helper function to get status class
+        const getStatusClass = (status) => {
+            const statusMap = {
+                'pending': 'status-pending',
+                'pending_confirmation': 'status-pending',
+                'accepted': 'status-accepted',
+                'declined': 'status-cancelled',
+                'completed': 'status-completed'
+            };
+            return statusMap[status?.toLowerCase()] || 'status-pending';
+        };
+        
+        let html = '<div class="donation-detail-content">';
+        
+        // Request Information Section
+        html += '<div class="detail-section">';
+        html += '<h3>Request Information</h3>';
+        html += '<div class="detail-grid">';
+        html += `<div class="detail-item"><div class="detail-label">Request ID</div><div class="detail-value">#${escapeHtml(request.id || request.donation_request_id || 'N/A')}</div></div>`;
+        html += `<div class="detail-item"><div class="detail-label">Status</div><div class="detail-value"><span class="status-badge ${getStatusClass(request.status)}">${formatStatus(request.status)}</span></div></div>`;
+        html += `<div class="detail-item"><div class="detail-label">Submitted</div><div class="detail-value">${escapeHtml(request.created_at_display || request.created_at || 'N/A')}</div></div>`;
+        if (request.accepted_at_display) {
+            html += `<div class="detail-item"><div class="detail-label">Accepted</div><div class="detail-value">${escapeHtml(request.accepted_at_display)}</div></div>`;
+        }
+        if (request.fulfilled_at_display) {
+            html += `<div class="detail-item"><div class="detail-label">Completed</div><div class="detail-value">${escapeHtml(request.fulfilled_at_display)}</div></div>`;
+        }
+        if (request.updated_at_display && request.status === 'declined') {
+            html += `<div class="detail-item"><div class="detail-label">Declined</div><div class="detail-value">${escapeHtml(request.updated_at_display)}</div></div>`;
+        }
+        html += '</div>';
+        html += '</div>';
+        
+        // Item Details Section
+        html += '<div class="detail-section">';
+        html += '<h3>Item Details</h3>';
+        html += '<div class="detail-grid">';
+        html += `<div class="detail-item"><div class="detail-label">Item Name</div><div class="detail-value">${escapeHtml(request.item_name || 'N/A')}</div></div>`;
+        html += `<div class="detail-item"><div class="detail-label">Category</div><div class="detail-value">${escapeHtml(request.category ? request.category.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A')}</div></div>`;
+        html += `<div class="detail-item"><div class="detail-label">Quantity</div><div class="detail-value">${escapeHtml(request.quantity || 'N/A')} ${escapeHtml(request.unit || 'pcs')}</div></div>`;
+        if (request.description) {
+            html += `<div class="detail-item full-width"><div class="detail-label">Description</div><div class="detail-value">${escapeHtml(request.description)}</div></div>`;
+        }
+        html += '</div>';
+        html += '</div>';
+        
+        // Foodbank Information Section
+        html += '<div class="detail-section">';
+        html += '<h3>Foodbank Information</h3>';
+        html += '<div class="detail-grid">';
+        html += `<div class="detail-item"><div class="detail-label">Foodbank Name</div><div class="detail-value">${escapeHtml(request.foodbank_name || 'N/A')}</div></div>`;
+        if (request.foodbank_email) {
+            html += `<div class="detail-item"><div class="detail-label">Email</div><div class="detail-value">${escapeHtml(request.foodbank_email)}</div></div>`;
+        }
+        if (request.foodbank_phone) {
+            html += `<div class="detail-item"><div class="detail-label">Phone</div><div class="detail-value">${escapeHtml(request.foodbank_phone)}</div></div>`;
+        }
+        html += '</div>';
+        html += '</div>';
+        
+        // Pickup Information Section
+        html += '<div class="detail-section">';
+        html += '<h3>Pickup Information</h3>';
+        html += '<div class="detail-grid">';
+        html += `<div class="detail-item"><div class="detail-label">Pickup Method</div><div class="detail-value">${escapeHtml(request.pickup_method_display || 'Pickup')}</div></div>`;
+        html += `<div class="detail-item"><div class="detail-label">Pickup Location</div><div class="detail-value">${escapeHtml(request.address || 'Establishment Address')}</div></div>`;
+        if (request.scheduled_date_display && request.scheduled_date_display !== 'N/A') {
+            html += `<div class="detail-item"><div class="detail-label">Scheduled Date</div><div class="detail-value">${escapeHtml(request.scheduled_date_display)}</div></div>`;
+        }
+        if (request.scheduled_time_display && request.scheduled_time_display !== 'N/A') {
+            html += `<div class="detail-item"><div class="detail-label">Scheduled Time</div><div class="detail-value">${escapeHtml(request.scheduled_time_display)}</div></div>`;
+        }
+        html += '</div>';
+        html += '</div>';
+        
+        // Establishment Notes Section
+        if (request.establishment_notes) {
+            html += '<div class="detail-section">';
+            html += '<h3>Your Notes</h3>';
+            html += `<div class="note-item"><p class="note-content">${escapeHtml(request.establishment_notes)}</p></div>`;
+            html += '</div>';
+        }
+        
+        // Donation Information (for completed requests)
+        if (request.donation_number) {
+            html += '<div class="detail-section">';
+            html += '<h3>Donation Information</h3>';
+            html += '<div class="detail-grid">';
+            html += `<div class="detail-item"><div class="detail-label">Donation Number</div><div class="detail-value">${escapeHtml(request.donation_number)}</div></div>`;
+            html += '</div>';
+            html += '</div>';
+        }
+        
+        html += '</div>';
+        
+        content.innerHTML = html;
+    }
+    
+    // Modal close handlers
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('donationRequestDetailsModal');
+        const closeBtn = document.getElementById('closeDonationRequestDetailsModal');
+        const closeBtn2 = document.getElementById('closeDonationRequestDetailsBtn');
+        
+        function closeModal() {
+            if (modal) {
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+                // Reset loading and content states
+                const loading = document.getElementById('donationRequestDetailsLoading');
+                const content = document.getElementById('donationRequestDetailsContent');
+                if (loading) loading.style.display = 'block';
+                if (content) {
+                    content.style.display = 'none';
+                    content.innerHTML = '';
+                }
+            }
+        }
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeModal);
+        }
+        
+        if (closeBtn2) {
+            closeBtn2.addEventListener('click', closeModal);
+        }
+        
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+        }
+        
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal && modal.classList.contains('show')) {
+                closeModal();
+            }
+        });
+    });
 </script>
 @endsection
 

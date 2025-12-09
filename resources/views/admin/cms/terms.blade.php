@@ -58,10 +58,6 @@
                         <option value="active">Active</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="termsPublishedAt">Published Date</label>
-                    <input type="datetime-local" id="termsPublishedAt" name="published_at">
-                </div>
             </div>
             <div class="form-group">
                 <label for="termsContent">Content *</label>

@@ -42,18 +42,16 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
     Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
     
-    // Password Recovery Routes (Admin blocked via middleware)
-    Route::middleware([\App\Http\Middleware\BlockAdminFromRecovery::class])->group(function () {
-        Route::get('/forgot-password', [\App\Http\Controllers\PasswordRecoveryController::class, 'showForgotPassword'])->name('password-recovery.forgot');
-        Route::post('/forgot-password', [\App\Http\Controllers\PasswordRecoveryController::class, 'requestReset'])->name('password-recovery.request');
-        Route::get('/reset-password/{token}', [\App\Http\Controllers\PasswordRecoveryController::class, 'showResetPassword'])->name('password-recovery.reset');
-        Route::post('/reset-password', [\App\Http\Controllers\PasswordRecoveryController::class, 'resetPassword'])->name('password-recovery.reset.submit');
-        Route::get('/verify-email/{token}', [\App\Http\Controllers\PasswordRecoveryController::class, 'verifyEmail'])->name('password-recovery.verify-email');
-        Route::get('/resend-verification', function() {
-            return view('auth.resend-verification');
-        })->name('password-recovery.resend-verification.show');
-        Route::post('/resend-verification', [\App\Http\Controllers\PasswordRecoveryController::class, 'resendVerification'])->name('password-recovery.resend-verification');
-    });
+    // Password Recovery Routes (Available for all user types including admin)
+    Route::get('/forgot-password', [\App\Http\Controllers\PasswordRecoveryController::class, 'showForgotPassword'])->name('password-recovery.forgot');
+    Route::post('/forgot-password', [\App\Http\Controllers\PasswordRecoveryController::class, 'requestReset'])->name('password-recovery.request');
+    Route::get('/reset-password/{token}', [\App\Http\Controllers\PasswordRecoveryController::class, 'showResetPassword'])->name('password-recovery.reset');
+    Route::post('/reset-password', [\App\Http\Controllers\PasswordRecoveryController::class, 'resetPassword'])->name('password-recovery.reset.submit');
+    Route::get('/verify-email/{token}', [\App\Http\Controllers\PasswordRecoveryController::class, 'verifyEmail'])->name('password-recovery.verify-email');
+    Route::get('/resend-verification', function() {
+        return view('auth.resend-verification');
+    })->name('password-recovery.resend-verification.show');
+    Route::post('/resend-verification', [\App\Http\Controllers\PasswordRecoveryController::class, 'resendVerification'])->name('password-recovery.resend-verification');
 });
 
 // Logout - Accessible to authenticated users
@@ -87,11 +85,14 @@ Route::middleware('custom.auth')->group(function () {
         Route::post('/place-order', [FoodListingController::class, 'placeOrder'])->name('place-order');
         Route::get('/order-confirmation', [FoodListingController::class, 'orderConfirmation'])->name('order-confirmation');
         Route::get('/payment-options', [FoodListingController::class, 'paymentOptions'])->name('payment-options');
+        Route::get('/geocode/address', [FoodListingController::class, 'geocodeAddress'])->name('geocode.address');
+        Route::get('/geocode/reverse', [FoodListingController::class, 'reverseGeocode'])->name('geocode.reverse');
         
         // Orders Management
         Route::get('/my-orders', [FoodListingController::class, 'myOrders'])->name('my-orders');
         Route::get('/orders/{id}/details', [FoodListingController::class, 'getOrderDetails'])->name('orders.details');
         Route::post('/orders/{id}/cancel', [FoodListingController::class, 'cancelOrder'])->name('orders.cancel');
+        Route::post('/orders/{id}/confirm-delivery', [FoodListingController::class, 'confirmDelivery'])->name('orders.confirm-delivery');
         Route::get('/orders/api', [FoodListingController::class, 'getConsumerOrders'])->name('orders.api');
         
         // Reviews
@@ -108,7 +109,7 @@ Route::middleware('custom.auth')->group(function () {
     // ========================================================================
     // ESTABLISHMENT ROUTES (Restricted to establishments only)
     // ========================================================================
-    Route::prefix('establishment')->name('establishment.')->middleware('role:establishment')->group(function () {
+    Route::prefix('establishment')->name('establishment.')->middleware(['role:establishment', 'check.verification'])->group(function () {
         
         // Dashboard - Standardized path: /establishment/dashboard
         Route::get('/dashboard', [EstablishmentController::class, 'dashboard'])->name('dashboard');
@@ -127,14 +128,19 @@ Route::middleware('custom.auth')->group(function () {
         Route::post('/orders/{id}/accept', [EstablishmentController::class, 'acceptOrder'])->name('orders.accept');
         Route::post('/orders/{id}/cancel', [EstablishmentController::class, 'cancelOrder'])->name('orders.cancel');
         Route::post('/orders/{id}/complete', [EstablishmentController::class, 'markOrderComplete'])->name('orders.complete');
+        Route::post('/orders/{id}/out-for-delivery', [EstablishmentController::class, 'markOutForDelivery'])->name('orders.out-for-delivery');
+        Route::post('/orders/{id}/request-admin-intervention', [EstablishmentController::class, 'requestAdminIntervention'])->name('orders.request-admin-intervention');
         
         // Financial & Reports
         Route::get('/earnings', [EstablishmentController::class, 'earnings'])->name('earnings');
+        Route::get('/earnings/export/{type}', [EstablishmentController::class, 'exportEarnings'])->name('earnings.export');
         Route::get('/impact-reports', [EstablishmentController::class, 'impactReports'])->name('impact-reports');
         Route::post('/impact-reports/export/{format}', [EstablishmentController::class, 'exportImpactReports'])->name('impact-reports.export');
         Route::get('/donation-hub', [EstablishmentController::class, 'donationHub'])->name('donation-hub');
         Route::get('/my-donation-requests', [EstablishmentController::class, 'myDonationRequests'])->name('my-donation-requests');
+        Route::get('/donation-request/{id}', [EstablishmentController::class, 'getDonationRequestDetails'])->name('donation-request.details');
         Route::post('/donation-request', [EstablishmentController::class, 'storeDonationRequest'])->name('donation-request.store');
+        Route::post('/donation-request/check-status', [EstablishmentController::class, 'checkRequestStatus'])->name('donation-request.check-status');
         Route::post('/donation-request/fulfill/{requestId}', [EstablishmentController::class, 'fulfillDonationRequest'])->name('donation-request.fulfill');
         Route::get('/foodbank/contact/{foodbankId}', [EstablishmentController::class, 'getFoodbankContact'])->name('foodbank.contact');
         Route::get('/donation-history', [EstablishmentController::class, 'donationHistory'])->name('donation-history');
@@ -149,7 +155,7 @@ Route::middleware('custom.auth')->group(function () {
     // ========================================================================
     // FOODBANK ROUTES (Restricted to foodbanks only)
     // ========================================================================
-    Route::prefix('foodbank')->name('foodbank.')->middleware('role:foodbank')->group(function () {
+    Route::prefix('foodbank')->name('foodbank.')->middleware(['role:foodbank', 'check.verification'])->group(function () {
         
         // Dashboard - Standardized path: /foodbank/dashboard
         Route::get('/dashboard', [DashboardController::class, 'foodbank'])->name('dashboard');
@@ -157,6 +163,7 @@ Route::middleware('custom.auth')->group(function () {
         // Donation Request
         Route::get('/donation-request', [DashboardController::class, 'donationRequest'])->name('donation-request');
         Route::get('/donation-requests-list', [DashboardController::class, 'donationRequestsList'])->name('donation-requests-list');
+        Route::get('/donation-requests-list/fetch', [DashboardController::class, 'fetchDonationRequestsList'])->name('donation-requests-list.fetch');
         Route::get('/donation-request/{id}', [DashboardController::class, 'showDonationRequest'])->name('donation-request.show');
         Route::post('/donation-request', [DashboardController::class, 'storeDonationRequest'])->name('donation-request.store');
         Route::put('/donation-request/{id}', [DashboardController::class, 'updateDonationRequest'])->name('donation-request.update');
@@ -202,8 +209,14 @@ Route::middleware('custom.auth')->group(function () {
         Route::post('/users/{role}/{id}/info', [DashboardController::class, 'updateUserInfo'])->name('users.updateInfo');
         Route::delete('/users/{role}/{id}', [DashboardController::class, 'deleteUser'])->name('users.delete');
         
+        // Deletion Requests Management
+        Route::get('/deletion-requests', [DashboardController::class, 'adminDeletionRequests'])->name('deletion-requests');
+        Route::post('/deletion-requests/{id}/approve', [DashboardController::class, 'approveDeletionRequest'])->name('deletion-requests.approve');
+        Route::post('/deletion-requests/{id}/decline', [DashboardController::class, 'declineDeletionRequest'])->name('deletion-requests.decline');
+        
         // Establishments Management
         Route::get('/establishments', [DashboardController::class, 'adminEstablishments'])->name('establishments');
+        Route::get('/establishments/{id}/details', [DashboardController::class, 'getEstablishmentDetails'])->name('establishments.details');
         Route::post('/establishments/{id}/status', [DashboardController::class, 'updateEstablishmentStatus'])->name('establishments.updateStatus');
         Route::post('/establishments/{id}/verification', [DashboardController::class, 'toggleEstablishmentVerification'])->name('establishments.toggleVerification');
         Route::post('/establishments/{id}/violation', [DashboardController::class, 'addEstablishmentViolation'])->name('establishments.addViolation');
@@ -237,6 +250,10 @@ Route::middleware('custom.auth')->group(function () {
         // Reports & Analytics
         Route::get('/reports', [DashboardController::class, 'adminReports'])->name('reports');
         
+        // SavEats Company Earnings
+        Route::get('/earnings', [DashboardController::class, 'adminEarnings'])->name('earnings');
+        Route::get('/earnings/export/{type}', [DashboardController::class, 'exportAdminEarnings'])->name('earnings.export');
+        
         // Announcements (moved to CMS)
         Route::get('/cms/announcements', [\App\Http\Controllers\AdminCmsController::class, 'getAnnouncements'])->name('cms.announcements');
         Route::post('/cms/announcements', [\App\Http\Controllers\AdminCmsController::class, 'storeAnnouncement'])->name('cms.announcements.store');
@@ -245,6 +262,7 @@ Route::middleware('custom.auth')->group(function () {
         
         // Review Management
         Route::get('/reviews', [DashboardController::class, 'adminReviews'])->name('reviews');
+        Route::get('/reviews/{id}', [DashboardController::class, 'getReviewDetails'])->name('reviews.details');
         Route::post('/reviews/{id}/flag', [DashboardController::class, 'flagReview'])->name('reviews.flag');
         Route::delete('/reviews/{id}', [DashboardController::class, 'deleteReview'])->name('reviews.delete');
         

@@ -21,15 +21,15 @@
     <div class="stats-grid">
         <div class="stat-card active">
             <div class="stat-label">Active Requests</div>
-            <div class="stat-value">5</div>
+            <div class="stat-value">{{ $activeRequests ?? 0 }}</div>
         </div>
         <div class="stat-card partnered">
             <div class="stat-label">Business Partnered</div>
-            <div class="stat-value">12</div>
+            <div class="stat-value">{{ $businessPartnered ?? 0 }}</div>
         </div>
         <div class="stat-card distributed">
-            <div class="stat-label">Meals Distributed</div>
-            <div class="stat-value">320</div>
+            <div class="stat-label">Donations Received</div>
+            <div class="stat-value">{{ $donationsReceived ?? 0 }}</div>
         </div>
     </div>
 
@@ -39,68 +39,40 @@
         <div class="donations-section">
             <div class="section-header">
                 <h3 class="section-title">Recent Donations</h3>
-                <a href="#" class="see-all-link">See All</a>
+                <a href="{{ route('foodbank.donation-history') }}" class="see-all-link">See All</a>
             </div>
             
-            <div class="donation-item">
-                <div class="donation-header">
-                    <div>
-                        <div class="donation-name">Banana Bread</div>
-                        <div class="donation-quantity">10 pcs.</div>
+            @if(isset($recentDonations) && $recentDonations->count() > 0)
+                @foreach($recentDonations->take(2) as $donation)
+                <div class="donation-item">
+                    <div class="donation-header">
+                        <div>
+                            <div class="donation-name">{{ $donation['item_name'] }}</div>
+                            <div class="donation-quantity">{{ $donation['quantity'] }} {{ $donation['unit'] }}</div>
+                        </div>
+                        <div class="donation-store">{{ $donation['establishment_name'] }}</div>
                     </div>
-                    <div class="donation-store">Joy Grocery Store</div>
-                </div>
-                <div class="donation-time">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-                    </svg>
-                    Donated: Monday - 9:30 AM
-                </div>
-                <div class="donation-actions">
-                    <button class="btn btn-primary">Rate</button>
-                    <button class="btn btn-secondary">View Store</button>
-                </div>
-            </div>
-
-            <div class="donation-item">
-                <div class="donation-header">
-                    <div>
-                        <div class="donation-name">Banana Bread</div>
-                        <div class="donation-quantity">10 pcs.</div>
+                    <div class="donation-time">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                        </svg>
+                        {{ $donation['collected_at'] ? 'Collected' : 'Donated' }}: {{ $donation['formatted_date'] }}
                     </div>
-                    <div class="donation-store">Joy Grocery Store</div>
-                </div>
-                <div class="donation-time">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-                    </svg>
-                    Donated: Monday - 9:30 AM
-                </div>
-                <div class="donation-actions">
-                    <button class="btn btn-primary">Rate</button>
-                    <button class="btn btn-secondary">View Store</button>
-                </div>
-            </div>
-
-            <div class="donation-item">
-                <div class="donation-header">
-                    <div>
-                        <div class="donation-name">Banana Bread</div>
-                        <div class="donation-quantity">10 pcs.</div>
+                    <div class="donation-actions">
+                        <button class="btn btn-primary" onclick="viewDonationDetails('{{ $donation['id'] }}')">View Details</button>
                     </div>
-                    <div class="donation-store">Joy Grocery Store</div>
                 </div>
-                <div class="donation-time">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-                    </svg>
-                    Donated: Monday - 9:30 AM
+                @endforeach
+            @else
+                <div class="donation-item">
+                    <div class="donation-header">
+                        <div>
+                            <div class="donation-name">No donations yet</div>
+                            <div class="donation-quantity">Start receiving donations to see them here</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="donation-actions">
-                    <button class="btn btn-primary">Rate</button>
-                    <button class="btn btn-secondary">View Store</button>
-                </div>
-            </div>
+            @endif
         </div>
 
         <!-- Right Sidebar - Chart -->
@@ -120,6 +92,22 @@
         </div>
     </div>
 </div>
+
+<!-- Donation Details Modal -->
+<div class="modal-overlay" id="donationDetailsModal">
+    <div class="modal modal-donation-details">
+        <div class="modal-header">
+            <h2 id="modalDonationNumber">Donation Details</h2>
+            <button class="modal-close" id="closeDonationModal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body" id="modalDonationBody">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="closeDonationModalBtn">Close</button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -127,6 +115,8 @@
 <script>
     // Pass chart data to JavaScript
     window.weeklyChartData = @json($weeklyData ?? []);
+    // Pass recent donations data to JavaScript
+    window.recentDonations = @json($recentDonations ?? []);
 </script>
 <script src="{{ asset('js/foodbank-dashboard.js') }}"></script>
 @endsection

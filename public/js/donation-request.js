@@ -33,6 +33,59 @@ document.addEventListener('DOMContentLoaded', function() {
     // Make showToast globally accessible
     window.showToast = showToast;
 
+    // Function to refresh requests from server (for List page)
+    function refreshRequestsFromServer() {
+        // Check if we're on the List page
+        if (!document.getElementById('tableBody') || !document.getElementById('mobileCards')) {
+            return;
+        }
+
+        fetch('/foodbank/donation-requests-list/fetch', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(async response => {
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.data) {
+                // Update the requests array with fresh data from server
+                requests = data.data;
+                filteredRequests = [...requests];
+                currentPage = 1; // Reset to first page
+                renderTable();
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing requests:', error);
+            // Silently fail - don't show error toast for background refresh
+        });
+    }
+
+    // Make refresh function globally accessible
+    window.refreshRequestsFromServer = refreshRequestsFromServer;
+
+    // Set up periodic refresh for List page (every 30 seconds)
+    // This ensures the List page always shows current status from database
+    if (document.getElementById('tableBody') && document.getElementById('mobileCards')) {
+        // Initial refresh after page load
+        setTimeout(() => {
+            refreshRequestsFromServer();
+        }, 2000);
+        
+        // Set up periodic refresh every 30 seconds
+        setInterval(() => {
+            refreshRequestsFromServer();
+        }, 30000);
+    }
+
     // Render table
     function renderTable() {
         const tableBody = document.getElementById('tableBody');
@@ -72,12 +125,8 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             
             // Add confirm buttons if pending or active (not completed)
-            if ((request.status === 'pending' || request.status === 'active' || request.status === 'accepted' || request.status === 'pending_confirmation') && request.delivery_option && request.status !== 'completed') {
-                if (request.delivery_option === 'pickup') {
-                    actionsMenu += `<button onclick="confirmFoodbankRequestPickup('${request.id}')" style="color: #22c55e;">Confirm Pickup</button>`;
-                } else {
-                    actionsMenu += `<button onclick="confirmFoodbankRequestDelivery('${request.id}')" style="color: #22c55e;">Confirm Delivery</button>`;
-                }
+            if ((request.status === 'pending' || request.status === 'active' || request.status === 'accepted' || request.status === 'pending_confirmation') && request.status !== 'completed') {
+                actionsMenu += `<button onclick="confirmFoodbankRequestPickup('${request.id}')" style="color: #22c55e;">Confirm Pickup</button>`;
             }
             
             // Only show edit/delete if not completed
@@ -88,9 +137,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             }
             
+            // Show establishment name if it's an establishment-submitted request
+            const establishmentInfo = request.establishment_name && !request.is_foodbank_request 
+                ? `<br><small style="color: #666; font-size: 0.85em;">From: ${request.establishment_name}</small>` 
+                : '';
+            
             return `
             <tr>
-                <td>${request.foodType}</td>
+                <td>${request.foodType}${establishmentInfo}</td>
                 <td>${request.quantity}</td>
                 <td>${request.matches}</td>
                 <td><span class="status-badge ${statusClass}">${statusDisplay}</span></td>
@@ -135,12 +189,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Build action buttons
             let actionButtons = `<button class="btn btn-primary" onclick="viewRequest('${request.id}')" style="flex: 1; margin-bottom: 10px;">View Details</button>`;
             
-            if ((request.status === 'pending' || request.status === 'active' || request.status === 'accepted' || request.status === 'pending_confirmation') && request.delivery_option && request.status !== 'completed') {
-                if (request.delivery_option === 'pickup') {
-                    actionButtons += `<button class="btn btn-success" onclick="confirmFoodbankRequestPickup('${request.id}')" style="flex: 1; margin-bottom: 10px;">Confirm Pickup</button>`;
-                } else {
-                    actionButtons += `<button class="btn btn-success" onclick="confirmFoodbankRequestDelivery('${request.id}')" style="flex: 1; margin-bottom: 10px;">Confirm Delivery</button>`;
-                }
+            if ((request.status === 'pending' || request.status === 'active' || request.status === 'accepted' || request.status === 'pending_confirmation') && request.status !== 'completed') {
+                actionButtons += `<button class="btn btn-success" onclick="confirmFoodbankRequestPickup('${request.id}')" style="flex: 1; margin-bottom: 10px;">Confirm Pickup</button>`;
             }
             
             if (request.status !== 'completed') {
@@ -150,12 +200,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             }
             
+            // Show establishment name if it's an establishment-submitted request
+            const establishmentDetail = request.establishment_name && !request.is_foodbank_request 
+                ? `<div class="request-card-detail">
+                    <strong>From:</strong>
+                    <span>${request.establishment_name}</span>
+                </div>` 
+                : '';
+            
             return `
             <div class="request-card">
                 <div class="request-card-header">
                     <div class="request-card-title">${request.foodType}</div>
                     <span class="status-badge ${statusClass}">${statusDisplay}</span>
                 </div>
+                ${establishmentDetail}
                 <div class="request-card-detail">
                     <strong>Quantity:</strong>
                     <span>${request.quantity}</span>
@@ -353,19 +412,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div class="detail-section">
-                            <h3>Distribution & Availability</h3>
+                            <h3>Pickup Information</h3>
                             <div class="detail-grid">
                                 <div class="detail-item">
-                                    <span class="detail-label">Distribution Zone:</span>
-                                    <span class="detail-value">${escapeHtml(request.distribution_zone_display || request.distribution_zone || 'N/A')}</span>
+                                    <span class="detail-label">Pickup Method:</span>
+                                    <span class="detail-value">Pickup Only</span>
                                 </div>
                                 <div class="detail-item">
-                                    <span class="detail-label">Drop-off Date:</span>
-                                    <span class="detail-value">${escapeHtml(request.dropoff_date_display || request.dropoff_date || 'N/A')}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Time Window:</span>
-                                    <span class="detail-value">${escapeHtml(request.time_display || 'N/A')}</span>
+                                    <span class="detail-label">Pickup Location:</span>
+                                    <span class="detail-value">${escapeHtml(request.address || 'Establishment\'s Registered Address')}</span>
                                 </div>
                             </div>
                         </div>
@@ -378,8 +433,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <span class="detail-value">${escapeHtml(request.address || 'N/A')}</span>
                                 </div>
                                 <div class="detail-item">
-                                    <span class="detail-label">Delivery Option:</span>
-                                    <span class="detail-value">${request.delivery_option ? request.delivery_option.charAt(0).toUpperCase() + request.delivery_option.slice(1) : 'N/A'}</span>
+                                    <span class="detail-label">Pickup Method:</span>
+                                    <span class="detail-value">Pickup Only</span>
                                 </div>
                             </div>
                         </div>
@@ -505,30 +560,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 setValue('editQuantity', request.quantity);
                 setValue('editCategory', request.category);
                 setValue('editDescription', request.description);
-                setValue('editDistributionZone', request.distribution_zone);
-                setValue('editDropoffDate', request.dropoff_date);
-                setValue('editStartTime', request.start_time);
-                setValue('editEndTime', request.end_time);
-                setValue('editAddress', request.address);
                 setValue('editContactName', request.contact_name);
-                setValue('editPhoneNumber', request.phone_number);
+                setValue('editPhoneNumber', request.phone_number?.replace('+63', '') || '');
                 setValue('editEmail', request.email);
                 setValue('editStatus', request.status);
                 
-                setRadio('editTimeOption', request.time_option);
-                setRadio('editDeliveryOption', request.delivery_option);
-                
-                // Toggle time inputs based on time option
-                const timeInputs = document.getElementById('editTimeInputs');
-                if (timeInputs && request.time_option === 'specific') {
-                    timeInputs.style.display = 'flex';
-                } else if (timeInputs) {
-                    timeInputs.style.display = 'none';
-                }
-                
-                // Set minimum date to today
-                const dropoffDateInput = document.getElementById('editDropoffDate');
-                if (dropoffDateInput) {
+                // Delivery fields removed - pickup only
+                if (false) {
                     const today = new Date().toISOString().split('T')[0];
                     dropoffDateInput.setAttribute('min', today);
                 }
@@ -627,27 +665,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Time option toggle
-    function toggleTimeInputs() {
-        const allDayChecked = document.getElementById('allDay');
-        const anytimeChecked = document.getElementById('anytime');
-        const timeInputs = document.getElementById('timeInputs');
-        if (allDayChecked && anytimeChecked && timeInputs) {
-            // Show time inputs when anytime is selected (for specific time entry)
-            timeInputs.style.display = anytimeChecked.checked ? 'flex' : 'none';
-        }
-    }
+    // Time input toggle removed - pickup only (no delivery fields)
 
-    const timeOptionRadios = document.querySelectorAll('input[name="timeOption"]');
-    timeOptionRadios.forEach(radio => {
-        radio.addEventListener('change', toggleTimeInputs);
-    });
-
-    // Date input - set minimum date to today
-    const dropoffDateInput = document.getElementById('dropoffDate');
-    if (dropoffDateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        dropoffDateInput.setAttribute('min', today);
-    }
+    // Date input removed - pickup only
 
     // Publish modal
     const publishBtn = document.getElementById('publishBtn');
@@ -662,7 +682,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Reset form when opening
             quantity = 1;
             if (quantityInput) quantityInput.value = 1;
-            toggleTimeInputs();
         });
     }
 
@@ -686,9 +705,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Validate required fields
             const itemName = document.getElementById('itemName');
             const category = document.getElementById('category');
-            const distributionZone = document.getElementById('distributionZone');
-            const dropoffDate = document.getElementById('dropoffDate');
-            const address = document.getElementById('address');
             const contactName = document.getElementById('contactName');
             const phoneNumber = document.getElementById('phoneNumber');
             const email = document.getElementById('email');
@@ -702,24 +718,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!category || !category.value) {
                 showToast('Please select a category', 'warning');
                 category?.focus();
-                return;
-            }
-
-            if (!distributionZone || !distributionZone.value) {
-                showToast('Please select a distribution zone', 'warning');
-                distributionZone?.focus();
-                return;
-            }
-
-            if (!dropoffDate || !dropoffDate.value) {
-                showToast('Please select a drop-off date', 'warning');
-                dropoffDate?.focus();
-                return;
-            }
-
-            if (!address || !address.value.trim()) {
-                showToast('Please enter an address', 'warning');
-                address?.focus();
                 return;
             }
 
@@ -742,40 +740,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Collect form data
-            const timeOption = document.querySelector('input[name="timeOption"]:checked');
-            const deliveryOption = document.querySelector('input[name="deliveryOption"]:checked');
-            const startTime = document.getElementById('startTime');
-            const endTime = document.getElementById('endTime');
             const description = document.getElementById('description');
-
-            // Determine time option value
-            let timeOptionValue = timeOption?.value || 'allDay';
-            let startTimeValue = '';
-            let endTimeValue = '';
-            
-            // If anytime is selected and time inputs have values, treat as specific time
-            if (timeOptionValue === 'anytime') {
-                const timeInputs = document.getElementById('timeInputs');
-                if (timeInputs && timeInputs.style.display !== 'none' && startTime?.value && endTime?.value) {
-                    timeOptionValue = 'specific';
-                    startTimeValue = startTime.value;
-                    endTimeValue = endTime.value;
-                }
-            }
 
             // Collect form data
             const formData = {
                 itemName: itemName.value.trim(),
                 quantity: parseInt(quantityInput?.value || 1),
                 category: category.value,
-                distributionZone: distributionZone.value,
                 description: description?.value.trim() || '',
-                dropoffDate: dropoffDate.value,
-                timeOption: timeOptionValue,
-                startTime: startTimeValue,
-                endTime: endTimeValue,
-                address: address.value.trim(),
-                deliveryOption: deliveryOption?.value || 'pickup',
                 contactName: contactName.value.trim(),
                 phoneNumber: '+63' + phoneNumber.value.trim(),
                 email: email.value.trim()
@@ -805,21 +777,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'other': 'Other'
         };
 
-        // Format distribution zone
-        const zoneLabels = {
-            'zone-a': 'Zone A - North District',
-            'zone-b': 'Zone B - South District',
-            'zone-c': 'Zone C - East District',
-            'zone-d': 'Zone D - West District',
-            'zone-e': 'Zone E - Central District'
-        };
-
-        // Format date
-        const dateObj = new Date(formData.dropoffDate);
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const dayAvailable = dayNames[dateObj.getDay()];
-
-        // Format time
+        // Format time (kept for compatibility but not used)
         function formatTime(timeString) {
             if (!timeString) return 'All Day';
             const [hours, minutes] = timeString.split(':');
@@ -844,22 +802,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('previewQuantity').textContent = formData.quantity || '-';
         document.getElementById('previewCategory').textContent = categoryLabels[formData.category] || formData.category || '-';
         document.getElementById('previewDescription').textContent = formData.description || '-';
-        document.getElementById('previewDistributionZone').textContent = zoneLabels[formData.distributionZone] || formData.distributionZone || '-';
-        document.getElementById('previewDayAvailable').textContent = dayAvailable || '-';
-        
-        if (formData.timeOption === 'allDay') {
-            document.getElementById('previewStartTime').textContent = 'All Day';
-            document.getElementById('previewEndTime').textContent = 'All Day';
-        } else if (formData.timeOption === 'anytime') {
-            document.getElementById('previewStartTime').textContent = 'Anytime';
-            document.getElementById('previewEndTime').textContent = 'Anytime';
-        } else {
-            document.getElementById('previewStartTime').textContent = formatTime(formData.startTime);
-            document.getElementById('previewEndTime').textContent = formatTime(formData.endTime);
-        }
-        
-        document.getElementById('previewAddress').textContent = formData.address || '-';
-        document.getElementById('previewDeliveryMethod').textContent = formData.deliveryOption === 'pickup' ? 'Pick-up Only' : 'Delivery';
+        document.getElementById('previewDeliveryMethod').textContent = 'Pickup Only';
+        document.getElementById('previewPickupLocation').textContent = "Establishment's Registered Address";
         document.getElementById('previewEmail').textContent = formData.email || '-';
         document.getElementById('previewContactName').textContent = formData.contactName || '-';
         document.getElementById('previewPhoneNumber').textContent = formatPhoneNumber(formData.phoneNumber);
@@ -898,7 +842,21 @@ document.addEventListener('DOMContentLoaded', function() {
             // Send formData to backend API
             const publishForm = document.getElementById('publishForm');
             const searchInput = document.getElementById('searchInput');
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            let csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+            // If CSRF token is missing, try to get it from the form or refresh page
+            if (!csrfToken) {
+                const tokenInput = document.querySelector('input[name="_token"]');
+                if (tokenInput) {
+                    csrfToken = tokenInput.value;
+                } else {
+                    showToast('Security token missing. Please refresh the page and try again.', 'error');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                    return;
+                }
+            }
 
             // Show loading state
             if (confirmPreview) {
@@ -915,9 +873,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify(formData)
             })
-            .then(response => response.json())
+            .then(async response => {
+                // Handle 419 CSRF token mismatch
+                if (response.status === 419) {
+                    // Try to get new CSRF token from response or refresh page
+                    const newToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                    if (newToken && newToken !== csrfToken) {
+                        // Retry with new token
+                        return fetch('/foodbank/donation-request', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': newToken,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify(formData)
+                        });
+                    } else {
+                        // Session expired, refresh page
+                        showToast('Your session has expired. Please refresh the page and try again.', 'error');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                        throw new Error('CSRF token mismatch');
+                    }
+                }
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(errorText);
+                    } catch (e) {
+                        errorData = { message: 'Failed to publish request. Please try again.' };
+                    }
+                    throw new Error(errorData.message || `Server error: ${response.status}`);
+                }
+                
+                return response.json();
+            })
             .then(data => {
-                if (data.success) {
+                if (data && data.success) {
                     // Create new request object from server response
                     const newRequest = {
                         id: data.data.id,
@@ -946,7 +942,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (publishForm) publishForm.reset();
                     quantity = 1;
                     if (quantityInput) quantityInput.value = 1;
-                    toggleTimeInputs();
                     
                     // Close modals
                     if (publishModal) publishModal.classList.remove('show');
@@ -960,13 +955,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Redirect to donation requests list page
                     window.location.href = '/foodbank/donation-requests-list';
-                } else {
+                } else if (data) {
                     showToast(data.message || 'Failed to publish request. Please try again.', 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showToast('Failed to publish request. Please try again.', 'error');
+                if (!error.message.includes('CSRF token mismatch')) {
+                    showToast(error.message || 'Failed to publish request. Please try again.', 'error');
+                }
             })
             .finally(() => {
                 // Reset button state
@@ -1018,20 +1015,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const editQuantity = document.getElementById('editQuantity');
             const editCategory = document.getElementById('editCategory');
             const editDescription = document.getElementById('editDescription');
-            const editDistributionZone = document.getElementById('editDistributionZone');
-            const editDropoffDate = document.getElementById('editDropoffDate');
-            const editTimeOption = document.querySelector('input[name="editTimeOption"]:checked');
-            const editStartTime = document.getElementById('editStartTime');
-            const editEndTime = document.getElementById('editEndTime');
-            const editAddress = document.getElementById('editAddress');
-            const editDeliveryOption = document.querySelector('input[name="editDeliveryOption"]:checked');
             const editContactName = document.getElementById('editContactName');
             const editPhoneNumber = document.getElementById('editPhoneNumber');
             const editEmail = document.getElementById('editEmail');
             const editStatus = document.getElementById('editStatus');
             
-            if (!editRequestId || !editItemName || !editQuantity || !editCategory || !editDistributionZone || 
-                !editDropoffDate || !editAddress || !editContactName || !editPhoneNumber || !editEmail) {
+            if (!editRequestId || !editItemName || !editQuantity || !editCategory || 
+                !editContactName || !editPhoneNumber || !editEmail) {
                 showToast('Please fill in all required fields', 'error');
                 return;
             }
@@ -1044,13 +1034,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 quantity: parseInt(editQuantity.value),
                 category: editCategory.value,
                 description: editDescription.value || null,
-                distributionZone: editDistributionZone.value,
-                dropoffDate: editDropoffDate.value,
-                timeOption: editTimeOption ? editTimeOption.value : 'allDay',
-                startTime: editTimeOption && editTimeOption.value === 'specific' ? editStartTime.value : null,
-                endTime: editTimeOption && editTimeOption.value === 'specific' ? editEndTime.value : null,
-                address: editAddress.value,
-                deliveryOption: editDeliveryOption ? editDeliveryOption.value : 'pickup',
+                // Pickup only - delivery fields removed
                 contactName: editContactName.value,
                 phoneNumber: editPhoneNumber.value.replace('+63', ''),
                 email: editEmail.value,
@@ -1139,16 +1123,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Edit form time option toggle
-    const editTimeOptionRadios = document.querySelectorAll('input[name="editTimeOption"]');
-    editTimeOptionRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-            const timeInputs = document.getElementById('editTimeInputs');
-            if (timeInputs) {
-                timeInputs.style.display = radio.value === 'specific' ? 'flex' : 'none';
-            }
-        });
-    });
+    // Edit form time option toggle removed - pickup only
     
     // View Details modal close handlers
     const viewDetailsModal = document.getElementById('viewDetailsModal');
@@ -1666,33 +1641,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Tab functionality for donation requests (matching order management style)
+// NOTE: This is handled by foodbank-donation-requests.js, so we only initialize tab counts here
 document.addEventListener('DOMContentLoaded', function() {
-    const tabButtons = document.querySelectorAll('.order-tabs .tab-button');
-    const tabContents = document.querySelectorAll('.tab-content');
-    
-    tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const targetTab = this.getAttribute('data-tab');
-            
-            // Remove active class from all buttons and hide all contents
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => {
-                content.classList.remove('active');
-                content.style.display = 'none';
-            });
-            
-            // Add active class to clicked button and show corresponding content
-            this.classList.add('active');
-            const targetContent = document.getElementById(targetTab + '-tab');
-            if (targetContent) {
-                targetContent.style.display = 'block';
-                targetContent.classList.add('active');
-            }
-        });
-    });
-    
     // Initialize tab counts on page load
-    updateTabCounts();
+    if (typeof updateTabCounts === 'function') {
+        updateTabCounts();
+    }
     
     // Check if URL hash indicates we should switch to accepted tab
     // Use setTimeout to ensure DOM is fully ready
@@ -1735,7 +1689,14 @@ window.acceptDonationRequest = function(requestId) {
     })
     .then(data => {
         if (data.success) {
-            showToast(data.message || 'Donation request accepted successfully! Please confirm pickup or delivery.', 'success');
+            showToast(data.message || 'Donation request accepted successfully! Please confirm pickup when completed.', 'success');
+            
+            // Refresh List page if it's open (without full reload)
+            if (typeof window.refreshRequestsFromServer === 'function') {
+                setTimeout(() => {
+                    window.refreshRequestsFromServer();
+                }, 500);
+            }
             
             // Reload page immediately to show updated data (request moved to Accepted tab)
             // Add hash to URL before reloading to switch to accepted tab
@@ -1778,6 +1739,13 @@ window.confirmPickup = function(requestId) {
         if (data.success) {
             showToast(data.message || 'Pickup confirmed successfully!', 'success');
             
+            // Refresh List page if it's open (without full reload)
+            if (typeof window.refreshRequestsFromServer === 'function') {
+                setTimeout(() => {
+                    window.refreshRequestsFromServer();
+                }, 500);
+            }
+            
             // Reload page immediately to show updated data (request moved to Completed tab)
             window.location.hash = '#completed';
             window.location.reload();
@@ -1791,44 +1759,10 @@ window.confirmPickup = function(requestId) {
     });
 };
 
-// Confirm delivery for accepted donation request
+// Confirm delivery for accepted donation request (removed - pickup only)
 window.confirmDelivery = function(requestId) {
-    if (!confirm('Confirm that the delivery has been completed successfully?')) {
-        return;
-    }
-    
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    
-    fetch(`/foodbank/donation-request/confirm-delivery/${requestId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken,
-            'Accept': 'application/json'
-        }
-    })
-    .then(async response => {
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `Server error: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            showToast(data.message || 'Delivery confirmed successfully!', 'success');
-            
-            // Reload page immediately to show updated data (request moved to Completed tab)
-            window.location.hash = '#completed';
-            window.location.reload();
-        } else {
-            showToast(data.message || 'Failed to confirm delivery.', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast(error.message || 'Failed to confirm delivery. Please try again.', 'error');
-    });
+    // Delivery is no longer supported - redirect to pickup confirmation
+    window.confirmPickup(requestId);
 };
 
 // Decline donation request from establishment
@@ -1857,6 +1791,13 @@ window.declineDonationRequest = function(requestId) {
     .then(data => {
         if (data.success) {
             showToast(data.message || 'Donation request declined successfully.', 'success');
+            
+            // Refresh List page if it's open (without full reload)
+            if (typeof window.refreshRequestsFromServer === 'function') {
+                setTimeout(() => {
+                    window.refreshRequestsFromServer();
+                }, 500);
+            }
             
             // Reload page immediately to show updated data (request moved to Declined tab)
             window.location.hash = '#declined';
@@ -1960,52 +1901,10 @@ window.confirmFoodbankRequestPickup = function(requestId) {
     });
 };
 
-// Confirm delivery for foodbank's own donation request
+// Confirm delivery for foodbank's own donation request (removed - pickup only)
 window.confirmFoodbankRequestDelivery = function(requestId) {
-    if (!confirm('Confirm that the delivery has been completed successfully?')) {
-        return;
-    }
-    
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    
-    fetch(`/foodbank/donation-request/confirm-foodbank-delivery/${requestId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken,
-            'Accept': 'application/json'
-        }
-    })
-    .then(async response => {
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `Server error: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            showToast(data.message || 'Delivery confirmed successfully!', 'success');
-            
-            // Update local request status
-            const requestIndex = requests.findIndex(r => r.id === requestId);
-            if (requestIndex !== -1) {
-                requests[requestIndex].status = 'completed';
-                requests[requestIndex].fulfilled_at = data.data?.fulfilled_at || new Date().toISOString();
-                requests[requestIndex].fulfilled_at_display = data.data?.fulfilled_at || new Date().toLocaleString();
-            }
-            
-            // Refresh the table
-            filteredRequests = [...requests];
-            renderTable();
-        } else {
-            showToast(data.message || 'Failed to confirm delivery.', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast(error.message || 'Failed to confirm delivery. Please try again.', 'error');
-    });
+    // Delivery is no longer supported - redirect to pickup confirmation
+    window.confirmFoodbankRequestPickup(requestId);
 };
 
 // View donation request details

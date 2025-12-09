@@ -28,7 +28,24 @@ class AuthController extends Controller
      */
     public function showLoginForm()
     {
-        return view('auth.login');
+        // If user is already authenticated, redirect to their dashboard
+        if (session('authenticated') && session('user_id') && session('user_type')) {
+            $dashboardRoutes = [
+                'consumer' => 'dashboard.consumer',
+                'establishment' => 'establishment.dashboard',
+                'foodbank' => 'foodbank.dashboard',
+                'admin' => 'dashboard.admin',
+            ];
+            $userType = session('user_type');
+            return redirect()->route($dashboardRoutes[$userType] ?? 'dashboard.' . $userType);
+        }
+        
+        $response = response()->view('auth.login');
+        // Prevent caching of login page
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $response->headers->set('Pragma', 'no-cache');
+        $response->headers->set('Expires', '0');
+        return $response;
     }
 
     /**
@@ -139,7 +156,10 @@ class AuthController extends Controller
                     'owner_fname' => 'required|string|max:255',
                     'owner_lname' => 'required|string|max:255',
                     'phone_no' => 'nullable|string|regex:/^0\d{10}$/',
-                    'address' => 'nullable|string',
+                    'address' => 'required|string', // Required for establishments (from map)
+                    'latitude' => 'required|numeric|between:-90,90',
+                    'longitude' => 'required|numeric|between:-180,180',
+                    'formatted_address' => 'required|string',
                     'business_type' => 'nullable|string|max:255',
                     'birCertificate' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
                 ]);
@@ -150,7 +170,10 @@ class AuthController extends Controller
                     'owner_fname' => $request->owner_fname,
                     'owner_lname' => $request->owner_lname,
                     'phone_no' => $request->phone_no ?: null,
-                    'address' => $request->address ?: null,
+                    'address' => $request->address, // Required
+                    'latitude' => (float) $request->latitude,
+                    'longitude' => (float) $request->longitude,
+                    'formatted_address' => $request->formatted_address, // Required
                     'business_type' => $request->business_type ?: null,
                 ];
                 
@@ -314,10 +337,17 @@ class AuthController extends Controller
             $user = $model::where($loginField, $request->login)->first();
             
             if ($user && Hash::check($request->password, $user->password)) {
-                // Check if email is verified (non-admin users only)
-                if (property_exists($user, 'email_verified_at') && !$user->email_verified_at) {
+                // Check if account is suspended BEFORE allowing login
+                // Get the latest status directly from database to ensure we have the most current value
+                $primaryKey = $user->getKeyName();
+                $primaryKeyValue = $user->getKey();
+                $latestStatus = $model::where($primaryKey, $primaryKeyValue)->value('status');
+                
+                // Check if account is suspended (case-insensitive check)
+                $status = strtolower(trim($latestStatus ?? 'active'));
+                if ($status === 'suspended') {
                     throw ValidationException::withMessages([
-                        'login' => ['Please verify your email address before logging in. <a href="' . route('password-recovery.resend-verification.show') . '" style="color: #347928; text-decoration: underline;">Resend verification email</a>'],
+                        'login' => ['Your account has been suspended. For assistance, please contact our support team at saveats.helpdesk@gmail.com or call our support number.'],
                     ]);
                 }
                 
@@ -353,6 +383,8 @@ class AuthController extends Controller
                     'user_name' => $adminUser->name,
                     'authenticated' => true
                 ]);
+                // Ensure session is saved immediately
+                session()->save();
                 return redirect()->route('dashboard.admin')
                     ->with('success', 'Welcome back, Admin!');
             }
@@ -393,5 +425,8 @@ class AuthController extends Controller
             'user_profile_picture' => $user->profile_image ?? null,
             'authenticated' => true
         ]);
+        
+        // Ensure session is saved immediately
+        session()->save();
     }
 }

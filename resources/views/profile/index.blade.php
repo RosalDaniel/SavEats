@@ -41,12 +41,14 @@
             <div class="section-header">
                 <h3 class="section-title">Personal Information</h3>
             </div>
+            @if($userType !== 'foodbank')
             <div class="form-group">
                 <input type="text" id="firstName" name="first_name" value="{{ $userData->first_name }}" readonly>
             </div>
             <div class="form-group">
                 <input type="text" id="lastName" name="last_name" value="{{ $userData->last_name }}" readonly>
             </div>
+            @endif
             @if($userType === 'establishment')
                 <div class="form-group">
                     <input type="text" id="businessName" name="business_name" value="{{ $userData->business_name ?? '' }}" readonly>
@@ -85,7 +87,7 @@
         <div class="profile-section">
             <div class="section-header">
                 <h3 class="section-title">Contact Information</h3>
-                <button class="edit-btn secondary" onclick="openContactModal()">
+                <button class="edit-btn secondary" id="editContactBtn" type="button">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                     </svg>

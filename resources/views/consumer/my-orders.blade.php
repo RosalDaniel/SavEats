@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Afacad&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ asset('css/food-listing.css') }}">
 <link rel="stylesheet" href="{{ asset('css/order-details-modal.css') }}">
+<link rel="stylesheet" href="{{ asset('css/order-management.css') }}">
 <link rel="stylesheet" href="{{ asset('css/rate-modal.css') }}">
 <style>
 /* My Orders Specific Styles */
@@ -469,7 +470,13 @@
                         <div class="detail-row">
                             <span class="detail-label">Status:</span>
                             <span class="detail-value status-{{ $order['status'] }}">
-                                {{ ucfirst($order['status']) }}
+                                @if($order['status'] === 'pending_delivery_confirmation')
+                                    Pending Delivery Confirmation
+                                @elseif($order['status'] === 'on_the_way')
+                                    On The Way
+                                @else
+                                    {{ ucfirst(str_replace('_', ' ', $order['status'])) }}
+                                @endif
                             </span>
                         </div>
                     </div>
@@ -478,9 +485,16 @@
                         <button class="btn btn-outline" onclick="viewReceipt('{{ $order['order_id'] }}')">
                             View Receipt
                         </button>
+                        @if(strtolower($order['status']) === 'on_the_way' && strtolower($order['delivery_method']) === 'delivery')
+                        <button class="btn btn-confirm-delivery" onclick="confirmDelivery({{ $order['order_id_raw'] }})">
+                            Confirm Delivered
+                        </button>
+                        @endif
+                        @if(!in_array(strtolower($order['status']), ['accepted', 'pending_delivery_confirmation', 'on_the_way', 'completed', 'cancelled']))
                         <button class="btn btn-danger" onclick="cancelOrder({{ $order['order_id_raw'] }})">
                             Cancel Order
                         </button>
+                        @endif
                     </div>
                 </div>
                 @endforeach
@@ -735,6 +749,40 @@ function cancelOrder(orderId) {
 function reorder(orderId) {
     // In a real app, this would add the items back to cart
     alert('Items from Order ' + orderId + ' have been added to your cart.');
+}
+
+// Confirm delivery function
+function confirmDelivery(orderId) {
+    if (!confirm('Confirm that you have received your order?')) {
+        return;
+    }
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                     document.querySelector('input[name="_token"]')?.value;
+    
+    fetch(`/consumer/orders/${orderId}/confirm-delivery`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || 'Delivery confirmed successfully!');
+            // Refresh the page to show updated order status
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.error || data.message || 'Failed to confirm delivery'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while confirming delivery');
+    });
 }
 </script>
 @endsection

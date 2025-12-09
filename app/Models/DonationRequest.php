@@ -43,7 +43,7 @@ class DonationRequest extends Model
         'expiry_date',
         'scheduled_date',
         'scheduled_time',
-        'pickup_method',
+        'pickup_method', // Always 'pickup' - delivery removed
         'establishment_notes',
         'distribution_zone',
         'dropoff_date',
@@ -51,7 +51,6 @@ class DonationRequest extends Model
         'start_time',
         'end_time',
         'address',
-        'delivery_option',
         'contact_name',
         'phone_number',
         'email',
@@ -61,6 +60,37 @@ class DonationRequest extends Model
         'fulfilled_at',
         'donation_id',
     ];
+
+    /**
+     * Property to prevent observer logging (not a database column)
+     * This property is used to prevent duplicate logging in observers
+     */
+    public $skipObserverLogging = false;
+
+    /**
+     * Override save to exclude skipObserverLogging from being saved
+     */
+    public function save(array $options = [])
+    {
+        // Temporarily store the skipObserverLogging value
+        $skipLogging = $this->skipObserverLogging ?? false;
+        
+        // Remove skipObserverLogging from attributes and casts to prevent it from being saved
+        if (isset($this->attributes['skipObserverLogging'])) {
+            unset($this->attributes['skipObserverLogging']);
+        }
+        if (isset($this->casts['skipObserverLogging'])) {
+            unset($this->casts['skipObserverLogging']);
+        }
+        
+        // Call parent save
+        $result = parent::save($options);
+        
+        // Restore the skipObserverLogging property after save
+        $this->skipObserverLogging = $skipLogging;
+        
+        return $result;
+    }
 
     /**
      * Get the attributes that should be cast.

@@ -111,14 +111,10 @@ function viewFoodbankDetails(id) {
     window.location.href = `/admin/foodbanks/${id}`;
 }
 
-// View donation activities
-function viewDonationActivities(id) {
-    window.location.href = `/admin/foodbank-donation-hub?foodbank=${id}`;
-}
-
 // Toggle verification
 function toggleVerification(id, verified) {
     const action = verified ? 'verify' : 'unverify';
+    const verificationStatus = verified ? 'verified' : 'unverified';
     if (!confirm(`Are you sure you want to ${action} this food bank?`)) {
         return;
     }
@@ -129,7 +125,7 @@ function toggleVerification(id, verified) {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
         },
-        body: JSON.stringify({ verified: verified })
+        body: JSON.stringify({ verification_status: verificationStatus })
     })
     .then(response => response.json())
     .then(data => {
@@ -151,7 +147,12 @@ function toggleVerification(id, verified) {
 // Update status
 function updateStatus(id, status) {
     const action = status === 'active' ? 'activate' : 'suspend';
-    if (!confirm(`Are you sure you want to ${action} this food bank?`)) {
+    const actionText = status === 'active' ? 'activate' : 'suspend';
+    const message = status === 'active' 
+        ? 'Are you sure you want to activate this food bank account? The account will regain full access to the system.'
+        : 'Are you sure you want to suspend this food bank account? The user will be immediately logged out and prevented from accessing the system.';
+    
+    if (!confirm(message)) {
         return;
     }
     

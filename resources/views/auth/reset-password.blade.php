@@ -37,7 +37,7 @@
                 </div>
             @endif
 
-            <form class="login-form" method="POST" action="{{ route('password-recovery.reset') }}" id="resetPasswordForm">
+            <form class="login-form" method="POST" action="{{ route('password-recovery.reset.submit') }}" id="resetPasswordForm">
                 @csrf
                 <input type="hidden" name="token" value="{{ $token }}">
                 <input type="hidden" name="email" value="{{ $email }}">

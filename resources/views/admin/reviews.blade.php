@@ -192,6 +192,13 @@
                         </td>
                         <td>
                             <div class="action-buttons">
+                                <button class="btn-action btn-view" 
+                                        onclick="viewReviewDetails({{ $review->id }})" 
+                                        title="View Details">
+                                    <svg viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                                    </svg>
+                                </button>
                                 <button class="btn-action btn-flag" 
                                         onclick="toggleFlag({{ $review->id }}, {{ $review->flagged ? 'true' : 'false' }})" 
                                         title="{{ $review->flagged ? 'Unflag Review' : 'Flag Review' }}">
@@ -229,6 +236,24 @@
     </div>
 </div>
 
+<!-- Review Details Modal -->
+<div class="modal-overlay" id="reviewDetailsModal">
+    <div class="modal-content review-details-modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Review Details</h3>
+            <button type="button" class="close-modal" id="closeReviewDetailsModal">&times;</button>
+        </div>
+        <div class="modal-body" id="reviewDetailsContent">
+            <div class="loading-spinner">
+                <p>Loading review details...</p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-secondary" id="closeReviewDetailsBtn">Close</button>
+        </div>
+    </div>
+</div>
+
 <!-- Delete Confirmation Modal -->
 <div class="modal-overlay" id="deleteModal">
     <div class="modal-content">
@@ -250,6 +275,7 @@
 @section('scripts')
 <script>
     const REVIEW_ROUTES = {
+        details: '{{ route('admin.reviews.details', ':id') }}',
         flag: '{{ route('admin.reviews.flag', ':id') }}',
         delete: '{{ route('admin.reviews.delete', ':id') }}'
     };
@@ -361,6 +387,260 @@
     document.getElementById('closeDeleteModal').addEventListener('click', function() {
         document.getElementById('deleteModal').style.display = 'none';
         reviewToDelete = null;
+    });
+
+    // Review Details Modal Functions
+    function viewReviewDetails(id) {
+        const modal = document.getElementById('reviewDetailsModal');
+        const content = document.getElementById('reviewDetailsContent');
+        const url = REVIEW_ROUTES.details.replace(':id', id);
+        
+        // Show modal with loading state
+        modal.style.display = 'flex';
+        content.innerHTML = '<div class="loading-spinner"><p>Loading review details...</p></div>';
+        
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                displayReviewDetails(data.review);
+            } else {
+                const errorMsg = data.message || data.error || 'Failed to load review details. Please try again.';
+                content.innerHTML = `<div class="error-message"><p>${errorMsg}</p></div>`;
+                console.error('API Error:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
+            content.innerHTML = '<div class="error-message"><p>An error occurred while loading review details. Please check the console for details.</p></div>';
+        });
+    }
+
+    function displayReviewDetails(review) {
+        const content = document.getElementById('reviewDetailsContent');
+        
+        // Generate stars HTML
+        let starsHTML = '';
+        for (let i = 1; i <= 5; i++) {
+            starsHTML += `<span class="star ${i <= review.rating ? 'filled' : ''}">★</span>`;
+        }
+        
+        // Format review HTML
+        const reviewHTML = `
+            <div class="review-details-container">
+                <div class="review-details-section">
+                    <h4>Review Information</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Review ID:</span>
+                        <span class="detail-value">#${review.id}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Rating:</span>
+                        <span class="detail-value">
+                            <div class="rating-display">${starsHTML} <span class="rating-value">(${review.rating}/5)</span></div>
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value">
+                            <span class="status-badge ${review.flagged ? 'flagged' : 'active'}">${review.flagged ? 'Flagged' : 'Active'}</span>
+                        </span>
+                    </div>
+                    ${review.flagged && review.flagged_at ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Flagged At:</span>
+                        <span class="detail-value">${review.flagged_at}</span>
+                    </div>
+                    ` : ''}
+                    <div class="detail-row">
+                        <span class="detail-label">Created:</span>
+                        <span class="detail-value">${review.created_at}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Last Updated:</span>
+                        <span class="detail-value">${review.updated_at}</span>
+                    </div>
+                </div>
+
+                <div class="review-details-section">
+                    <h4>Review Content</h4>
+                    ${review.description ? `
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Comment:</span>
+                        <div class="detail-value review-description">${review.description}</div>
+                    </div>
+                    ` : '<div class="detail-row"><span class="detail-value">No comment provided.</span></div>'}
+                    ${review.image_path ? `
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Image:</span>
+                        <div class="detail-value">
+                            <img src="${review.image_path}" alt="Review image" class="review-detail-image" />
+                        </div>
+                    </div>
+                    ` : ''}
+                    ${review.video_path ? `
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Video:</span>
+                        <div class="detail-value">
+                            <video src="${review.video_path}" controls class="review-detail-video"></video>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="review-details-section">
+                    <h4>Reviewer Information</h4>
+                    ${review.consumer ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Name:</span>
+                        <span class="detail-value">${review.consumer.name || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Email:</span>
+                        <span class="detail-value">${review.consumer.email || 'N/A'}</span>
+                    </div>
+                    ${review.consumer.phone_no ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Phone:</span>
+                        <span class="detail-value">${review.consumer.phone_no}</span>
+                    </div>
+                    ` : ''}
+                    ${review.consumer.address ? `
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Address:</span>
+                        <span class="detail-value">${review.consumer.address}</span>
+                    </div>
+                    ` : ''}
+                    <div class="detail-row">
+                        <span class="detail-label">Member Since:</span>
+                        <span class="detail-value">${review.consumer.member_since}</span>
+                    </div>
+                    ` : '<div class="detail-row"><span class="detail-value">Reviewer information not available.</span></div>'}
+                </div>
+
+                <div class="review-details-section">
+                    <h4>Establishment Information</h4>
+                    ${review.establishment ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Business Name:</span>
+                        <span class="detail-value">${review.establishment.name || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Email:</span>
+                        <span class="detail-value">${review.establishment.email || 'N/A'}</span>
+                    </div>
+                    ${review.establishment.phone_no ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Phone:</span>
+                        <span class="detail-value">${review.establishment.phone_no}</span>
+                    </div>
+                    ` : ''}
+                    ${review.establishment.address ? `
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Address:</span>
+                        <span class="detail-value">${review.establishment.address}</span>
+                    </div>
+                    ` : ''}
+                    <div class="detail-row">
+                        <span class="detail-label">Member Since:</span>
+                        <span class="detail-value">${review.establishment.member_since}</span>
+                    </div>
+                    ` : '<div class="detail-row"><span class="detail-value">Establishment information not available.</span></div>'}
+                </div>
+
+                ${review.food_listing ? `
+                <div class="review-details-section">
+                    <h4>Food Item Information</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Item Name:</span>
+                        <span class="detail-value">${review.food_listing.name || 'N/A'}</span>
+                    </div>
+                    ${review.food_listing.description ? `
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Description:</span>
+                        <div class="detail-value">${review.food_listing.description}</div>
+                    </div>
+                    ` : ''}
+                    <div class="detail-row">
+                        <span class="detail-label">Original Price:</span>
+                        <span class="detail-value">₱${parseFloat(review.food_listing.original_price || 0).toFixed(2)}</span>
+                    </div>
+                    ${review.food_listing.discount_percentage ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Discount:</span>
+                        <span class="detail-value">${review.food_listing.discount_percentage}%</span>
+                    </div>
+                    ` : ''}
+                    ${review.food_listing.image_url ? `
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Item Image:</span>
+                        <div class="detail-value">
+                            <img src="${review.food_listing.image_url}" alt="Food item" class="review-detail-image" />
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+                ` : ''}
+
+                ${review.order ? `
+                <div class="review-details-section">
+                    <h4>Order Information</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Order Number:</span>
+                        <span class="detail-value">${review.order.order_number || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Order Status:</span>
+                        <span class="detail-value">${review.order.status || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Total Price:</span>
+                        <span class="detail-value">₱${parseFloat(review.order.total_price || 0).toFixed(2)}</span>
+                    </div>
+                    ${review.order.delivery_method ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Delivery Method:</span>
+                        <span class="detail-value">${review.order.delivery_method}</span>
+                    </div>
+                    ` : ''}
+                    <div class="detail-row">
+                        <span class="detail-label">Order Date:</span>
+                        <span class="detail-value">${review.order.created_at}</span>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        
+        content.innerHTML = reviewHTML;
+    }
+
+    // Close review details modal
+    document.getElementById('closeReviewDetailsModal').addEventListener('click', function() {
+        document.getElementById('reviewDetailsModal').style.display = 'none';
+    });
+
+    document.getElementById('closeReviewDetailsBtn').addEventListener('click', function() {
+        document.getElementById('reviewDetailsModal').style.display = 'none';
+    });
+
+    // Close modal when clicking outside
+    document.getElementById('reviewDetailsModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+        }
     });
 </script>
 @endsection

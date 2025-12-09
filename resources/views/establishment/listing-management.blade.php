@@ -34,7 +34,12 @@
                     <div class="panel-header">
                         <h2 class="panel-title">Food Listings</h2>
                         <div class="header-actions-panel">
-                            <button class="btn btn-primary" id="addFoodBtn">
+                            @if(!($isVerified ?? true))
+                                <div style="padding: 12px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; color: #856404; font-size: 14px; margin-right: 12px;">
+                                    Your account is not verified. Please wait for admin approval.
+                                </div>
+                            @endif
+                            <button class="btn btn-primary" id="addFoodBtn" @if(!($isVerified ?? true)) disabled style="opacity: 0.5; cursor: not-allowed;" @endif>
                                 <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                                 </svg>
@@ -101,14 +106,14 @@
                          data-description="{{ $item['description'] ?? '' }}"
                          data-category="{{ $item['category'] }}"
                          data-status="{{ strtolower($item['status']) }}"
+                         data-db-status="{{ strtolower($item['db_status'] ?? $item['status']) }}"
+                         data-is-disabled="{{ $item['is_disabled_by_admin'] ? 'true' : 'false' }}"
                          data-quantity="{{ $item['quantity'] }}"
                          data-original-price="{{ $item['price'] }}"
                          data-discount-percentage="{{ $item['discount'] ?? 0 }}"
                          data-discounted-price="{{ $item['discounted_price'] ?? '' }}"
                          data-expiry="{{ $item['expiry'] }}"
                          data-address="{{ $item['address'] ?? '' }}"
-                         data-pickup-available="{{ $item['pickup_available'] ? 'true' : 'false' }}"
-                         data-delivery-available="{{ $item['delivery_available'] ? 'true' : 'false' }}"
                          data-image="{{ $item['image'] ?? '' }}">
                          <td>
                              <input type="checkbox" class="checkbox item-checkbox" data-id="{{ $item['id'] }}">
@@ -123,7 +128,12 @@
                                      @endif
                                  </div>
                                  <div class="item-details">
-                                     <div class="item-name">{{ $item['name'] }}</div>
+                                     <div class="item-name">
+                                         {{ $item['name'] }}
+                                         @if($item['is_disabled_by_admin'] ?? false)
+                                             <span class="disabled-by-admin-badge" title="This item has been disabled by an administrator">Disabled by Admin</span>
+                                         @endif
+                                     </div>
                                      <div class="item-id">ID#{{ $item['id'] }}</div>
                                  </div>
                              </div>
@@ -132,7 +142,11 @@
                          <td>₱{{ number_format($item['price'], 2) }}</td>
                          <td>{{ \Carbon\Carbon::parse($item['expiry'])->format('M d, Y') }}</td>
                         <td>
-                            <span class="status-badge {{ $item['status'] }}">{{ ucfirst($item['status']) }}</span>
+                            @if($item['is_disabled_by_admin'] ?? false)
+                                <span class="status-badge inactive">Disabled by Admin</span>
+                            @else
+                                <span class="status-badge {{ $item['status'] }}">{{ ucfirst($item['status']) }}</span>
+                            @endif
                         </td>
                         <td>
                             <div style="position: relative;">
@@ -143,8 +157,8 @@
                                 </button>
                                 <div class="actions-menu" id="menu-{{ $item['id'] }}">
                                     <button type="button" onclick="viewItem({{ $item['id'] }})">View Details</button>
-                                    <button type="button" onclick="editItem({{ $item['id'] }})">Edit</button>
-                                    <button type="button" class="delete" onclick="deleteItem({{ $item['id'] }})">Delete</button>
+                                    <button type="button" onclick="editItem({{ $item['id'] }})" @if(!($isVerified ?? true)) disabled style="opacity: 0.5; cursor: not-allowed;" @endif>Edit</button>
+                                    <button type="button" class="delete" onclick="deleteItem({{ $item['id'] }})" @if(!($isVerified ?? true)) disabled style="opacity: 0.5; cursor: not-allowed;" @endif>Delete</button>
                                 </div>
                             </div>
                         </td>
@@ -198,6 +212,17 @@
         </div>
         
         <form id="itemForm" class="modal-body">
+            <!-- Disabled Item Notice -->
+            <div id="disabledItemNotice" class="disabled-item-notice" style="display: none;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                <div>
+                    <strong>This item is disabled by an administrator.</strong>
+                    <p>You can edit all fields, but changes will only be visible to customers once the item is re-enabled by an administrator.</p>
+                </div>
+            </div>
+            
             <!-- Image Upload Section -->
             <div class="image-upload-section">
                 <div class="image-upload-box">
@@ -281,9 +306,9 @@
                 </div>
             </div>
 
-            <!-- Location & Logistics Section -->
+            <!-- Location Section -->
             <div class="form-section">
-                <h4 class="section-title">Location & Logistics</h4>
+                <h4 class="section-title">Location</h4>
                 <div class="form-group">
                     <div class="input-with-icon">
                         <input type="text" id="itemAddress" name="address" placeholder="Enter Address">
@@ -292,23 +317,16 @@
                         </svg>
                     </div>
                 </div>
-                <div class="checkbox-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="itemPickup" name="pickup" value="1">
-                        <span class="checkmark"></span>
-                        Pickup
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="itemDelivery" name="delivery" value="1">
-                        <span class="checkmark"></span>
-                        Delivery
-                    </label>
-                </div>
             </div>
         </form>
         
         <div class="modal-footer">
-            <button type="button" class="btn btn-primary publish-btn" onclick="saveItem()">
+            @if(!($isVerified ?? true))
+                <div style="padding: 12px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; color: #856404; font-size: 14px; margin-bottom: 12px; width: 100%;">
+                    Your account is not verified. Please wait for admin approval.
+                </div>
+            @endif
+            <button type="button" class="btn btn-primary publish-btn" onclick="saveItem()" @if(!($isVerified ?? true)) disabled style="opacity: 0.5; cursor: not-allowed;" @endif>
                 Publish Now
             </button>
         </div>

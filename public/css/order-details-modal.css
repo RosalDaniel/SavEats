@@ -1,22 +1,6 @@
-/* Order Details Modal Styles */
-.order-details-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 10000;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.order-details-modal.show {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
+/* Order Details Modal Styles - Updated to match establishment style */
+/* The modal now uses the same structure as establishment order management */
+/* Main styles are in order-management.css */
 
 .order-details-modal-overlay {
     position: fixed;
