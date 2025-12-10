@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // If all columns already exist, skip to avoid duplicate-column errors on re-deploys
+        if (Schema::hasColumns('establishments', ['latitude', 'longitude', 'formatted_address'])) {
+            return;
+        }
+
         Schema::table('establishments', function (Blueprint $table) {
             // Guard against re-running on environments where these columns already exist
             if (!Schema::hasColumn('establishments', 'latitude')) {
