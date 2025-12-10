@@ -12,9 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('establishments', function (Blueprint $table) {
-            $table->decimal('latitude', 10, 8)->nullable()->after('address');
-            $table->decimal('longitude', 11, 8)->nullable()->after('latitude');
-            $table->text('formatted_address')->nullable()->after('longitude');
+            // Guard against re-running on environments where these columns already exist
+            if (!Schema::hasColumn('establishments', 'latitude')) {
+                $table->decimal('latitude', 10, 8)->nullable()->after('address');
+            }
+            if (!Schema::hasColumn('establishments', 'longitude')) {
+                $table->decimal('longitude', 11, 8)->nullable()->after('latitude');
+            }
+            if (!Schema::hasColumn('establishments', 'formatted_address')) {
+                $table->text('formatted_address')->nullable()->after('longitude');
+            }
         });
     }
 
@@ -24,7 +31,15 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('establishments', function (Blueprint $table) {
-            $table->dropColumn(['latitude', 'longitude', 'formatted_address']);
+            $columnsToDrop = [];
+            foreach (['latitude', 'longitude', 'formatted_address'] as $column) {
+                if (Schema::hasColumn('establishments', $column)) {
+                    $columnsToDrop[] = $column;
+                }
+            }
+            if (!empty($columnsToDrop)) {
+                $table->dropColumn($columnsToDrop);
+            }
         });
     }
 };

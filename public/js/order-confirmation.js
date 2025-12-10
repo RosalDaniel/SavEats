@@ -38,8 +38,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup event listeners
     setupEventListeners();
     
-    // Initialize maps
-    initializePickupMap();
+    // Initialize pickup map after a short delay to ensure container is rendered
+    // Pickup is the default method, so the map should be visible
+    setTimeout(() => {
+        initializePickupMap();
+    }, 200);
     
     // Wait for Google Maps API to load before initializing delivery
     if (typeof google !== 'undefined' && google.maps) {
@@ -268,6 +271,37 @@ function updateReceiveMethodUI(method) {
         if (pickupUI) pickupUI.style.display = 'block';
         if (deliveryUI) deliveryUI.style.display = 'none';
         
+        // Invalidate pickup map size when it becomes visible
+        setTimeout(() => {
+            if (pickupMap) {
+                pickupMap.invalidateSize();
+                // Re-center map on establishment location using stored coordinates
+                const orderData = window.orderData || {};
+                let storeLat = orderData.storeLat;
+                let storeLng = orderData.storeLng;
+                
+                // Validate stored coordinates
+                if (storeLat && storeLng && isValidCoordinate(storeLat, storeLng)) {
+                    pickupMap.setView([storeLat, storeLng], 15);
+                } else {
+                    // Re-center on existing markers if coordinates invalid
+                    const markers = [];
+                    pickupMap.eachLayer((layer) => {
+                        if (layer instanceof L.Marker) {
+                            markers.push(layer);
+                        }
+                    });
+                    if (markers.length > 0) {
+                        const group = new L.featureGroup(markers);
+                        pickupMap.fitBounds(group.getBounds().pad(0.1));
+                    }
+                }
+            } else {
+                // Initialize map if not already initialized
+                initializePickupMap();
+            }
+        }, 100);
+        
         // Hide delivery fee in price breakdown
         const deliveryFeeRow = document.getElementById('deliveryFeeRow');
         if (deliveryFeeRow) deliveryFeeRow.style.display = 'none';
@@ -360,70 +394,91 @@ function updatePriceBreakdown(quantity, unitPrice, deliveryFee = 0) {
 // Pickup Map Initialization
 function initializePickupMap() {
     const mapElement = document.getElementById('pickupMap');
-    if (!mapElement) return;
-    
-    const address = mapElement.getAttribute('data-address') || '';
-    const name = mapElement.getAttribute('data-name') || 'Location';
-    
-    // Initialize map
-    pickupMap = L.map('pickupMap');
-    
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
-    }).addTo(pickupMap);
-    
-    // Geocode address
-    if (address && address !== 'Location not specified') {
-        geocodeAddressForPickup(address, name);
-    } else {
-        const defaultLat = 12.8797;
-        const defaultLng = 121.7740;
-        pickupMap.setView([defaultLat, defaultLng], 6);
-        L.marker([defaultLat, defaultLng])
-            .addTo(pickupMap)
-            .bindPopup(`<b>${name}</b><br>${address || 'Location'}`)
-            .openPopup();
-    }
-}
-
-function geocodeAddressForPickup(address, name) {
-    const cacheKey = address.toLowerCase();
-    if (geocodeCache[cacheKey]) {
-        const { lat, lng } = geocodeCache[cacheKey];
-        pickupMap.setView([lat, lng], 15);
-        L.marker([lat, lng])
-            .addTo(pickupMap)
-            .bindPopup(`<b>${name}</b><br>${address}`)
-            .openPopup();
+    if (!mapElement) {
+        console.warn('Pickup map container not found');
         return;
     }
     
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ', Philippines')}&countrycodes=ph&limit=1&addressdetails=1`;
+    // Check if container is visible
+    const pickupUI = document.getElementById('pickupUI');
+    if (pickupUI && pickupUI.style.display === 'none') {
+        console.warn('Pickup UI is hidden, map will be initialized when visible');
+        // Don't initialize yet, will be initialized when pickup is selected
+        return;
+    }
     
-    fetch(url, {
-        headers: {
-            'User-Agent': 'SavEats Application'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data && data.length > 0) {
-            const lat = parseFloat(data[0].lat);
-            const lng = parseFloat(data[0].lon);
-            geocodeCache[cacheKey] = { lat, lng };
-            
-            pickupMap.setView([lat, lng], 15);
-            L.marker([lat, lng])
-                .addTo(pickupMap)
-                .bindPopup(`<b>${name}</b><br>${address}`)
-                .openPopup();
-        }
-    })
-    .catch(error => {
-        console.error('Geocoding error:', error);
-    });
+    // Don't reinitialize if map already exists
+    if (pickupMap) {
+        console.log('Pickup map already initialized, invalidating size');
+        pickupMap.invalidateSize();
+        return;
+    }
+    
+    // Get store location from orderData (use stored pinned coordinates from establishment registration)
+    const orderData = window.orderData || {};
+    const storeName = orderData.establishmentName || 'Store';
+    const establishmentAddress = orderData.establishmentAddress || 'Location not specified';
+    
+    // Use stored coordinates from establishment registration (pinned location) - same as delivery map
+    let storeLat = orderData.storeLat;
+    let storeLng = orderData.storeLng;
+    
+    // Validate stored coordinates
+    if (!storeLat || !storeLng || !isValidCoordinate(storeLat, storeLng)) {
+        console.warn('Invalid stored coordinates, using Cebu center as fallback');
+        storeLat = CEBU_CENTER_LAT;
+        storeLng = CEBU_CENTER_LNG;
+    }
+    
+    console.log('Using establishment stored coordinates for pickup map:', storeLat, storeLng, 'for address:', establishmentAddress);
+    
+    try {
+        // Initialize map centered on store location (using pinned coordinates)
+        pickupMap = L.map('pickupMap', {
+            zoomControl: true
+        }).setView([storeLat, storeLng], 15);
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(pickupMap);
+        
+        // Place establishment marker using stored coordinates (same as delivery map)
+        L.marker([storeLat, storeLng], {
+            draggable: false,
+            icon: L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            })
+        })
+        .addTo(pickupMap)
+        .bindPopup(`<strong>${storeName}</strong><br>${establishmentAddress}`)
+        .openPopup();
+        
+        // Invalidate size after a short delay to ensure container is fully rendered
+        setTimeout(() => {
+            if (pickupMap) {
+                pickupMap.invalidateSize();
+            }
+        }, 100);
+        
+        console.log('Pickup map initialized successfully with stored coordinates');
+    } catch (error) {
+        console.error('Error initializing pickup map:', error);
+    }
+}
+
+// This function is no longer needed as we use stored coordinates directly
+// Keeping it for backward compatibility but it won't be called
+function geocodeAddressForPickup(address, name) {
+    // This function is deprecated - pickup map now uses stored coordinates from orderData
+    // Same coordinates as delivery map (storeLat, storeLng)
+    console.warn('geocodeAddressForPickup is deprecated - using stored coordinates instead');
 }
 
 // Delivery Map and Features Initialization

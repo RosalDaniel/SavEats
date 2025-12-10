@@ -401,8 +401,18 @@ body {
 #deliveryMap {
     width: 100%;
     height: 300px;
+    min-height: 300px;
     border-radius: 8px;
     border: 2px solid #e5e7eb;
+    position: relative;
+    z-index: 1;
+}
+
+#pickupMap .leaflet-container,
+#deliveryMap .leaflet-container {
+    height: 100%;
+    width: 100%;
+    border-radius: 8px;
 }
 
 #map {
