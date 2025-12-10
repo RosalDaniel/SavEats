@@ -188,13 +188,6 @@
                         </label>
                     </div>
 
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="newsletter" name="newsletter" class="checkbox">
-                        <label for="newsletter" class="checkbox-label">
-                            I'd like to receive updates about SavEats and food waste reduction tips
-                        </label>
-                    </div>
-
                     <div class="btn-group">
                         <button type="button" class="btn btn-secondary" id="prevStep3">Back</button>
                         <button type="submit" class="btn btn-primary" id="registerBtn">Create Account</button>
