@@ -180,12 +180,17 @@ function setupEventListeners() {
     });
 }
 
-function editProfilePicture() {
+// Make editProfilePicture globally accessible
+window.editProfilePicture = function() {
     openEditProfileModal();
-}
+};
 
 function openEditProfileModal() {
     const modal = document.getElementById('editProfileModal');
+    if (!modal) {
+        console.error('Edit profile modal not found');
+        return;
+    }
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     
@@ -195,6 +200,26 @@ function openEditProfileModal() {
     if (saveChangesBtn) {
         saveChangesBtn.style.display = 'none';
         saveChangesBtn.disabled = false;
+    }
+    
+    // Setup upload photo button click handler
+    const uploadPhotoBtn = document.getElementById('uploadPhotoBtn');
+    const profilePictureInput = document.getElementById('profilePictureInput');
+    if (uploadPhotoBtn && profilePictureInput) {
+        // Remove existing listeners to avoid duplicates
+        const newUploadBtn = uploadPhotoBtn.cloneNode(true);
+        uploadPhotoBtn.parentNode.replaceChild(newUploadBtn, uploadPhotoBtn);
+        
+        newUploadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (profilePictureInput) {
+                profilePictureInput.click();
+            } else {
+                console.error('Profile picture input not found');
+                showNotification('Error: File input not found', 'error');
+            }
+        });
     }
 }
 
@@ -207,7 +232,8 @@ function closeEditProfileModal() {
 // Store the selected file globally
 let selectedProfilePictureFile = null;
 
-function handleProfilePictureChange(event) {
+// Make handleProfilePictureChange globally accessible
+window.handleProfilePictureChange = function(event) {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -253,9 +279,10 @@ function handleProfilePictureChange(event) {
         }
     };
     reader.readAsDataURL(file);
-}
+};
 
-function saveProfilePicture() {
+// Make saveProfilePicture globally accessible
+window.saveProfilePicture = function() {
     if (!selectedProfilePictureFile) {
         showNotification('No image selected', 'error');
         return;
@@ -275,31 +302,80 @@ function saveProfilePicture() {
     // Upload the file
     const formData = new FormData();
     formData.append('profile_picture', selectedProfilePictureFile);
-    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (!csrfToken) {
+        showNotification('CSRF token not found. Please refresh the page and try again.', 'error');
+        if (saveChangesBtn) {
+            saveChangesBtn.disabled = false;
+            saveChangesBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+                Save Changes
+            `;
+        }
+        return;
+    }
+    formData.append('_token', csrfToken);
 
     fetch('/profile/update', {
         method: 'POST',
         body: formData,
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': csrfToken
         }
     })
     .then(response => {
+        // Check if response is ok
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || `HTTP error! status: ${response.status}`);
+            });
+        }
         return response.json();
     })
     .then(data => {
         if (data.success) {
+            // Get the image URL from server response or use preview
+            let imageUrl = data.data?.profile_image_url || data.profile_image_url;
+            const previewImage = document.getElementById('previewImage');
+            
+            if (!imageUrl && previewImage) {
+                // Fallback to preview image src (data URL)
+                imageUrl = previewImage.src;
+            }
+            
             // Update the main profile image
             const profileImage = document.getElementById('profileImage');
-            if (profileImage) {
-                profileImage.src = document.getElementById('previewImage').src;
-            } else {
+            if (profileImage && imageUrl) {
+                // If it's a data URL, use it directly; otherwise construct storage URL
+                if (imageUrl.startsWith('data:')) {
+                    profileImage.src = imageUrl;
+                } else {
+                    // Construct the full URL for the stored image
+                    profileImage.src = imageUrl.startsWith('http') ? imageUrl : `/storage/${imageUrl}`;
+                }
+            } else if (!profileImage) {
+                // Create image element if it doesn't exist
                 const profilePicture = document.querySelector('.profile-picture');
-                profilePicture.innerHTML = `<img src="${document.getElementById('previewImage').src}" alt="Profile Picture" id="profileImage">`;
+                const placeholder = document.querySelector('.profile-placeholder');
+                if (placeholder) {
+                    placeholder.remove();
+                }
+                if (profilePicture) {
+                    const imgUrl = imageUrl.startsWith('http') || imageUrl.startsWith('data:') ? imageUrl : `/storage/${imageUrl}`;
+                    profilePicture.innerHTML = `<img src="${imgUrl}" alt="Profile Picture" id="profileImage">`;
+                }
             }
             
             // Update sidebar avatar
-            updateSidebarAvatar(document.getElementById('previewImage').src);
+            if (imageUrl) {
+                const avatarUrl = imageUrl.startsWith('http') || imageUrl.startsWith('data:') ? imageUrl : `/storage/${imageUrl}`;
+                updateSidebarAvatar(avatarUrl);
+            }
             
             showNotification('Profile picture updated successfully!', 'success');
             closeEditProfileModal();
@@ -326,7 +402,7 @@ function saveProfilePicture() {
             `;
         }
     });
-}
+};
 
 function updateSidebarAvatar(imageSrc) {
     // Update sidebar avatar if it exists

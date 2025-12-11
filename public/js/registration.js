@@ -512,9 +512,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const username = document.getElementById('username');
         const password = document.getElementById('password');
         const confirmPassword = document.getElementById('confirmPassword');
-        const location = document.getElementById('location');
-        const latitude = document.getElementById('latitude');
-        const longitude = document.getElementById('longitude');
         const terms = document.getElementById('terms');
 
         const validations = [
@@ -523,16 +520,22 @@ document.addEventListener('DOMContentLoaded', function() {
             validateField(confirmPassword, 'confirmPassword-error', val => val === password.value, 'Passwords do not match')
         ];
 
-        // Validate location - must be selected from map
-        const locationError = document.getElementById('location-error');
-        if (!latitude?.value || !longitude?.value || !location?.value || location.value === 'Address will be filled from map selection' || location.value === 'Loading address...') {
-            locationError.textContent = 'Please select your location on the map';
-            location.closest('.form-group')?.classList.add('has-error');
-            validations.push(false);
-        } else {
-            locationError.textContent = '';
-            location.closest('.form-group')?.classList.remove('has-error');
-            validations.push(true);
+        // Validate location - only required for business accounts
+        if (selectedAccountType === 'business') {
+            const location = document.getElementById('location');
+            const latitude = document.getElementById('latitude');
+            const longitude = document.getElementById('longitude');
+            const locationError = document.getElementById('location-error');
+            
+            if (!latitude?.value || !longitude?.value || !location?.value || location.value === 'Address will be filled from map selection' || location.value === 'Loading address...') {
+                locationError.textContent = 'Please select your location on the map';
+                location.closest('.form-group')?.classList.add('has-error');
+                validations.push(false);
+            } else {
+                locationError.textContent = '';
+                location.closest('.form-group')?.classList.remove('has-error');
+                validations.push(true);
+            }
         }
 
         if (!terms.checked) {
@@ -585,11 +588,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 accountType: selectedAccountType,
                 username: document.getElementById('username').value.trim(),
                 password: document.getElementById('password').value,
-                location: document.getElementById('location').value.trim(),
                 email: document.getElementById('email').value.trim(),
                 phone: document.getElementById('phone').value.trim(),
-                terms: document.getElementById('terms').checked,
-                newsletter: document.getElementById('newsletter').checked
+                terms: document.getElementById('terms').checked
             };
 
             // Add specific fields based on account type
@@ -607,6 +608,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 finalFormData.organizationName = document.getElementById('organizationName').value.trim();
                 finalFormData.serviceArea = document.getElementById('serviceArea').value.trim();
                 finalFormData.orgRegistration = document.getElementById('orgRegistration').files[0];
+                // Map serviceArea to contact_person for backend compatibility
+                finalFormData.contactPerson = finalFormData.serviceArea || finalFormData.organizationName;
+                finalFormData.registrationNumber = '';
             }
 
             // Get CSRF token
@@ -659,8 +663,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 formData.append('owner_fname', finalFormData.firstName);
                 formData.append('owner_lname', finalFormData.lastName);
                 formData.append('organization_name', finalFormData.organizationName);
-                formData.append('contact_person', finalFormData.contactPerson);
-                formData.append('registration_number', finalFormData.registrationNumber);
+                // Use serviceArea as contact_person since form doesn't have a separate contact person field
+                formData.append('contact_person', finalFormData.serviceArea || finalFormData.organizationName);
+                // Registration number is optional, use empty string if not provided
+                formData.append('registration_number', '');
                 
                 if (finalFormData.birCertificate) {
                     formData.append('birCertificate', finalFormData.birCertificate);
@@ -714,8 +720,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 requestData.owner_fname = finalFormData.firstName;
                 requestData.owner_lname = finalFormData.lastName;
                 requestData.organization_name = finalFormData.organizationName;
-                requestData.contact_person = finalFormData.contactPerson;
-                requestData.registration_number = finalFormData.registrationNumber;
+                // Use serviceArea as contact_person since form doesn't have a separate contact person field
+                requestData.contact_person = finalFormData.serviceArea || finalFormData.organizationName;
+                // Registration number is optional, use empty string if not provided
+                requestData.registration_number = '';
                 console.log('Sending registration data:', requestData);
                 
                 requestBody = JSON.stringify(requestData);

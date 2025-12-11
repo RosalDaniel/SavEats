@@ -244,6 +244,13 @@
     grid-column: 1 / -1;
 }
 
+#addressFieldContainer,
+#addressFieldContainer .form-group,
+#addressFieldContainer .form-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
 .form-label {
     font-weight: 500;
     color: #2d5a3d;

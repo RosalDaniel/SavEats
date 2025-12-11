@@ -148,9 +148,13 @@ class ProfileController extends Controller
                         // Update session with new profile picture
                         Session::put('user_profile_picture', $imagePath);
                         
+                        // Get the full URL for the image
+                        $imageUrl = Storage::url($imagePath);
+                        
                         return response()->json([
                             'success' => true,
                             'message' => 'Profile picture updated successfully',
+                            'profile_image_url' => $imageUrl,
                             'data' => $user
                         ]);
                     } else {
