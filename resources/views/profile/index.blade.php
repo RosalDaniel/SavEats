@@ -126,10 +126,15 @@
 <input type="file" id="profilePictureInput" accept="image/*" style="display: none;" onchange="handleProfilePictureChange(event)">
 
 <!-- Edit Profile Modal -->
-<div class="modal-overlay" id="editProfileModal">
+<div class="modal-overlay" id="editProfileModal" style="display: none;">
     <div class="modal-content edit-profile-modal">
         <div class="modal-header">
             <h2 class="modal-title">EDIT PROFILE</h2>
+            <button type="button" class="modal-close-btn" onclick="closeEditProfileModal()" aria-label="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </button>
         </div>
         <div class="modal-body">
             <div class="profile-picture-upload">

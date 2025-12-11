@@ -1,5 +1,21 @@
 // Profile Page JavaScript
 
+// Define global functions immediately (before DOMContentLoaded)
+// Make editProfilePicture globally accessible - define immediately
+window.editProfilePicture = function() {
+    console.log('editProfilePicture called');
+    openEditProfileModal();
+};
+
+// Make closeEditProfileModal globally accessible
+window.closeEditProfileModal = function() {
+    const modal = document.getElementById('editProfileModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+};
+
 let isEditing = false;
 let currentEditingSection = null;
 let originalData = {};
@@ -180,18 +196,25 @@ function setupEventListeners() {
     });
 }
 
-// Make editProfilePicture globally accessible
-window.editProfilePicture = function() {
-    openEditProfileModal();
-};
-
 function openEditProfileModal() {
     const modal = document.getElementById('editProfileModal');
     if (!modal) {
         console.error('Edit profile modal not found');
+        showNotification('Error: Modal not found. Please refresh the page.', 'error');
         return;
     }
+    
+    // Show modal with proper styling
     modal.style.display = 'flex';
+    modal.style.setProperty('z-index', '10000', 'important');
+    modal.style.setProperty('position', 'fixed', 'important');
+    modal.style.setProperty('top', '0', 'important');
+    modal.style.setProperty('left', '0', 'important');
+    modal.style.setProperty('width', '100%', 'important');
+    modal.style.setProperty('height', '100%', 'important');
+    modal.style.setProperty('background-color', 'rgba(0, 0, 0, 0.5)', 'important');
+    modal.style.setProperty('align-items', 'center', 'important');
+    modal.style.setProperty('justify-content', 'center', 'important');
     document.body.style.overflow = 'hidden';
     
     // Reset the state
@@ -200,6 +223,22 @@ function openEditProfileModal() {
     if (saveChangesBtn) {
         saveChangesBtn.style.display = 'none';
         saveChangesBtn.disabled = false;
+    }
+    
+    // Reset preview to original image
+    const previewImage = document.getElementById('previewImage');
+    const profilePlaceholderPreview = document.querySelector('.profile-placeholder-preview');
+    if (previewImage && previewImage.dataset.originalSrc) {
+        previewImage.src = previewImage.dataset.originalSrc;
+        previewImage.style.display = 'block';
+        if (profilePlaceholderPreview) {
+            profilePlaceholderPreview.style.display = 'none';
+        }
+    } else if (profilePlaceholderPreview) {
+        profilePlaceholderPreview.style.display = 'block';
+        if (previewImage) {
+            previewImage.style.display = 'none';
+        }
     }
     
     // Setup upload photo button click handler
@@ -223,11 +262,7 @@ function openEditProfileModal() {
     }
 }
 
-function closeEditProfileModal() {
-    const modal = document.getElementById('editProfileModal');
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-}
+// closeEditProfileModal is now defined above as window.closeEditProfileModal
 
 // Store the selected file globally
 let selectedProfilePictureFile = null;
