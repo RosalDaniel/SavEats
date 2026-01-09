@@ -35,7 +35,7 @@
     <!-- Orders List -->
     <div class="orders-list" id="ordersList">
         <!-- Pending Orders -->
-        <div class="tab-content" id="pending-orders">
+        <div class="tab-content" id="pending-orders" style="display: block;">
             @if(isset($orders) && count($orders) > 0)
                 @foreach($orders as $order)
                 @if($order['status'] === 'pending' && !$order['is_missed_pickup'])

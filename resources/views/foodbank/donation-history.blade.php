@@ -33,37 +33,12 @@
         </div>
         <div class="export-buttons">
             <div class="export-left-group">
-                <div class="export-dropdown">
-                    <button class="btn-export" id="exportHistoryToggle">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
-                        </svg>
-                        Export Donation History
-                        <svg class="dropdown-arrow" viewBox="0 0 24 24">
-                            <path d="M7 10l5 5 5-5z"/>
-                        </svg>
-                    </button>
-                    <div class="export-menu" id="exportHistoryMenu">
-                        <a href="{{ route('foodbank.donation-history.export', array_merge(['type' => 'history'], request()->only(['status', 'category', 'establishment_id', 'date_from', 'date_to']))) }}" class="export-option">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                            </svg>
-                            Export as CSV
-                        </a>
-                        <a href="{{ route('foodbank.donation-history.export', array_merge(['type' => 'history', 'format' => 'excel'], request()->only(['status', 'category', 'establishment_id', 'date_from', 'date_to']))) }}" class="export-option">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                            </svg>
-                            Export as Excel
-                        </a>
-                        <a href="{{ route('foodbank.donation-history.export', array_merge(['type' => 'history', 'format' => 'pdf'], request()->only(['status', 'category', 'establishment_id', 'date_from', 'date_to']))) }}" class="export-option">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zm5 2h1v-1h-1v1zm5-2h1v-1h-1v1z"/>
-                            </svg>
-                            Export as PDF
-                        </a>
-                    </div>
-                </div>
+                <a href="{{ route('foodbank.donation-history.export', array_merge(['type' => 'history', 'format' => 'pdf'], request()->only(['status', 'category', 'establishment_id', 'date_from', 'date_to']))) }}" class="btn-export">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zm5 2h1v-1h-1v1zm5-2h1v-1h-1v1z"/>
+                    </svg>
+                    Export as PDF
+                </a>
             </div>
         </div>
     </div>
@@ -298,27 +273,6 @@
             noDataRow.remove();
         }
     }
-    
-    // Export dropdown toggle
-    (function() {
-        const exportHistoryToggle = document.getElementById('exportHistoryToggle');
-        const exportHistoryMenu = document.getElementById('exportHistoryMenu');
-        
-        if (exportHistoryToggle && exportHistoryMenu) {
-            exportHistoryToggle.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                exportHistoryMenu.classList.toggle('show');
-            });
-            
-            // Close dropdown when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!exportHistoryToggle.contains(e.target) && !exportHistoryMenu.contains(e.target)) {
-                    exportHistoryMenu.classList.remove('show');
-                }
-            });
-        }
-    })();
     
     // Keep existing form submission for date filters (they require server-side filtering)
     (function() {

@@ -5,6 +5,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
     
+    // Initialize: Show pending tab by default, hide others
+    tabContents.forEach((content, index) => {
+        if (index === 0) {
+            // First tab (pending) should be visible
+            content.style.display = 'block';
+        } else {
+            content.style.display = 'none';
+        }
+    });
+    
     tabButtons.forEach(button => {
         button.addEventListener('click', function() {
             const targetTab = this.getAttribute('data-tab');
@@ -23,6 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetContent = document.getElementById(targetTab + '-orders');
             if (targetContent) {
                 targetContent.style.display = 'block';
+            } else {
+                console.error('Tab content not found:', targetTab + '-orders');
             }
         });
     });
@@ -270,12 +282,6 @@ function viewOrderDetails(orderId) {
                                 <span class="summary-label">Subtotal:</span>
                                 <span class="summary-value">₱ ${parseFloat(order.subtotal).toFixed(2)}</span>
                             </div>
-                            ${order.delivery_method === 'Delivery' ? `
-                            <div class="summary-row">
-                                <span class="summary-label">Delivery Fee:</span>
-                                <span class="summary-value">₱ ${parseFloat(order.delivery_fee_amount || 0).toFixed(2)}</span>
-                            </div>
-                            ` : ''}
                             <div class="summary-row total-row">
                                 <span class="summary-label">Total:</span>
                                 <span class="summary-value">₱ ${parseFloat(order.total).toFixed(2)}</span>
@@ -307,10 +313,6 @@ function viewOrderDetails(orderId) {
                         <div class="detail-item">
                             <span class="detail-label">Distance:</span>
                             <span class="detail-value">${order.delivery_distance}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Delivery Fee:</span>
-                            <span class="detail-value">₱ ${parseFloat(order.delivery_fee_amount || 0).toFixed(2)}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Estimated Time:</span>

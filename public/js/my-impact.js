@@ -2,7 +2,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     initializeChart();
     initializeTabs();
-    initializeBadges();
 });
 
 // Initialize the monthly chart
@@ -248,28 +247,6 @@ function switchTab(tabType) {
     new Chart(ctx, config);
 }
 
-// Initialize badge interactions
-function initializeBadges() {
-    const badges = document.querySelectorAll('.badge');
-    
-    badges.forEach(badge => {
-        badge.addEventListener('click', function() {
-            // Add click animation
-            this.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                this.style.transform = '';
-            }, 150);
-            
-            // Handle badge click logic
-            const badgeName = this.querySelector('.badge-name')?.textContent;
-            if (badgeName) {
-                console.log(`Clicked badge: ${badgeName}`);
-                // Add any badge-specific functionality here
-            }
-        });
-    });
-}
-
 // Utility function to update impact data
 function updateImpactData(foodSaved, moneySaved) {
     const foodValue = document.querySelector('.summary-card.food-saved .card-value');
@@ -281,39 +258,5 @@ function updateImpactData(foodSaved, moneySaved) {
     
     if (moneyValue) {
         moneyValue.textContent = `₱ ${moneySaved.toFixed(2)}`;
-    }
-}
-
-// Utility function to update badge progress
-function updateBadgeProgress(badgeName, percentage) {
-    const badge = Array.from(document.querySelectorAll('.badge')).find(b => 
-        b.querySelector('.badge-name')?.textContent === badgeName
-    );
-    
-    if (badge) {
-        const percentageElement = badge.querySelector('.badge-percentage');
-        if (percentageElement) {
-            percentageElement.textContent = `${percentage}%`;
-        }
-        
-        // Update badge status based on percentage
-        if (percentage >= 100) {
-            badge.classList.remove('in-progress', 'locked');
-            badge.classList.add('completed');
-            
-            // Add completed status if not exists
-            if (!badge.querySelector('.badge-status.completed')) {
-                const statusElement = document.createElement('div');
-                statusElement.className = 'badge-status completed';
-                statusElement.textContent = 'Completed';
-                badge.querySelector('.badge-content').appendChild(statusElement);
-            }
-        } else if (percentage > 0) {
-            badge.classList.remove('completed', 'locked');
-            badge.classList.add('in-progress');
-        } else {
-            badge.classList.remove('completed', 'in-progress');
-            badge.classList.add('locked');
-        }
     }
 }

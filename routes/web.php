@@ -188,6 +188,7 @@ Route::middleware('custom.auth')->group(function () {
         
         // Impact Reports
         Route::get('/impact-reports', [DashboardController::class, 'foodbankImpactReports'])->name('impact-reports');
+        Route::get('/impact-reports/export', [DashboardController::class, 'exportFoodbankImpactReports'])->name('impact-reports.export');
         
         // Other Pages
         Route::get('/announcements', [DashboardController::class, 'foodbankAnnouncements'])->name('announcements');

@@ -25,12 +25,12 @@
 
     <!-- Action Buttons -->
     <div class="action-buttons">
-        <button class="btn btn-primary" id="exportBtn">
+        <a href="{{ route('foodbank.impact-reports.export') }}" class="btn btn-primary" id="exportBtn">
             <svg viewBox="0 0 24 24">
-                <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/>
+                <path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zm5 2h1v-1h-1v1zm5-2h1v-1h-1v1z"/>
             </svg>
-            Export Report
-        </button>
+            Export as PDF
+        </a>
     </div>
 
     <!-- Charts Grid -->

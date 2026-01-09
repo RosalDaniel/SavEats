@@ -306,13 +306,8 @@ function escapeHtml(text) {
 
 // Initialize action buttons
 function initializeActionButtons() {
-    const exportBtn = document.getElementById('exportBtn');
-
-    if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-            showToast('Exporting comprehensive impact report...', 'success');
-        });
-    }
+    // Export button is now a link, no JavaScript needed
+    // The link will directly download the PDF
 }
 
 // Download report

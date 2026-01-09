@@ -13,7 +13,7 @@
             <div class="hero-content">
                 <h1 class="hero-title">Fighting Food Waste, One Meal at a Time.</h1>
                 <p class="hero-subtitle">SaveEats connects surplus food from businesses to people and food banks because no good food should go to waste.</p>
-                <a href="#" class="cta-button">
+                <a href="{{ route('register') }}" class="cta-button">
                     Get Started →
                 </a>
             </div>
@@ -99,7 +99,7 @@
                 <p class="cta-description">Connect with a community that's saving good food, supporting local businesses, and feeding more people—one meal at a time.</p>
             </div>
             <div class="cta-button-wrapper">
-                <a href="#" class="btn-cta">Join Us Now <span class="arrow-icon">→</span></a>
+                <a href="{{ route('register') }}" class="btn-cta">Join Us Now <span class="arrow-icon">→</span></a>
             </div>
         </div>
     </section>

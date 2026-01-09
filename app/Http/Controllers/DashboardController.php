@@ -1898,11 +1898,16 @@ class DashboardController extends Controller
         
         $foodbankId = session('user_id');
         $exportType = $request->get('type', 'history');
-        $format = $request->get('format', 'csv'); // csv, excel, pdf
+        $format = $request->get('format', 'pdf'); // Only PDF supported
         
         // Handle format-specific exports for history type
-        if ($exportType === 'history' && in_array($format, ['excel', 'pdf'])) {
+        if ($exportType === 'history' && $format === 'pdf') {
             return $this->exportFoodbankDonationHistoryFormatted($request, $format);
+        }
+        
+        // If format is not PDF, redirect to PDF export
+        if ($exportType === 'history' && $format !== 'pdf') {
+            return redirect()->route('foodbank.donation-history.export', array_merge(['type' => 'history', 'format' => 'pdf'], $request->only(['status', 'category', 'establishment_id', 'date_from', 'date_to'])));
         }
         
         $filename = '';
@@ -2587,6 +2592,137 @@ class DashboardController extends Controller
             'topContributorsData',
             'reports'
         ));
+    }
+
+    /**
+     * Export foodbank impact reports
+     */
+    public function exportFoodbankImpactReports()
+    {
+        // Verify user is a foodbank
+        if (session('user_type') !== 'foodbank') {
+            return redirect()->route('login')->with('error', 'Access denied.');
+        }
+        
+        $user = $this->getUserData();
+        $foodbankId = session('user_id');
+        $foodbankName = $user->organization_name ?? 'Foodbank';
+        
+        // Get the same data as the impact reports page
+        $foodRequests = DonationRequest::where('foodbank_id', $foodbankId)->count();
+        $foodReceived = Donation::where('foodbank_id', $foodbankId)
+            ->where('status', 'collected')
+            ->count();
+        
+        // Daily data (last 7 days)
+        $dailyData = [];
+        $dayLabels = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dayName = $dayLabels[$date->dayOfWeek];
+            
+            $dayQuantity = Donation::where('foodbank_id', $foodbankId)
+                ->where('status', 'collected')
+                ->whereDate('collected_at', $date->toDateString())
+                ->sum('quantity');
+            
+            $dailyData[] = [
+                'label' => $dayName,
+                'value' => (int) $dayQuantity
+            ];
+        }
+        
+        // Monthly data (last 12 months)
+        $monthlyData = [];
+        $monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        for ($i = 11; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            $monthName = $monthLabels[$date->month - 1];
+            
+            $monthQuantity = Donation::where('foodbank_id', $foodbankId)
+                ->where('status', 'collected')
+                ->whereYear('collected_at', $date->year)
+                ->whereMonth('collected_at', $date->month)
+                ->sum('quantity');
+            
+            $monthlyData[] = [
+                'label' => $monthName,
+                'value' => (int) $monthQuantity
+            ];
+        }
+        
+        // Yearly data (last 5 years)
+        $yearlyData = [];
+        for ($i = 4; $i >= 0; $i--) {
+            $year = now()->subYears($i)->year;
+            
+            $yearQuantity = Donation::where('foodbank_id', $foodbankId)
+                ->where('status', 'collected')
+                ->whereYear('collected_at', $year)
+                ->sum('quantity');
+            
+            $yearlyData[] = [
+                'label' => (string) $year,
+                'value' => (int) $yearQuantity
+            ];
+        }
+        
+        // Top Establishment Contributors
+        $topContributors = DonationRequest::where('foodbank_id', $foodbankId)
+            ->where('status', DonationRequestService::STATUS_COMPLETED)
+            ->with('establishment')
+            ->get()
+            ->groupBy('establishment_id')
+            ->map(function ($requests) {
+                $establishment = $requests->first()->establishment;
+                $completedRequestsCount = $requests->count();
+                return [
+                    'establishment_id' => $requests->first()->establishment_id,
+                    'establishment_name' => $establishment->business_name ?? 'Unknown',
+                    'completed_requests' => $completedRequestsCount,
+                ];
+            })
+            ->sortByDesc('completed_requests')
+            ->take(5)
+            ->values();
+        
+        // Calculate total completed requests for percentage calculation
+        $totalCompletedRequests = DonationRequest::where('foodbank_id', $foodbankId)
+            ->where('status', DonationRequestService::STATUS_COMPLETED)
+            ->count();
+        
+        // Calculate percentages
+        $topContributorsData = $topContributors->map(function ($contributor, $index) use ($totalCompletedRequests) {
+            $percentage = $totalCompletedRequests > 0 ? ($contributor['completed_requests'] / $totalCompletedRequests) * 100 : 0;
+            return [
+                'rank' => $index + 1,
+                'establishment_name' => $contributor['establishment_name'],
+                'completed_requests' => $contributor['completed_requests'],
+                'percentage' => round($percentage, 2),
+            ];
+        })->toArray();
+        
+        $reportDate = now()->format('F j, Y');
+        $dateRange = 'All Time';
+        
+        $data = compact(
+            'foodbankName',
+            'reportDate',
+            'dateRange',
+            'foodRequests',
+            'foodReceived',
+            'dailyData',
+            'monthlyData',
+            'yearlyData',
+            'topContributorsData'
+        );
+        
+        $pdf = Pdf::loadView('foodbank.exports.impact-reports-pdf', $data);
+        $pdf->setPaper('a4', 'portrait');
+        
+        $filename = 'impact_report_' . date('Y-m-d_His') . '.pdf';
+        
+        return $pdf->download($filename);
     }
 
     /**

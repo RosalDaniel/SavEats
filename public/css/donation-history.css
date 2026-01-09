@@ -59,8 +59,8 @@
 }
 
 .export-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    display: flex;
+    justify-content: flex-end;
     gap: 12px;
     align-items: start;
 }
